@@ -6,7 +6,7 @@
     <title>Lumina AI Studio · 上传照片</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --ink: #0e0e12;
@@ -419,19 +419,21 @@
     const params = new URLSearchParams(window.location.search);
     sessionId = params.get('session');
 
-    // 初始化 Supabase（等 SDK defer 加载完）
+    // 初始化 Supabase（同步加载，SDK 已就绪）
     function initSupabase() {
         if (window.supabase) {
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } else {
+            console.warn('Supabase SDK 未加载');
         }
         checkSession();
     }
 
+    // SDK 同步加载，DOMContentLoaded 时直接初始化
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initSupabase);
     } else {
-        // defer 脚本可能还没执行完，等一帧
-        setTimeout(initSupabase, 50);
+        initSupabase();
     }
 
     function checkSession() {
