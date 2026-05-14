@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lumina AI Studio · 上传照片</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --ink:#0e0e12; --ink-soft:#6b6b80; --accent:#5b4fff; --accent-glow:rgba(91,79,255,0.35); --surface:#f4f4f8; --white:#ffffff; --danger:#ff4d6d; --success:#00c48c; --r-xl:24px; --r-2xl:32px; }
+        * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+        html,body { min-height:100%; background:var(--surface); font-family:'Noto Sans SC',sans-serif; color:var(--ink); }
+        .page { max-width:480px; margin:0 auto; min-height:100dvh; display:flex; flex-direction:column; background:var(--white); }
+        .topbar { flex-shrink:0; display:flex; align-items:center; justify-content:center; padding:18px 20px; background:var(--white); border-bottom:1px solid rgba(0,0,0,.06); }
+        .topbar-logo { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:var(--ink); }
+        .topbar-logo span { color:var(--accent); }
+        .body { flex:1; padding:24px 20px 40px; display:flex; flex-direction:column; gap:20px; }
+        .hero-icon { width:80px; height:80px; border-radius:24px; background:linear-gradient(135deg,var(--accent),#8b5cf6); display:flex; align-items:center; justify-content:center; margin:0 auto; box-shadow:0 12px 32px var(--accent-glow); }
+        .hero-icon .material-icons-round { font-size:40px !important; color:#fff; }
+        .page-title { font-family:'Sora',sans-serif; font-size:24px; font-weight:800; text-align:center; color:var(--ink); }
+        .page-sub { font-size:14px; color:var(--ink-soft); text-align:center; line-height:1.6; }
+        .session-badge { display:flex; align-items:center; gap:6px; background:rgba(0,196,140,.08); border:1px solid rgba(0,196,140,.2); border-radius:20px; padding:8px 16px; font-size:12px; font-weight:600; color:var(--success); width:fit-content; margin:0 auto; }
+        .session-badge .material-icons-round { font-size:14px !important; }
+        .session-error { display:flex; align-items:center; gap:6px; background:rgba(255,77,109,.08); border:1px solid rgba(255,77,109,.2); border-radius:20px; padding:8px 16px; font-size:12px; font-weight:600; color:var(--danger); width:fit-content; margin:0 auto; }
+        #photo-input { width:0.1px; height:0.1px; opacity:0; overflow:hidden; position:absolute; z-index:-1; }
+        .file-label { display:flex; flex-direction:column; align-items:center; gap:12px; padding:36px 20px; border:2px dashed rgba(91,79,255,.3); border-radius:var(--r-xl); background:rgba(91,79,255,.03); cursor:pointer; transition:all .15s; -webkit-user-select:none; user-select:none; }
+        .file-label:active { background:rgba(91,79,255,.08); border-color:var(--accent); }
+        .file-label .material-icons-round { font-size:44px !important; color:var(--accent); }
+        .file-label-text { font-size:15px; font-weight:700; color:var(--accent); }
+        .file-label-hint { font-size:11px; color:var(--ink-soft); text-align:center; }
+        .preview-area { display:none; flex-direction:column; align-items:center; gap:16px; }
+        .preview-area.show { display:flex; }
+        .preview-img-wrap { width:100%; max-width:280px; border-radius:var(--r-xl); overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.12); margin:0 auto; }
+        .preview-img-wrap img { width:100%; aspect-ratio:3/4; object-fit:cover; display:block; }
+        .btn-primary { width:100%; padding:18px; border:none; border-radius:var(--r-2xl); background:var(--accent); color:#fff; font-family:'Sora',sans-serif; font-size:17px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 8px 28px var(--accent-glow); transition:transform .12s,opacity .12s; }
+        .btn-primary:active { transform:scale(.97); }
+        .btn-primary:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+        .btn-ghost { width:100%; padding:16px; border:1.5px solid rgba(91,79,255,.3); border-radius:var(--r-2xl); background:transparent; color:var(--accent); font-family:'Sora',sans-serif; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; }
+        .btn-ghost:active { background:rgba(91,79,255,.06); }
+        .error-msg { background:rgba(255,77,109,.08); border:1px solid rgba(255,77,109,.2); border-radius:14px; padding:14px 16px; font-size:13px; color:var(--danger); text-align:center; display:none; line-height:1.6; }
+        .error-msg.show { display:block; }
+        .tips-row { display:flex; gap:8px; }
+        .tip-chip { flex:1; background:var(--surface); border-radius:14px; padding:12px 8px; display:flex; flex-direction:column; align-items:center; gap:5px; font-size:10px; color:var(--ink-soft); text-align:center; font-weight:600; }
+        .tip-chip .material-icons-round { font-size:20px !important; color:var(--accent); }
+        .wechat-banner { position:fixed; top:0; left:0; right:0; z-index:999; background:#ff9800; color:#fff; font-size:13px; font-weight:600; padding:12px 16px; text-align:center; line-height:1.6; display:none; }
+        .wechat-banner.show { display:block; }
+        body.has-wechat-banner .page { padding-top:72px; }
+        .uploading-overlay { position:fixed; inset:0; background:rgba(14,14,18,.92); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); display:none; flex-direction:column; align-items:center; justify-content:center; gap:16px; z-index:100; }
+        .uploading-overlay.show { display:flex; }
+        .uploading-spin { width:60px; height:60px; border:3px solid rgba(255,255,255,.1); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .uploading-text { font-family:'Sora',sans-serif; font-size:18px; font-weight:700; color:#fff; }
+        .uploading-step { font-size:13px; color:rgba(255,255,255,.5); text-align:center; padding:0 20px; }
+        .success-card { display:none; flex-direction:column; align-items:center; gap:16px; padding:20px 0; }
+        .success-card.show { display:flex; }
+        .success-icon { width:88px; height:88px; border-radius:50%; background:rgba(0,196,140,.1); display:flex; align-items:center; justify-content:center; animation:popIn .5s ease-out; }
+        @keyframes popIn { 0%{transform:scale(0);opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+        .success-icon .material-icons-round { font-size:48px !important; color:var(--success); }
+        .success-title { font-family:'Sora',sans-serif; font-size:24px; font-weight:800; color:var(--ink); }
+        .success-sub { font-size:14px; color:var(--ink-soft); text-align:center; line-height:1.6; }
+        .success-note { background:rgba(0,196,140,.06); border:1px solid rgba(0,196,140,.15); border-radius:14px; padding:14px 18px; font-size:13px; color:var(--success); text-align:center; width:100%; font-weight:600; }
+    </style>
+</head>
+<body>
+<div class="wechat-banner" id="wechat-banner">
+    ↗ 请点击右上角「···」→「在浏览器中打开」<br>才能正常选择和上传照片
+</div>
+
+<input type="file" id="photo-input" accept="image/*">
+
+<div class="page">
+    <div class="topbar">
+        <div class="topbar-logo">Lumina <span>AI</span> Studio</div>
+    </div>
+    <div class="body">
+        <div id="upload-card">
+            <div style="display:flex;flex-direction:column;gap:20px">
+                <div class="hero-icon"><span class="material-icons-round">add_photo_alternate</span></div>
+                <div class="page-title">上传照片</div>
+                <div class="page-sub" id="page-sub">从手机相册选择一张清晰的正脸照片<br>上传至大屏 AI 拍照机</div>
+                <div id="session-badge-wrap"></div>
+                <div id="file-pick-area">
+                    <label class="file-label" for="photo-input">
+                        <span class="material-icons-round">add_photo_alternate</span>
+                        <span class="file-label-text">点击选择照片</span>
+                        <span class="file-label-hint">支持 JPG / PNG，建议正面半身照</span>
+                    </label>
+                </div>
+                <div class="preview-area" id="preview-area">
+                    <div class="preview-img-wrap"><img id="preview-img" src="" alt="预览"></div>
+                    <button class="btn-primary" id="upload-btn" onclick="doUpload()">
+                        <span class="material-icons-round">cloud_upload</span>确认上传
+                    </button>
+                    <button class="btn-ghost" onclick="resetSelection()">
+                        <span class="material-icons-round">replay</span>重新选择
+                    </button>
+                </div>
+                <div class="error-msg" id="error-msg"></div>
+                <div class="tips-row">
+                    <div class="tip-chip"><span class="material-icons-round">face</span>正面半身</div>
+                    <div class="tip-chip"><span class="material-icons-round">light_mode</span>光线充足</div>
+                    <div class="tip-chip"><span class="material-icons-round">hd</span>照片清晰</div>
+                    <div class="tip-chip"><span class="material-icons-round">no_accounts</span>单人照片</div>
+                </div>
+            </div>
+        </div>
+        <div class="success-card" id="success-card">
+            <div class="success-icon"><span class="material-icons-round">check_circle</span></div>
+            <div class="success-title">上传成功 🎉</div>
+            <div class="success-sub">照片已同步到大屏<br>请返回大屏继续操作</div>
+            <div class="success-note">✅ 大屏将自动跳转到确认页面</div>
+        </div>
+    </div>
+    <div class="uploading-overlay" id="uploading-overlay">
+        <div class="uploading-spin"></div>
+        <div class="uploading-text">正在上传...</div>
+        <div class="uploading-step" id="upload-step">准备中...</div>
+    </div>
+</div>
+
+<script>
+    if (/MicroMessenger/i.test(navigator.userAgent)) {
+        document.getElementById('wechat-banner').classList.add('show');
+        document.body.classList.add('has-wechat-banner');
+    }
+
+    const SUPABASE_URL = 'https://fuaamwgdbxymxbhmstxc.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1YWFtd2dkYnh5bXhiaG1zdHhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NjQ1OTEsImV4cCI6MjA5NDM0MDU5MX0.bKqwuNPV6iaozjCHBXGyj_sgfJt8oNfngnSyftmqb-g';
+
+    let supabaseClient = null;
+    let selectedFile = null;
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session');
+
+    try {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch(e) { console.error('Supabase init error:', e); }
+
+    function init() {
+        const wrap = document.getElementById('session-badge-wrap');
+        if (!sessionId) {
+            wrap.innerHTML = '<div class="session-error"><span class="material-icons-round">error_outline</span>链接无效，请重新扫码</div>';
+            document.getElementById('file-pick-area').style.opacity = '0.4';
+            document.getElementById('file-pick-area').style.pointerEvents = 'none';
+            document.getElementById('page-sub').textContent = '请返回大屏重新生成二维码';
+            return;
+        }
+        wrap.innerHTML = '<div class="session-badge"><span class="material-icons-round">link</span>已连接 · ' + sessionId.substring(0, 16) + '...</div>';
+        document.getElementById('photo-input').onchange = handleFileSelect;
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    function handleFileSelect(e) {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        if (file.size > 20 * 1024 * 1024) { showError('照片大小不能超过 20MB'); return; }
+        selectedFile = file;
+        hideError();
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            document.getElementById('preview-img').src = ev.target.result;
+            document.getElementById('preview-area').classList.add('show');
+            document.getElementById('file-pick-area').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function resetSelection() {
+        selectedFile = null;
+        document.getElementById('preview-img').src = '';
+        document.getElementById('preview-area').classList.remove('show');
+        document.getElementById('file-pick-area').style.display = '';
+        document.getElementById('photo-input').value = '';
+        hideError();
+    }
+
+    async function doUpload() {
+        if (!selectedFile) { showError('请先选择一张照片'); return; }
+        if (!sessionId)    { showError('链接无效，请重新扫码'); return; }
+        if (!supabaseClient)     { showError('❌ Supabase 未初始化，请刷新页面重试'); return; }
+
+        setStep('📤 第1步：上传图片...');
+        showUploading(true);
+
+        try {
+            const nameParts = (selectedFile.name || '').split('.');
+            const ext = (nameParts.length > 1 ? nameParts.pop() : 'jpg').toLowerCase().replace('heif','heic') || 'jpg';
+            const filePath = 'uploads/' + sessionId + '_' + Date.now() + '.' + ext;
+
+            const { error: uploadError } = await supabaseClient.storage
+                .from('photos')
+                .upload(filePath, selectedFile, { cacheControl:'3600', upsert:true, contentType:selectedFile.type || 'image/jpeg' });
+
+            if (uploadError) throw new Error('图片上传失败：' + uploadError.message);
+
+            setStep('🔗 第2步：获取图片地址...');
+            const { data: urlData } = supabaseClient.storage.from('photos').getPublicUrl(filePath);
+            const imageUrl = urlData.publicUrl;
+
+            setStep('📡 第3步：通知大屏...');
+            const { error: insertError } = await supabaseClient
+                .from('uploads')
+                .insert({ session: sessionId, image_url: imageUrl, uploaded: true });
+
+            if (insertError) throw new Error('通知大屏失败：' + insertError.message);
+
+            setStep('✅ 完成！');
+            showUploading(false);
+            showSuccess();
+
+        } catch (err) {
+            showUploading(false);
+            showError(err.message || '上传失败，请重试');
+            console.error(err);
+        }
+    }
+
+    function setStep(msg) { document.getElementById('upload-step').textContent = msg; }
+    function showUploading(show) {
+        document.getElementById('uploading-overlay').classList.toggle('show', show);
+        document.getElementById('upload-btn').disabled = show;
+    }
+    function showSuccess() {
+        document.getElementById('upload-card').style.display = 'none';
+        document.getElementById('success-card').classList.add('show');
+    }
+    function showError(msg) { const el = document.getElementById('error-msg'); el.textContent = msg; el.classList.add('show'); }
+    function hideError() { document.getElementById('error-msg').classList.remove('show'); }
+</script>
+</body>
+</html>
