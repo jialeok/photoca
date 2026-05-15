@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lumina AI Studio · 上传照片</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --ink:#0e0e12; --ink-soft:#6b6b80; --accent:#5b4fff; --accent-glow:rgba(91,79,255,0.35); --surface:#f4f4f8; --white:#ffffff; --danger:#ff4d6d; --success:#00c48c; --r-xl:24px; --r-2xl:32px; }
+        * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+        html,body { min-height:100%; background:var(--surface); font-family:'Noto Sans SC',sans-serif; color:var(--ink); }
+        .page { max-width:480px; margin:0 auto; min-height:100dvh; display:flex; flex-direction:column; background:var(--white); }
+        .topbar { flex-shrink:0; display:flex; align-items:center; justify-content:center; padding:18px 20px; background:var(--white); border-bottom:1px solid rgba(0,0,0,.06); }
+        .topbar-logo { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:var(--ink); }
+        .topbar-logo span { color:var(--accent); }
+        .body { flex:1; padding:24px 20px 40px; display:flex; flex-direction:column; gap:20px; }
+        .hero-icon { width:80px; height:80px; border-radius:24px; background:linear-gradient(135deg,var(--accent),#8b5cf6); display:flex; align-items:center; justify-content:center; margin:0 auto; box-shadow:0 12px 32px var(--accent-glow); }
+        .hero-icon .material-icons-round { font-size:40px !important; color:#fff; }
+        .page-title { font-family:'Sora',sans-serif; font-size:24px; font-weight:800; text-align:center; color:var(--ink); }
+        .page-sub { font-size:14px; color:var(--ink-soft); text-align:center; line-height:1.6; }
+        .session-badge { display:flex; align-items:center; gap:6px; background:rgba(0,196,140,.08); border:1px solid rgba(0,196,140,.2); border-radius:20px; padding:8px 16px; font-size:12px; font-weight:600; color:var(--success); width:fit-content; margin:0 auto; }
+        .session-badge .material-icons-round { font-size:14px !important; }
+        .session-error { display:flex; align-items:center; gap:6px; background:rgba(255,77,109,.08); border:1px solid rgba(255,77,109,.2); border-radius:20px; padding:8px 16px; font-size:12px; font-weight:600; color:var(--danger); width:fit-content; margin:0 auto; }
+        #photo-input { width:0.1px; height:0.1px; opacity:0; overflow:hidden; position:absolute; z-index:-1; }
+        .file-label { display:flex; flex-direction:column; align-items:center; gap:12px; padding:36px 20px; border:2px dashed rgba(91,79,255,.3); border-radius:var(--r-xl); background:rgba(91,79,255,.03); cursor:pointer; transition:all .15s; -webkit-user-select:none; user-select:none; }
+        .file-label:active { background:rgba(91,79,255,.08); border-color:var(--accent); }
+        .file-label .material-icons-round { font-size:44px !important; color:var(--accent); }
+        .file-label-text { font-size:15px; font-weight:700; color:var(--accent); }
+        .file-label-hint { font-size:11px; color:var(--ink-soft); text-align:center; }
+        .preview-area { display:none; flex-direction:column; align-items:center; gap:16px; }
+        .preview-area.show { display:flex; }
+        .preview-img-wrap { width:100%; max-width:280px; border-radius:var(--r-xl); overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.12); margin:0 auto; }
+        .preview-img-wrap img { width:100%; aspect-ratio:3/4; object-fit:cover; display:block; }
+        .btn-primary { width:100%; padding:18px; border:none; border-radius:var(--r-2xl); background:var(--accent); color:#fff; font-family:'Sora',sans-serif; font-size:17px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 8px 28px var(--accent-glow); transition:transform .12s,opacity .12s; }
+        .btn-primary:active { transform:scale(.97); }
+        .btn-primary:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+        .btn-ghost { width:100%; padding:16px; border:1.5px solid rgba(91,79,255,.3); border-radius:var(--r-2xl); background:transparent; color:var(--accent); font-family:'Sora',sans-serif; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; }
+        .btn-ghost:active { background:rgba(91,79,255,.06); }
+        .error-msg { background:rgba(255,77,109,.08); border:1px solid rgba(255,77,109,.2); border-radius:14px; padding:14px 16px; font-size:13px; color:var(--danger); text-align:center; display:none; line-height:1.6; }
+        .error-msg.show { display:block; }
+        .tips-row { display:flex; gap:8px; }
+        .tip-chip { flex:1; background:var(--surface); border-radius:14px; padding:12px 8px; display:flex; flex-direction:column; align-items:center; gap:5px; font-size:10px; color:var(--ink-soft); text-align:center; font-weight:600; }
+        .tip-chip .material-icons-round { font-size:20px !important; color:var(--accent); }
+        .wechat-banner { position:fixed; top:0; left:0; right:0; z-index:999; background:rgba(255,152,0,0.15); color:#b35c00; font-size:12px; font-weight:600; padding:12px 16px; text-align:center; line-height:1.6; display:none; }
+        .wechat-banner.show { display:block; }
+        body.has-wechat-banner .page { padding-top:72px; }
+        .uploading-overlay { position:fixed; inset:0; background:rgba(14,14,18,.92); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); display:none; flex-direction:column; align-items:center; justify-content:center; gap:16px; z-index:100; }
+        .uploading-overlay.show { display:flex; }
+        .uploading-spin { width:60px; height:60px; border:3px solid rgba(255,255,255,.1); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .uploading-text { font-family:'Sora',sans-serif; font-size:18px; font-weight:700; color:#fff; }
+        .uploading-step { font-size:13px; color:rgba(255,255,255,.5); text-align:center; padding:0 20px; }
+        .success-card { display:none; flex-direction:column; align-items:center; gap:16px; padding:20px 0; }
+        .success-card.show { display:flex; }
+        .success-icon { width:88px; height:88px; border-radius:50%; background:rgba(0,196,140,.1); display:flex; align-items:center; justify-content:center; animation:popIn .5s ease-out; }
+        @keyframes popIn { 0%{transform:scale(0);opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+        .success-icon .material-icons-round { font-size:48px !important; color:var(--success); }
+        .success-title { font-family:'Sora',sans-serif; font-size:24px; font-weight:800; color:var(--ink); }
+        .success-sub { font-size:14px; color:var(--ink-soft); text-align:center; line-height:1.6; }
+        .success-note { background:rgba(0,196,140,.06); border:1px solid rgba(0,196,140,.15); border-radius:14px; padding:14px 18px; font-size:13px; color:var(--success); text-align:center; width:100%; font-weight:600; }
+
+        /* ── AI 结果卡片 ────────────────────────────── */
+        .ai-result-card { display:none; flex-direction:column; align-items:center; gap:20px; padding:20px 0; width:100%; }
+        .ai-result-card.show { display:flex; }
+        .ai-result-label { font-size:12px; font-weight:700; color:var(--ink-soft); letter-spacing:1px; text-transform:uppercase; }
+        .ai-result-img-wrap {
+            width:100%; max-width:320px; border-radius:var(--r-xl);
+            overflow:hidden; box-shadow:0 12px 40px rgba(91,79,255,.2);
+            margin:0 auto; position:relative;
+        }
+        .ai-result-img-wrap img { width:100%; display:block; aspect-ratio:3/4; object-fit:cover; }
+        .ai-style-badge {
+            position:absolute; top:12px; left:12px;
+            background:rgba(91,79,255,.92); color:#fff;
+            font-size:11px; font-weight:700; padding:4px 10px;
+            border-radius:10px; letter-spacing:.5px;
+        }
+        .ai-result-actions { display:flex; flex-direction:column; gap:10px; width:100%; }
+        .btn-download {
+            width:100%; padding:18px; border:none; border-radius:var(--r-2xl);
+            background:linear-gradient(135deg,var(--accent),#8b5cf6);
+            color:#fff; font-family:'Sora',sans-serif; font-size:17px; font-weight:700;
+            cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+            box-shadow:0 8px 28px var(--accent-glow); transition:transform .12s;
+            text-decoration:none;
+        }
+        .btn-download:active { transform:scale(.97); }
+        .btn-retry { width:100%; padding:16px; border:1.5px solid rgba(91,79,255,.3); border-radius:var(--r-2xl); background:transparent; color:var(--accent); font-family:'Sora',sans-serif; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; }
+        .btn-retry:active { background:rgba(91,79,255,.06); }
+    </style>
+</head>
+<body>
+<div class="wechat-banner" id="wechat-banner">
+    如上传遇到问题，请点右上角「···」→「在浏览器中打开」
+</div>
+
+<input type="file" id="photo-input" accept="image/*">
+
+<div class="page">
+    <div class="topbar">
+        <div class="topbar-logo">Lumina <span>AI</span> Studio</div>
+    </div>
+    <div class="body">
+
+        <!-- ── 上传卡片（原有，不动） ── -->
+        <div id="upload-card">
+            <div style="display:flex;flex-direction:column;gap:20px">
+                <div class="hero-icon"><span class="material-icons-round">add_photo_alternate</span></div>
+                <div class="page-title">上传照片</div>
+                <div class="page-sub" id="page-sub">从手机相册选择一张清晰的正脸照片<br>上传至大屏 AI 拍照机</div>
+                <div id="session-badge-wrap"></div>
+                <div id="file-pick-area">
+                    <label class="file-label" for="photo-input">
+                        <span class="material-icons-round">add_photo_alternate</span>
+                        <span class="file-label-text">点击选择照片</span>
+                        <span class="file-label-hint">支持 JPG / PNG，建议正面半身照</span>
+                    </label>
+                </div>
+                <div class="preview-area" id="preview-area">
+                    <div class="preview-img-wrap"><img id="preview-img" src="" alt="预览"></div>
+                    <button class="btn-primary" id="upload-btn" onclick="doUpload()">
+                        <span class="material-icons-round">cloud_upload</span>确认上传
+                    </button>
+                    <button class="btn-ghost" onclick="resetSelection()">
+                        <span class="material-icons-round">replay</span>重新选择
+                    </button>
+                </div>
+                <div class="error-msg" id="error-msg"></div>
+                <div class="tips-row">
+                    <div class="tip-chip"><span class="material-icons-round">face</span>正面半身</div>
+                    <div class="tip-chip"><span class="material-icons-round">light_mode</span>光线充足</div>
+                    <div class="tip-chip"><span class="material-icons-round">hd</span>照片清晰</div>
+                    <div class="tip-chip"><span class="material-icons-round">no_accounts</span>单人照片</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 上传成功卡片（原有，不动） ── -->
+        <div class="success-card" id="success-card">
+            <div class="success-icon"><span class="material-icons-round">check_circle</span></div>
+            <div class="success-title">上传成功 🎉</div>
+            <div class="success-sub">照片已同步到大屏<br>AI 正在为你生成风格图...</div>
+            <div class="success-note" id="success-note">⏳ AI 生成中，请稍候...</div>
+        </div>
+
+        <!-- ══ 新增：AI 结果卡片 ══ -->
+        <div class="ai-result-card" id="ai-result-card">
+            <div class="ai-result-label">✨ AI 风格图</div>
+            <div class="ai-result-img-wrap">
+                <img id="ai-result-img" src="" alt="AI 生成图">
+                <div class="ai-style-badge" id="ai-style-badge"></div>
+            </div>
+            <div class="ai-result-actions">
+                <!-- href 由 JS 动态填充 -->
+                <a class="btn-download" id="download-btn" href="#" download="ai-portrait.jpg">
+                    <span class="material-icons-round">download</span>保存到手机
+                </a>
+                <button class="btn-retry" onclick="retryUpload()">
+                    <span class="material-icons-round">replay</span>重新上传照片
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 全屏加载蒙层 -->
+    <div class="uploading-overlay" id="uploading-overlay">
+        <div class="uploading-spin"></div>
+        <div class="uploading-text" id="uploading-title">正在上传...</div>
+        <div class="uploading-step" id="upload-step">准备中...</div>
+    </div>
+</div>
+
+<script>
+    // ── 微信检测 ───────────────────────────────────────────
+    if (/MicroMessenger/i.test(navigator.userAgent)) {
+        document.getElementById('wechat-banner').classList.add('show');
+        document.body.classList.add('has-wechat-banner');
+    }
+
+    // ── 配置（与原来完全一致） ─────────────────────────────
+    const SUPABASE_URL     = 'https://fuaamwgdbxymxbhmstxc.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1YWFtd2dkYnh5bXhiaG1zdHhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NjQ1OTEsImV4cCI6MjA5NDM0MDU5MX0.bKqwuNPV6iaozjCHBXGyj_sgfJt8oNfngnSyftmqb-g';
+
+    // ★ 修改这里：你的 Edge Function 地址
+    const EDGE_FUNCTION_URL = SUPABASE_URL + '/functions/v1/clever-handler';
+
+    // 风格 key → 中文名（用于显示）
+    const STYLE_NAMES = {
+        angel:    '天使风',
+        anime:    '动漫风',
+        princess: '公主风',
+        dream:    '梦幻风',
+        ink:      '水墨风',
+        romantic: '浪漫光影',
+        ceramic:  '陶瓷娃娃',
+        clay:     '丑萌粘土',
+        doll:     '可爱玩偶',
+    };
+
+    let supabaseClient = null;
+    let selectedFile   = null;
+    let uploadedUrl    = null;  // 上传后的图片 URL
+    let aiPollingTimer = null;  // 轮询定时器
+
+    const params    = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session');
+    // 从 URL 获取风格，大屏生成二维码时带上 &style=angel
+    const styleKey  = params.get('style') || 'angel';
+
+    try {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch(e) { console.error('Supabase init error:', e); }
+
+    // ── 初始化（原逻辑不变） ──────────────────────────────
+    function init() {
+        const wrap = document.getElementById('session-badge-wrap');
+        if (!sessionId) {
+            wrap.innerHTML = '<div class="session-error"><span class="material-icons-round">error_outline</span>链接无效，请重新扫码</div>';
+            document.getElementById('file-pick-area').style.opacity     = '0.4';
+            document.getElementById('file-pick-area').style.pointerEvents = 'none';
+            document.getElementById('page-sub').textContent = '请返回大屏重新生成二维码';
+            return;
+        }
+        wrap.innerHTML = '<div class="session-badge"><span class="material-icons-round">link</span>已连接 · ' + sessionId.substring(0, 16) + '...</div>';
+        document.getElementById('photo-input').onchange = handleFileSelect;
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    // ── 文件选择（原逻辑不变） ────────────────────────────
+    function handleFileSelect(e) {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        if (file.size > 20 * 1024 * 1024) { showError('照片大小不能超过 20MB'); return; }
+        selectedFile = file;
+        hideError();
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            document.getElementById('preview-img').src = ev.target.result;
+            document.getElementById('preview-area').classList.add('show');
+            document.getElementById('file-pick-area').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function resetSelection() {
+        selectedFile = null;
+        document.getElementById('preview-img').src = '';
+        document.getElementById('preview-area').classList.remove('show');
+        document.getElementById('file-pick-area').style.display = '';
+        document.getElementById('photo-input').value = '';
+        hideError();
+    }
+
+    // ── 主上传流程（在原有基础上增加 AI 调用） ────────────
+    async function doUpload() {
+        if (!selectedFile) { showError('请先选择一张照片'); return; }
+        if (!sessionId)    { showError('链接无效，请重新扫码'); return; }
+        if (!supabaseClient) { showError('❌ Supabase 未初始化，请刷新页面重试'); return; }
+
+        // ── 步骤 1：上传图片到 Storage（原逻辑不变）
+        setStep('📤 第1步：上传图片...');
+        showUploading(true, '正在上传...');
+
+        try {
+            const nameParts = (selectedFile.name || '').split('.');
+            const ext = (nameParts.length > 1 ? nameParts.pop() : 'jpg').toLowerCase().replace('heif','heic') || 'jpg';
+            const filePath = 'uploads/' + sessionId + '_' + Date.now() + '.' + ext;
+
+            const { error: uploadError } = await supabaseClient.storage
+                .from('photos')
+                .upload(filePath, selectedFile, { cacheControl:'3600', upsert:true, contentType: selectedFile.type || 'image/jpeg' });
+
+            if (uploadError) throw new Error('图片上传失败：' + uploadError.message);
+
+            setStep('🔗 第2步：获取图片地址...');
+            const { data: urlData } = supabaseClient.storage.from('photos').getPublicUrl(filePath);
+            uploadedUrl = urlData.publicUrl;
+
+            // ── 步骤 2：通知大屏（原逻辑不变）
+            setStep('📡 第3步：通知大屏...');
+            const { error: insertError } = await supabaseClient
+                .from('uploads')
+                .insert({ session: sessionId, image_url: uploadedUrl, uploaded: true });
+
+            if (insertError) throw new Error('通知大屏失败：' + insertError.message);
+
+            // ── 步骤 3：调用 AI 风格化（新增）
+            setStep('🎨 第4步：AI 风格化生成中...');
+            showUploading(true, 'AI 生成中...');
+
+            const aiRes = await fetch(EDGE_FUNCTION_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    image_url:  uploadedUrl,
+                    style:      styleKey,
+                }),
+            });
+
+            const aiData = await aiRes.json();
+
+            if (!aiRes.ok || !aiData.success) {
+                // AI 失败 → 仍然显示上传成功，不阻断流程
+                console.error('AI 生成失败:', aiData.error);
+                showUploading(false);
+                showUploadSuccess('❌ AI 生成失败，请在大屏重试');
+                return;
+            }
+
+            // ── 步骤 4：展示 AI 结果
+            setStep('✅ 完成！');
+            showUploading(false);
+            showAIResult(aiData.ai_image_url, styleKey);
+
+        } catch (err) {
+            showUploading(false);
+            showError(err.message || '上传失败，请重试');
+            console.error(err);
+        }
+    }
+
+    // ── 展示上传成功（中间态，AI 生成前） ────────────────
+    function showUploadSuccess(note) {
+        document.getElementById('upload-card').style.display = 'none';
+        document.getElementById('success-note').textContent  = note || '✅ 大屏将自动跳转到确认页面';
+        document.getElementById('success-card').classList.add('show');
+    }
+
+    // ── 展示 AI 结果（新增） ──────────────────────────────
+    function showAIResult(aiUrl, style) {
+        // 隐藏上传卡片
+        document.getElementById('upload-card').style.display  = 'none';
+        document.getElementById('success-card').classList.remove('show');
+
+        // 填充图片
+        const img = document.getElementById('ai-result-img');
+        img.src = aiUrl;
+
+        // 风格标签
+        document.getElementById('ai-style-badge').textContent = STYLE_NAMES[style] || style;
+
+        // 下载按钮：fetch blob 后触发下载（绕过跨域限制）
+        const dlBtn = document.getElementById('download-btn');
+        dlBtn.onclick = async (e) => {
+            e.preventDefault();
+            try {
+                const res  = await fetch(aiUrl);
+                const blob = await res.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href     = blobUrl;
+                a.download = 'ai-portrait-' + (STYLE_NAMES[style] || style) + '.jpg';
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 3000);
+            } catch {
+                // fetch 失败时直接打开图片让用户长按保存
+                window.open(aiUrl, '_blank');
+            }
+        };
+
+        // 显示结果卡片
+        document.getElementById('ai-result-card').classList.add('show');
+    }
+
+    // ── 重新上传 ──────────────────────────────────────────
+    function retryUpload() {
+        document.getElementById('ai-result-card').classList.remove('show');
+        document.getElementById('success-card').classList.remove('show');
+        document.getElementById('upload-card').style.display = '';
+        resetSelection();
+    }
+
+    // ── 工具函数（原有，不变）────────────────────────────
+    function setStep(msg) {
+        document.getElementById('upload-step').textContent = msg;
+    }
+    function showUploading(show, title) {
+        document.getElementById('uploading-overlay').classList.toggle('show', show);
+        document.getElementById('upload-btn').disabled = show;
+        if (title) document.getElementById('uploading-title').textContent = title;
+    }
+    function showError(msg) {
+        const el = document.getElementById('error-msg');
+        el.textContent = msg;
+        el.classList.add('show');
+    }
+    function hideError() {
+        document.getElementById('error-msg').classList.remove('show');
+    }
+</script>
+</body>
+</html>
