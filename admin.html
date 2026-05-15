@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumina CMS · 后台管理</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --ink: #0e0e12;
+            --ink-soft: #6b6b80;
+            --accent: #5b4fff;
+            --accent-glow: rgba(91,79,255,0.25);
+            --accent-light: rgba(91,79,255,0.08);
+            --surface: #f4f4f8;
+            --surface2: #ebebf3;
+            --white: #ffffff;
+            --danger: #ff4d6d;
+            --danger-light: rgba(255,77,109,0.1);
+            --success: #00c48c;
+            --success-light: rgba(0,196,140,0.1);
+            --warning: #f59e0b;
+            --border: rgba(0,0,0,0.07);
+            --sidebar-w: 240px;
+            --r-sm: 12px;
+            --r-md: 18px;
+            --r-lg: 24px;
+            --r-xl: 32px;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 20px rgba(0,0,0,0.09);
+            --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        html, body { min-height: 100%; background: var(--surface); font-family: 'Noto Sans SC', sans-serif; color: var(--ink); }
+
+        /* ── Top Bar ── */
+        .topbar {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+            height: 56px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center;
+            padding: 0 20px; gap: 14px;
+        }
+        .topbar-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; }
+        .topbar-logo-icon {
+            width: 32px; height: 32px; background: var(--accent);
+            border-radius: 9px; display: flex; align-items: center; justify-content: center;
+        }
+        .topbar-logo-icon .material-icons-round { font-size: 17px !important; color: #fff; }
+        .topbar-logo-name { font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 800; color: var(--ink); }
+        .topbar-badge {
+            font-size: 10px; font-weight: 700; background: var(--accent-light);
+            color: var(--accent); padding: 2px 7px; border-radius: 20px;
+        }
+        .topbar-sep { flex: 1; }
+        .topbar-status {
+            display: flex; align-items: center; gap: 6px;
+            padding: 5px 11px; background: var(--surface); border-radius: 20px;
+            font-size: 12px; font-weight: 600; color: var(--ink-soft);
+        }
+        .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #ccc; transition: background 0.3s; }
+        .status-dot.connected { background: var(--success); box-shadow: 0 0 0 2px var(--success-light); }
+        .status-dot.connecting { background: var(--warning); animation: pulse 1s infinite; }
+        .status-dot.error { background: var(--danger); }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+        /* ── Layout ── */
+        .layout { display: flex; padding-top: 56px; min-height: 100vh; }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            position: fixed; left: 0; top: 56px; bottom: 0; width: var(--sidebar-w);
+            background: var(--white); border-right: 1px solid var(--border);
+            padding: 20px 12px; overflow-y: auto; z-index: 100;
+        }
+        .sidebar-section-label {
+            font-size: 10px; font-weight: 700; color: var(--ink-soft);
+            letter-spacing: 1px; text-transform: uppercase;
+            padding: 0 12px; margin-bottom: 8px; margin-top: 16px;
+        }
+        .sidebar-section-label:first-child { margin-top: 0; }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px; border-radius: var(--r-sm);
+            font-size: 13px; font-weight: 600; color: var(--ink-soft);
+            cursor: pointer; transition: all .15s; border: none;
+            background: transparent; width: 100%; text-align: left;
+            position: relative;
+        }
+        .nav-item:hover { background: var(--surface); color: var(--ink); }
+        .nav-item.active { background: var(--accent-light); color: var(--accent); }
+        .nav-item .material-icons-round { font-size: 18px !important; flex-shrink: 0; }
+        .nav-item .nav-badge {
+            margin-left: auto; min-width: 20px; height: 20px;
+            background: var(--danger); color: #fff;
+            border-radius: 10px; font-size: 10px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            padding: 0 5px;
+        }
+
+        /* ── Main content ── */
+        .main {
+            margin-left: var(--sidebar-w);
+            flex: 1; padding: 28px 28px 80px;
+            display: none;
+        }
+        .main.active { display: block; }
+
+        /* ── Section Header ── */
+        .section-header {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            margin-bottom: 24px; gap: 16px; flex-wrap: wrap;
+        }
+        .section-title { font-family: 'Sora', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -.4px; }
+        .section-sub { font-size: 12px; color: var(--ink-soft); margin-top: 3px; }
+
+        /* ── Card ── */
+        .card {
+            background: var(--white); border-radius: var(--r-lg);
+            box-shadow: var(--shadow-sm); overflow: hidden;
+        }
+        .card-header {
+            padding: 18px 22px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        }
+        .card-title {
+            display: flex; align-items: center; gap: 8px;
+            font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700;
+        }
+        .card-title .material-icons-round { font-size: 17px !important; color: var(--accent); }
+        .card-body { padding: 22px; }
+
+        /* ── Stats ── */
+        .stats-row {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 14px; margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--white); border-radius: var(--r-md);
+            padding: 18px 20px; box-shadow: var(--shadow-sm);
+            display: flex; align-items: center; gap: 14px;
+        }
+        .stat-icon {
+            width: 42px; height: 42px; border-radius: 11px;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .stat-icon.purple { background: var(--accent-light); color: var(--accent); }
+        .stat-icon.green  { background: var(--success-light); color: var(--success); }
+        .stat-icon.red    { background: var(--danger-light); color: var(--danger); }
+        .stat-icon.amber  { background: rgba(245,158,11,.1); color: var(--warning); }
+        .stat-icon .material-icons-round { font-size: 20px !important; }
+        .stat-val { font-family: 'Sora', sans-serif; font-size: 22px; font-weight: 800; line-height: 1; margin-bottom: 3px; }
+        .stat-label { font-size: 11px; color: var(--ink-soft); font-weight: 500; }
+
+        /* ── Buttons ── */
+        .btn-primary {
+            padding: 10px 20px; border: none; border-radius: var(--r-sm);
+            background: var(--accent); color: #fff;
+            font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
+            box-shadow: 0 4px 14px var(--accent-glow);
+            transition: transform .12s, box-shadow .12s, opacity .12s;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px var(--accent-glow); }
+        .btn-primary:active { transform: scale(.97); }
+        .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
+        .btn-primary .material-icons-round { font-size: 16px !important; }
+        .btn-ghost {
+            padding: 9px 16px; border: 1.5px solid var(--border);
+            border-radius: var(--r-sm); background: transparent;
+            color: var(--ink-soft); font-family: 'Noto Sans SC', sans-serif;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 6px;
+            transition: background .15s, border-color .15s;
+        }
+        .btn-ghost:hover { background: var(--surface); border-color: #d0d0da; }
+        .btn-ghost .material-icons-round { font-size: 15px !important; }
+        .btn-danger {
+            padding: 7px 12px; border: none; border-radius: var(--r-sm);
+            background: var(--danger-light); color: var(--danger);
+            font-size: 12px; font-weight: 700; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 5px;
+            transition: background .15s;
+        }
+        .btn-danger:hover { background: rgba(255,77,109,.18); }
+        .btn-danger .material-icons-round { font-size: 13px !important; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+        /* ── Form elements ── */
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-label { font-size: 12px; font-weight: 700; color: var(--ink); letter-spacing: .3px; }
+        .form-input {
+            padding: 10px 13px; border: 1.5px solid #e2e2ec;
+            border-radius: var(--r-sm); font-size: 13px;
+            font-family: 'Noto Sans SC', sans-serif; color: var(--ink);
+            background: var(--surface); outline: none;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); background: var(--white); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .toggle-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 11px 13px; background: var(--surface); border-radius: var(--r-sm);
+        }
+        .toggle-label { font-size: 13px; font-weight: 600; color: var(--ink); }
+        .toggle-label small { display: block; font-size: 11px; font-weight: 400; color: var(--ink-soft); margin-top: 1px; }
+        .toggle-switch { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute; inset: 0; border-radius: 12px;
+            background: #d0d0da; cursor: pointer; transition: background .2s;
+        }
+        .toggle-slider::before {
+            content: ''; position: absolute;
+            width: 18px; height: 18px; border-radius: 50%;
+            background: #fff; left: 3px; top: 3px;
+            transition: transform .2s; box-shadow: 0 1px 4px rgba(0,0,0,.2);
+        }
+        .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+        /* ── Upload zone ── */
+        .upload-zone {
+            border: 2px dashed rgba(91,79,255,.3); border-radius: var(--r-md);
+            padding: 36px 20px; text-align: center; cursor: pointer;
+            background: var(--accent-light); transition: all .2s; position: relative;
+        }
+        .upload-zone:hover, .upload-zone.drag-over {
+            border-color: var(--accent); background: rgba(91,79,255,.12);
+        }
+        .upload-zone input[type="file"] {
+            position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+        }
+        .upload-zone-icon {
+            width: 52px; height: 52px; background: var(--accent); border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 12px; box-shadow: 0 6px 18px var(--accent-glow);
+        }
+        .upload-zone-icon .material-icons-round { font-size: 26px !important; color: #fff; }
+        .upload-zone h3 { font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 700; margin-bottom: 5px; }
+        .upload-zone p { font-size: 12px; color: var(--ink-soft); line-height: 1.6; }
+
+        .upload-preview { margin-top: 18px; display: none; }
+        .upload-preview.show { display: block; }
+        .upload-preview-inner { display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
+        .upload-preview-img {
+            width: 110px; height: 147px; border-radius: var(--r-md);
+            object-fit: cover; box-shadow: var(--shadow-md); flex-shrink: 0;
+        }
+        .upload-form-fields { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 12px; }
+
+        .progress-wrap { margin-top: 12px; display: none; }
+        .progress-wrap.show { display: block; }
+        .progress-bar-track { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; margin-bottom: 6px; }
+        .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .3s ease; width: 0%; }
+        .progress-text { font-size: 12px; color: var(--ink-soft); }
+
+        /* ── Styles grid ── */
+        .styles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px; padding: 20px 22px;
+        }
+        .style-item {
+            background: var(--surface); border-radius: var(--r-md);
+            overflow: hidden; border: 1.5px solid var(--border);
+            transition: box-shadow .2s, transform .2s; position: relative;
+        }
+        .style-item:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+        .style-item.disabled { opacity: .55; }
+        .style-item-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; background: var(--surface2); }
+        .style-item-body { padding: 12px; }
+        .style-item-name {
+            font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700;
+            margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .style-item-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+        .meta-chip { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 7px; letter-spacing: .3px; }
+        .meta-chip.cat { background: rgba(91,79,255,.1); color: var(--accent); }
+        .meta-chip.enabled { background: var(--success-light); color: var(--success); }
+        .meta-chip.disabled-chip { background: var(--surface2); color: var(--ink-soft); }
+        .style-item-actions { display: flex; gap: 7px; }
+        .edit-btn {
+            flex: 1; padding: 7px 10px; border: 1.5px solid var(--border);
+            border-radius: var(--r-sm); background: var(--white); color: var(--ink);
+            font-size: 11px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 4px;
+            transition: background .15s; font-family: 'Noto Sans SC', sans-serif;
+        }
+        .edit-btn:hover { background: var(--surface2); }
+        .edit-btn .material-icons-round { font-size: 13px !important; }
+        .style-item-badge {
+            position: absolute; top: 8px; right: 8px;
+            background: rgba(255,255,255,.92); backdrop-filter: blur(8px);
+            border-radius: 7px; padding: 2px 7px;
+            font-size: 9px; font-weight: 700;
+        }
+        .style-item-badge.on { color: var(--success); }
+        .style-item-badge.off { color: var(--ink-soft); }
+        .sort-badge {
+            position: absolute; top: 8px; left: 8px;
+            background: rgba(14,14,18,.65); color: #fff;
+            font-size: 10px; font-weight: 700; border-radius: 7px;
+            padding: 2px 7px; font-family: 'Sora', sans-serif;
+        }
+
+        /* skeleton */
+        .skeleton-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px; padding: 20px 22px;
+        }
+        .skeleton { border-radius: var(--r-md); background: #eee; animation: shimmer 1.5s infinite; }
+        @keyframes shimmer { 0%,100%{background:#eee} 50%{background:#e3e3ec} }
+
+        .styles-empty { padding: 60px 20px; text-align: center; color: var(--ink-soft); }
+        .styles-empty .material-icons-round { font-size: 44px !important; color: #d0d0da; display: block; margin-bottom: 10px; }
+        .styles-empty h3 { font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 5px; }
+        .styles-empty p { font-size: 13px; line-height: 1.6; }
+
+        /* search bar */
+        .search-bar {
+            display: flex; align-items: center; gap: 7px;
+            background: var(--surface); border: 1.5px solid var(--border);
+            border-radius: var(--r-sm); padding: 7px 12px;
+            transition: border-color .15s;
+        }
+        .search-bar:focus-within { border-color: var(--accent); }
+        .search-bar .material-icons-round { font-size: 16px !important; color: var(--ink-soft); }
+        .search-bar input {
+            border: none; background: transparent; font-size: 13px;
+            font-family: 'Noto Sans SC', sans-serif; color: var(--ink); outline: none; width: 150px;
+        }
+        .count-badge {
+            background: var(--accent-light); color: var(--accent);
+            font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 9px;
+        }
+
+        /* ── PREVIEW PANEL: frontend screen mockup ── */
+        .preview-panel {
+            display: grid;
+            grid-template-columns: minmax(0,1fr) 320px;
+            gap: 20px; align-items: start;
+        }
+        .phone-mockup {
+            width: 320px; flex-shrink: 0; position: sticky; top: 84px;
+        }
+        .phone-frame {
+            background: #0e0e12; border-radius: 36px;
+            padding: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.1);
+            position: relative;
+        }
+        .phone-screen {
+            background: var(--surface); border-radius: 26px;
+            overflow: hidden; aspect-ratio: 9/16; position: relative;
+        }
+
+        /* ══════ PAGE: HOME MOCKUP ══════ */
+        .mock-home-hero {
+            height: 58%; background: linear-gradient(135deg,#667eea,#764ba2);
+            position: relative; overflow: hidden;
+        }
+        .mock-home-hero img { width:100%;height:100%;object-fit:cover;opacity:.9; }
+        .mock-hero-label {
+            position:absolute;top:10px;left:50%;transform:translateX(-50%);
+            background:rgba(255,255,255,.9);border-radius:14px;
+            padding:3px 12px;font-size:9px;font-weight:700;letter-spacing:1px;white-space:nowrap;
+        }
+        .mock-lang-btn {
+            position:absolute;top:10px;right:10px;
+            background:rgba(255,255,255,.9);border-radius:8px;
+            padding:3px 8px;font-size:8px;font-weight:600;
+        }
+        .mock-origin-thumb {
+            position:absolute;bottom:10px;left:10px;
+            width:44px;border-radius:8px;overflow:hidden;border:2px solid #fff;
+            box-shadow:0 2px 8px rgba(0,0,0,.25);
+        }
+        .mock-origin-thumb img { width:100%;aspect-ratio:3/4;object-fit:cover;display:block; }
+        .mock-home-bottom {
+            flex:1;background:#fff;padding:12px 14px 14px;
+            display:flex;flex-direction:column;gap:10px;
+        }
+        .mock-cta-btn {
+            border:2px solid var(--ink);border-radius:20px;
+            padding:10px;font-size:10px;font-weight:700;letter-spacing:1px;text-align:center;
+        }
+        .mock-steps { display:flex;gap:6px; }
+        .mock-step {
+            flex:1;border:1.5px solid #e0e0ea;border-radius:10px;
+            overflow:hidden;display:flex;flex-direction:column;
+        }
+        .mock-step-header { padding:4px 6px;font-size:7px;font-weight:700;color:var(--ink-soft); }
+        .mock-step-img { flex:1;min-height:46px;overflow:hidden; }
+        .mock-step-img img { width:100%;height:100%;object-fit:cover;display:block; }
+        .mock-step-ph {
+            flex:1;min-height:46px;background:var(--surface);
+            display:flex;align-items:center;justify-content:center;
+        }
+        .mock-step-ph .material-icons-round { font-size:18px!important;color:#c0c0d0; }
+
+        /* ══════ PAGE: STYLE MOCKUP ══════ */
+        .mock-topbar {
+            background:#fff;padding:10px 14px;
+            display:flex;align-items:center;justify-content:space-between;
+            border-bottom:1px solid rgba(0,0,0,.06);
+        }
+        .mock-topbar-title { font-family:'Sora',sans-serif;font-size:11px;font-weight:700; }
+        .mock-filter-nav {
+            background:#fff;padding:8px 10px;
+            border-bottom:1px solid rgba(0,0,0,.06);
+        }
+        .mock-filter-row {
+            display:grid;grid-template-columns:repeat(5,1fr);gap:5px;
+        }
+        .mock-filter-chip {
+            padding:5px 2px;border-radius:8px;border:1.5px solid transparent;
+            background:var(--surface);font-size:7px;font-weight:600;
+            text-align:center;color:var(--ink-soft);
+        }
+        .mock-filter-chip.active { background:var(--ink);color:#fff; }
+        .mock-style-grid {
+            display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px;
+        }
+        .mock-style-card {
+            background:#fff;border-radius:14px;overflow:hidden;
+            box-shadow:0 1px 6px rgba(0,0,0,.06); position:relative;
+        }
+        .mock-style-card img { width:100%;aspect-ratio:3/4;object-fit:cover;display:block; }
+        .mock-style-name { padding:6px;text-align:center;font-size:7px;font-weight:700; }
+
+        /* ── Map table ── */
+        .map-table { width:100%;border-collapse:collapse; }
+        .map-table th {
+            background:var(--surface);padding:10px 16px;
+            font-size:11px;font-weight:700;color:var(--ink-soft);
+            text-align:left;border-bottom:1px solid var(--border);
+        }
+        .map-table td {
+            padding:12px 16px;border-bottom:1px solid var(--border);
+            font-size:13px;vertical-align:middle;
+        }
+        .map-table tr:last-child td { border-bottom:none; }
+        .map-table tr:hover td { background:rgba(91,79,255,.03); }
+        .page-tag {
+            display:inline-flex;align-items:center;gap:5px;
+            padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;
+        }
+        .page-tag.home { background:rgba(91,79,255,.1);color:var(--accent); }
+        .page-tag.style { background:rgba(0,196,140,.1);color:var(--success); }
+        .page-tag.result { background:rgba(245,158,11,.1);color:var(--warning); }
+        .page-tag.attract { background:rgba(14,14,18,.08);color:var(--ink); }
+        .location-tag {
+            display:inline-block;padding:2px 8px;border-radius:6px;
+            font-size:10px;font-weight:700;background:var(--surface2);color:var(--ink-soft);
+        }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(14,14,18,.6);
+            backdrop-filter: blur(8px); z-index: 1000;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px; opacity: 0; pointer-events: none; transition: opacity .25s;
+        }
+        .modal-overlay.show { opacity: 1; pointer-events: all; }
+        .modal-card {
+            background: var(--white); border-radius: var(--r-xl);
+            padding: 28px; width: 100%; max-width: 500px;
+            max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg);
+            transform: scale(.95) translateY(10px); transition: transform .25s;
+        }
+        .modal-overlay.show .modal-card { transform: scale(1) translateY(0); }
+        .modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 22px;
+        }
+        .modal-title { font-family: 'Sora', sans-serif; font-size: 17px; font-weight: 800; }
+        .modal-close {
+            width: 34px; height: 34px; border-radius: 50%; border: none;
+            background: var(--surface); color: var(--ink-soft);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: background .15s;
+        }
+        .modal-close:hover { background: var(--surface2); }
+        .modal-close .material-icons-round { font-size: 18px !important; }
+        .modal-preview {
+            width: 100%; max-width: 160px; aspect-ratio: 3/4;
+            object-fit: cover; border-radius: var(--r-md);
+            margin: 0 auto 20px; display: block; box-shadow: var(--shadow-md);
+        }
+        .modal-form { display: flex; flex-direction: column; gap: 13px; }
+        .modal-footer {
+            display: flex; justify-content: flex-end; gap: 10px;
+            margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border);
+        }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: var(--ink); color: #fff; padding: 12px 20px;
+            border-radius: 14px; font-size: 13px; font-weight: 600;
+            display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 8px 32px rgba(0,0,0,.25); z-index: 9999;
+            opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none;
+            white-space: nowrap;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast.success .material-icons-round { color: var(--success); }
+        .toast.error .material-icons-round { color: var(--danger); }
+        .toast .material-icons-round { font-size: 16px !important; }
+
+        /* ── Inline help hint ── */
+        .hint-box {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 12px 14px; background: rgba(91,79,255,.06);
+            border: 1px solid rgba(91,79,255,.15); border-radius: var(--r-sm);
+            font-size: 12px; color: var(--ink-soft); line-height: 1.5;
+        }
+        .hint-box .material-icons-round { font-size: 16px !important; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+
+        /* ── Section divider label ── */
+        .divider-label {
+            display: flex; align-items: center; gap: 10px;
+            color: var(--ink-soft); font-size: 11px; font-weight: 700;
+            letter-spacing: .5px; text-transform: uppercase; margin: 20px 0 14px;
+        }
+        .divider-label::after {
+            content:''; flex:1; height:1px; background:var(--border);
+        }
+
+        /* ── Bottom Nav (mobile) ── */
+        .bottom-nav {
+            display: none;
+            position: fixed; bottom: 0; left: 0; right: 0; z-index: 300;
+            background: rgba(255,255,255,.97);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border);
+            padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+        }
+        .bottom-nav-inner {
+            display: flex; justify-content: space-around; align-items: center;
+        }
+        .bnav-item {
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+            padding: 4px 12px; border: none; background: transparent;
+            color: var(--ink-soft); font-size: 10px; font-weight: 600;
+            font-family: 'Noto Sans SC', sans-serif; cursor: pointer;
+            border-radius: 12px; transition: color .15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .bnav-item .material-icons-round { font-size: 22px !important; }
+        .bnav-item.active { color: var(--accent); }
+        .bnav-item.active .material-icons-round { }
+
+        /* ── Responsive ── */
+        @media (max-width: 860px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; padding: 20px 16px 90px; }
+            .layout { padding-top: 56px; }
+            .bottom-nav { display: block; }
+            .preview-panel { grid-template-columns: 1fr; }
+            .phone-mockup { display: none; }
+            /* map table: stack rows instead of wide columns */
+            .map-table thead { display: none; }
+            .map-table, .map-table tbody, .map-table tr, .map-table td { display: block; width: 100%; }
+            .map-table tr {
+                border-bottom: 1px solid var(--border);
+                padding: 12px 0;
+            }
+            .map-table tr:last-child { border-bottom: none; }
+            .map-table td {
+                padding: 3px 16px; border-bottom: none;
+                font-size: 12px;
+            }
+            .map-table td:first-child { padding-top: 8px; }
+            .map-table td:last-child { padding-bottom: 8px; }
+            /* section header wrap */
+            .section-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .section-header > div:last-child { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+            /* form row: stack on very small screens */
+            .form-row { grid-template-columns: 1fr; }
+            /* stats */
+            .stats-row { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+            .stat-card { padding: 14px; gap: 10px; }
+            .stat-val { font-size: 18px; }
+            /* search bar full width */
+            .search-bar input { width: 100px; }
+            /* styles grid 2 cols on mobile */
+            .styles-grid { grid-template-columns: repeat(2, 1fr); padding: 14px; gap: 12px; }
+            .skeleton-grid { grid-template-columns: repeat(2, 1fr); padding: 14px; gap: 12px; }
+            /* card header wrap */
+            .card-header { flex-wrap: wrap; }
+            /* upload preview stack */
+            .upload-preview-inner { flex-direction: column; }
+            .upload-preview-img { width: 100%; max-width: 160px; height: auto; margin: 0 auto; }
+            .upload-form-fields { min-width: unset; }
+            /* toast full width */
+            .toast { left: 16px; right: 16px; transform: translateY(20px); white-space: normal; width: auto; }
+            .toast.show { transform: translateY(0); }
+        }
+        @media (max-width: 400px) {
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .stat-card:last-child { grid-column: 1 / -1; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══ Topbar ══ -->
+<header class="topbar">
+    <a class="topbar-logo" href="#">
+        <div class="topbar-logo-icon"><span class="material-icons-round">auto_awesome</span></div>
+        <span class="topbar-logo-name">Lumina</span>
+        <span class="topbar-badge">CMS</span>
+    </a>
+    <div class="topbar-sep"></div>
+    <div class="topbar-status">
+        <div class="status-dot connecting" id="status-dot"></div>
+        <span id="status-text">连接中…</span>
+    </div>
+</header>
+
+<div class="layout">
+
+<!-- ══ Sidebar ══ -->
+<aside class="sidebar">
+    <div class="sidebar-section-label">概览</div>
+    <button class="nav-item active" data-page="dashboard" onclick="navTo('dashboard',this)">
+        <span class="material-icons-round">dashboard</span>
+        总览
+    </button>
+
+    <div class="sidebar-section-label">前台映射</div>
+    <button class="nav-item" data-page="page-home" onclick="navTo('page-home',this)">
+        <span class="material-icons-round">home</span>
+        首页
+    </button>
+    <button class="nav-item" data-page="page-style" onclick="navTo('page-style',this)">
+        <span class="material-icons-round">style</span>
+        风格选择页
+    </button>
+    <button class="nav-item" data-page="page-attract" onclick="navTo('page-attract',this)">
+        <span class="material-icons-round">slideshow</span>
+        待机吸引页
+    </button>
+    <button class="nav-item" data-page="page-result" onclick="navTo('page-result',this)">
+        <span class="material-icons-round">photo_library</span>
+        结果页
+    </button>
+
+    <div class="sidebar-section-label">内容管理</div>
+    <button class="nav-item" data-page="styles-mgmt" onclick="navTo('styles-mgmt',this)">
+        <span class="material-icons-round">grid_view</span>
+        风格库管理
+    </button>
+    <button class="nav-item" data-page="add-style" onclick="navTo('add-style',this)">
+        <span class="material-icons-round">add_photo_alternate</span>
+        新增风格
+    </button>
+
+    <div class="sidebar-section-label">系统</div>
+    <button class="nav-item" data-page="settings" onclick="navTo('settings',this)">
+        <span class="material-icons-round">settings</span>
+        配置
+    </button>
+</aside>
+
+<!-- ══════════════════════════════════════
+     PAGE: DASHBOARD
+══════════════════════════════════════ -->
+<main class="main active" id="page-dashboard">
+    <div class="section-header">
+        <div>
+            <div class="section-title">总览</div>
+            <div class="section-sub">Lumina AI Studio 后台管理系统</div>
+        </div>
+    </div>
+
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon purple"><span class="material-icons-round">style</span></div>
+            <div><div class="stat-val" id="stat-total">—</div><div class="stat-label">全部风格</div></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon green"><span class="material-icons-round">visibility</span></div>
+            <div><div class="stat-val" id="stat-enabled">—</div><div class="stat-label">已启用</div></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon red"><span class="material-icons-round">visibility_off</span></div>
+            <div><div class="stat-val" id="stat-disabled">—</div><div class="stat-label">已隐藏</div></div>
+        </div>
+    </div>
+
+    <!-- Map overview table -->
+    <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+            <div class="card-title"><span class="material-icons-round">map</span>前台页面 → 后台配置对照表</div>
+        </div>
+        <table class="map-table">
+            <thead>
+                <tr>
+                    <th>前台页面</th>
+                    <th>可配置内容</th>
+                    <th>位置/字段</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="page-tag home">首页</span></td>
+                    <td>Hero 效果图、原始照缩略图、步骤卡图片、CTA 文字</td>
+                    <td><span class="location-tag">.home-hero-img</span> <span class="location-tag">.home-origin-thumb</span></td>
+                    <td><button class="btn-ghost btn-sm" onclick="navTo('page-home',document.querySelector('[data-page=page-home]'))"><span class="material-icons-round">edit</span>编辑</button></td>
+                </tr>
+                <tr>
+                    <td><span class="page-tag style">风格选择页</span></td>
+                    <td>风格图片、风格名称、分类标签、排序、启用/隐藏</td>
+                    <td><span class="location-tag">.style-card img</span> <span class="location-tag">.style-card-name</span></td>
+                    <td><button class="btn-ghost btn-sm" onclick="navTo('styles-mgmt',document.querySelector('[data-page=styles-mgmt]'))"><span class="material-icons-round">edit</span>管理</button></td>
+                </tr>
+                <tr>
+                    <td><span class="page-tag attract">待机吸引页</span></td>
+                    <td>背景图/视频、滚动风格标签文字</td>
+                    <td><span class="location-tag">#scr-attract</span> <span class="location-tag">.attract-tags</span></td>
+                    <td><button class="btn-ghost btn-sm" onclick="navTo('page-attract',document.querySelector('[data-page=page-attract]'))"><span class="material-icons-round">edit</span>编辑</button></td>
+                </tr>
+                <tr>
+                    <td><span class="page-tag result">结果页</span></td>
+                    <td>效果展示缩略图、样式标签文字</td>
+                    <td><span class="location-tag">.result-thumb</span> <span class="location-tag">#result-style-label</span></td>
+                    <td><button class="btn-ghost btn-sm" onclick="navTo('page-result',document.querySelector('[data-page=page-result]'))"><span class="material-icons-round">edit</span>查看</button></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title"><span class="material-icons-round">grid_view</span>风格快览</div>
+            <button class="btn-ghost btn-sm" onclick="navTo('styles-mgmt',document.querySelector('[data-page=styles-mgmt]'))">
+                <span class="material-icons-round">open_in_new</span>全部
+            </button>
+        </div>
+        <div id="dashboard-style-preview" class="styles-grid" style="padding:16px 20px">
+            <!-- filled by JS -->
+        </div>
+    </div>
+</main>
+
+<!-- ══════════════════════════════════════
+     PAGE: HOME (首页映射)
+══════════════════════════════════════ -->
+<main class="main" id="page-page-home">
+    <div class="section-header">
+        <div>
+            <div class="section-title">首页配置</div>
+            <div class="section-sub">对应前台 <code>#scr-home</code> 页面，右侧实时预览</div>
+        </div>
+    </div>
+
+    <div class="preview-panel">
+        <div>
+            <!-- Hero image -->
+            <div class="card" style="margin-bottom:20px">
+                <div class="card-header">
+                    <div class="card-title"><span class="material-icons-round">image</span>Hero 效果图（大图区域 58%）</div>
+                </div>
+                <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+                    <div class="hint-box">
+                        <span class="material-icons-round">info</span>
+                        这是首页最上方占 58% 高度的大图，展示 AI 生成效果，建议尺寸 3:4 竖向图。
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">图片 URL（或上传后填入 Supabase 公开链接）</label>
+                        <input class="form-input" id="home-hero-url" type="text" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">顶部标签文字（默认：效果图）</label>
+                        <input class="form-input" id="home-hero-label" type="text" placeholder="效果图">
+                    </div>
+                    <button class="btn-primary" onclick="showToast('此功能需在 potoca_v9_fixed.html 中修改对应变量','success')">
+                        <span class="material-icons-round">save</span>预览 / 复制配置
+                    </button>
+                </div>
+            </div>
+
+            <!-- Origin thumb -->
+            <div class="card" style="margin-bottom:20px">
+                <div class="card-header">
+                    <div class="card-title"><span class="material-icons-round">photo_camera</span>原始照缩略图（左下角）</div>
+                </div>
+                <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+                    <div class="hint-box">
+                        <span class="material-icons-round">info</span>
+                        Hero 图左下角的小缩略图，展示"用户原始照片"对比用途。
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">缩略图 URL</label>
+                        <input class="form-input" id="home-thumb-url" type="text" placeholder="https://...">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Steps -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title"><span class="material-icons-round">view_week</span>步骤卡片（3张）</div>
+                </div>
+                <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+                    <div class="hint-box">
+                        <span class="material-icons-round">info</span>
+                        首页底部三个步骤演示卡，step 1（上传）和 step 3（打印）用图标，step 2（AI）显示示例图片。
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Step 2 示例图片 URL（中间的 AI 效果演示图）</label>
+                        <input class="form-input" id="home-step2-url" type="text" placeholder="https://...">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phone mockup -->
+        <div class="phone-mockup">
+            <div class="phone-frame">
+                <div class="phone-screen" style="display:flex;flex-direction:column">
+                    <div class="mock-home-hero" id="mock-hero">
+                        <img id="mock-hero-img" src="https://picsum.photos/seed/hero-preview/400/600" alt="">
+                        <div class="mock-hero-label" id="mock-hero-lbl">效果图</div>
+                        <div class="mock-lang-btn">中/EN</div>
+                        <div class="mock-origin-thumb">
+                            <img id="mock-thumb-img" src="https://picsum.photos/seed/origin/100/133" alt="">
+                        </div>
+                    </div>
+                    <div class="mock-home-bottom">
+                        <div class="mock-cta-btn">立即拍摄 / Take Photo</div>
+                        <div class="mock-steps">
+                            <div class="mock-step">
+                                <div class="mock-step-header">STEP 1</div>
+                                <div class="mock-step-ph"><span class="material-icons-round">camera_alt</span></div>
+                            </div>
+                            <div class="mock-step">
+                                <div class="mock-step-header">STEP 2</div>
+                                <div class="mock-step-img"><img id="mock-step2" src="https://picsum.photos/seed/step2/120/160" alt=""></div>
+                            </div>
+                            <div class="mock-step">
+                                <div class="mock-step-header">STEP 3</div>
+                                <div class="mock-step-ph"><span class="material-icons-round">print</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p style="text-align:center;font-size:11px;color:var(--ink-soft);margin-top:10px">前台首页预览（示意）</p>
+        </div>
+    </div>
+</main>
+
+<!-- ══════════════════════════════════════
+     PAGE: STYLE PAGE 映射
+══════════════════════════════════════ -->
+<main class="main" id="page-page-style">
+    <div class="section-header">
+        <div>
+            <div class="section-title">风格选择页</div>
+            <div class="section-sub">对应前台 <code>#scr-style</code>，管理前台展示的风格卡片</div>
+        </div>
+        <button class="btn-primary" onclick="navTo('add-style',document.querySelector('[data-page=add-style]'))">
+            <span class="material-icons-round">add</span>新增风格
+        </button>
+    </div>
+
+    <div class="preview-panel">
+        <div>
+            <div class="card" style="margin-bottom:20px">
+                <div class="card-header">
+                    <div class="card-title"><span class="material-icons-round">info</span>页面结构说明</div>
+                </div>
+                <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+                    <div class="hint-box">
+                        <span class="material-icons-round">touch_app</span>
+                        <div>
+                            前台风格页顶部有<strong>分类筛选栏</strong>（由风格的 <code>category</code> 字段自动生成），
+                            下方是 <strong>2列风格卡片网格</strong>。每张卡片包含：封面图、风格名称、NEW 徽章（排序最前的）。
+                            下方"风格库管理"可增删改所有风格。
+                        </div>
+                    </div>
+                    <div class="hint-box" style="background:rgba(0,196,140,.06);border-color:rgba(0,196,140,.2)">
+                        <span class="material-icons-round" style="color:var(--success)">lightbulb</span>
+                        <div>
+                            <strong>小技巧：</strong>分类标签填写相同的字符串（如「梦幻风」「复古风」），前台筛选栏会自动汇总并显示。
+                            排序数字越小越靠前，排序最靠前的风格会显示「NEW」徽章。
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title"><span class="material-icons-round">grid_view</span>当前风格列表</div>
+                    <span class="count-badge" id="style-page-count">加载中</span>
+                </div>
+                <div id="style-page-grid" class="styles-grid"></div>
+                <div id="style-page-empty" class="styles-empty" style="display:none">
+                    <span class="material-icons-round">photo_library</span>
+                    <h3>暂无风格</h3><p>点击「新增风格」开始添加</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phone mockup: style screen -->
+        <div class="phone-mockup">
+            <div class="phone-frame">
+                <div class="phone-screen" style="display:flex;flex-direction:column;overflow:hidden">
+                    <div class="mock-topbar">
+                        <span style="font-size:16px;color:var(--ink-soft)" class="material-icons-round">arrow_back</span>
+                        <span class="mock-topbar-title">选择风格</span>
+                        <span style="font-size:11px;font-weight:600;color:var(--ink-soft)">跳过</span>
+                    </div>
+                    <div class="mock-filter-nav">
+                        <div class="mock-filter-row">
+                            <div class="mock-filter-chip active">全部</div>
+                            <div class="mock-filter-chip" id="mock-cat-1">梦幻风</div>
+                            <div class="mock-filter-chip" id="mock-cat-2">复古风</div>
+                            <div class="mock-filter-chip" id="mock-cat-3">艺术</div>
+                            <div class="mock-filter-chip">更多</div>
+                        </div>
+                    </div>
+                    <div style="flex:1;overflow:hidden">
+                        <div class="mock-style-grid" id="mock-style-grid">
+                            <!-- filled by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p style="text-align:center;font-size:11px;color:var(--ink-soft);margin-top:10px">风格选择页预览（示意）</p>
+        </div>
+    </div>
+</main>
+
+<!-- ══════════════════════════════════════
+     PAGE: ATTRACT PAGE 映射
+══════════════════════════════════════ -->
+<main class="main" id="page-page-attract">
+    <div class="section-header">
+        <div>
+            <div class="section-title">待机吸引页</div>
+            <div class="section-sub">对应前台 <code>#scr-attract</code>，设备无操作时展示</div>
+        </div>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+            <div class="card-title"><span class="material-icons-round">info</span>页面结构说明</div>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+            <div class="hint-box">
+                <span class="material-icons-round">info</span>
+                <div>
+                    待机吸引页结构：<br>
+                    1. <strong>全屏背景图/视频</strong>（<code>.attract-bg</code>）— 目前使用 picsum 占位图，建议替换为真实品牌图<br>
+                    2. <strong>Logo + 标题</strong>（<code>.attract-title</code>）<br>
+                    3. <strong>点击开始按钮</strong>（<code>.attract-tap-ring</code>）<br>
+                    4. <strong>底部滚动风格标签</strong>（<code>.attract-tags-inner</code>）— 自动从风格库读取风格名称
+                </div>
+            </div>
+            <div class="hint-box" style="background:rgba(245,158,11,.06);border-color:rgba(245,158,11,.25)">
+                <span class="material-icons-round" style="color:var(--warning)">construction</span>
+                <div>
+                    待机页背景图在前台代码 <code>potoca_v9_fixed.html</code> 中 <code>#scr-attract</code> 区域的
+                    <code>background-image</code> 样式替换。底部标签文字由风格库的 <code>name</code> 字段自动生成，
+                    <strong>管理风格名称即可自动更新标签</strong>。
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title"><span class="material-icons-round">label</span>当前滚动标签（来自风格库）</div>
+        </div>
+        <div class="card-body">
+            <div id="attract-tags-preview" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px">
+                <span style="color:var(--ink-soft);font-size:13px">加载中…</span>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- ══════════════════════════════════════
+     PAGE: RESULT PAGE 映射
+══════════════════════════════════════ -->
+<main class="main" id="page-page-result">
+    <div class="section-header">
+        <div>
+            <div class="section-title">结果页</div>
+            <div class="section-sub">对应前台 <code>#scr-result</code>，AI 生成后的展示页</div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title"><span class="material-icons-round">info</span>页面结构说明</div>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+            <div class="hint-box">
+                <span class="material-icons-round">info</span>
+                <div>
+                    结果页包含：<br>
+                    1. <strong>大图主显示</strong>（<code>#result-main-img</code>）— 由 AI 生成，运行时动态填充<br>
+                    2. <strong>4张缩略图选择</strong>（<code>.result-thumb</code>）— 对应 JS 变量 <code>resultPhotos[]</code><br>
+                    3. <strong>风格名称标签</strong>（<code>#result-style-label</code>）— 自动显示已选风格名<br>
+                    4. <strong>底部操作栏</strong>：打印、分享按钮
+                </div>
+            </div>
+            <div class="hint-box" style="background:rgba(245,158,11,.06);border-color:rgba(245,158,11,.25)">
+                <span class="material-icons-round" style="color:var(--warning)">construction</span>
+                <div>
+                    结果页的缩略图在前台 JS 的 <code>resultPhotos</code> 数组中配置（约 4909 行附近），
+                    修改数组中的图片 URL 即可更换结果页示例图。
+                </div>
+            </div>
+            <div style="background:var(--surface2);border-radius:var(--r-sm);padding:14px;font-family:monospace;font-size:12px;color:var(--ink);line-height:1.8">
+                <strong>potoca_v9_fixed.html 约第 4909 行：</strong><br>
+                const resultPhotos = [<br>
+                &nbsp;&nbsp;'https://picsum.photos/seed/<strong style="color:var(--accent)">result-v1</strong>/400/533',<br>
+                &nbsp;&nbsp;'https://picsum.photos/seed/<strong style="color:var(--accent)">result-v2</strong>/400/533',<br>
+                &nbsp;&nbsp;'https://picsum.photos/seed/<strong style="color:var(--accent)">result-v3</strong>/400/533',<br>
+                &nbsp;&nbsp;'https://picsum.photos/seed/<strong style="color:var(--accent)">result-v4</strong>/400/533',<br>
+                ];
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- ══════════════════════════════════════
+     PAGE: STYLES MANAGEMENT
+══════════════════════════════════════ -->
+<main class="main" id="page-styles-mgmt">
+    <div class="section-header">
+        <div>
+            <div class="section-title">风格库管理</div>
+            <div class="section-sub">增删改查所有 AI 风格，保存后前台立即生效</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <div class="search-bar">
+                <span class="material-icons-round">search</span>
+                <input type="text" placeholder="搜索风格名称" id="mgmt-search" oninput="filterMgmtStyles(this.value)">
+            </div>
+            <button class="btn-primary" onclick="navTo('add-style',document.querySelector('[data-page=add-style]'))">
+                <span class="material-icons-round">add</span>新增风格
+            </button>
+            <button class="btn-ghost" onclick="loadStyles()">
+                <span class="material-icons-round">refresh</span>刷新
+            </button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title"><span class="material-icons-round">grid_view</span>所有风格</div>
+            <span class="count-badge" id="mgmt-count">加载中</span>
+        </div>
+        <div id="mgmt-loading" class="skeleton-grid">
+            <div class="skeleton" style="aspect-ratio:3/4;border-radius:18px"></div>
+            <div class="skeleton" style="aspect-ratio:3/4;border-radius:18px;animation-delay:.15s"></div>
+            <div class="skeleton" style="aspect-ratio:3/4;border-radius:18px;animation-delay:.3s"></div>
+            <div class="skeleton" style="aspect-ratio:3/4;border-radius:18px;animation-delay:.45s"></div>
+        </div>
+        <div id="mgmt-grid" class="styles-grid" style="display:none"></div>
+        <div id="mgmt-empty" class="styles-empty" style="display:none">
+            <span class="material-icons-round">photo_library</span>
+            <h3>暂无风格数据</h3>
+            <p>点击上方「新增风格」开始添加</p>
+        </div>
+    </div>
+</main>
+
+<!-- ══════════════════════════════════════
+     PAGE: ADD STYLE
+══════════════════════════════════════ -->
+<main class="main" id="page-add-style">
+    <div class="section-header">
+        <div>
+            <div class="section-title">新增风格</div>
+            <div class="section-sub">上传图片 + 填写信息，保存后前台风格选择页自动展示</div>
+        </div>
+    </div>
+
+    <div style="max-width:720px;display:flex;flex-direction:column;gap:20px">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title"><span class="material-icons-round">cloud_upload</span>上传风格图片</div>
+            </div>
+            <div class="card-body">
+                <div class="upload-zone" id="add-upload-zone"
+                     ondragover="handleDragOver(event,'add-upload-zone')"
+                     ondragleave="handleDragLeave('add-upload-zone')"
+                     ondrop="handleDrop(event,'add')">
+                    <input type="file" id="add-img-input" accept="image/*" onchange="handleFileSelect(event,'add')">
+                    <div class="upload-zone-icon"><span class="material-icons-round">add_photo_alternate</span></div>
+                    <h3>拖拽或点击上传风格图片</h3>
+                    <p>支持 JPG / PNG / WebP · 建议 3:4 竖向图 · 最大 10MB</p>
+                </div>
+
+                <div class="upload-preview" id="add-upload-preview">
+                    <div class="upload-preview-inner">
+                        <img class="upload-preview-img" id="add-preview-img" src="" alt="预览">
+                        <div class="upload-form-fields">
+                            <div class="form-group">
+                                <label class="form-label">风格名称 *</label>
+                                <input class="form-input" id="add-field-name" type="text" placeholder="例：天使风、古风、赛博朋克">
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">分类标签</label>
+                                    <input class="form-input" id="add-field-category" type="text" placeholder="梦幻风">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">排序（小→前）</label>
+                                    <input class="form-input" id="add-field-sort" type="number" value="100" min="0">
+                                </div>
+                            </div>
+                            <div class="toggle-row">
+                                <div class="toggle-label">立即启用<small>开启后前台可见</small></div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="add-field-enabled" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="progress-wrap" id="add-progress">
+                        <div class="progress-bar-track"><div class="progress-bar-fill" id="add-progress-fill"></div></div>
+                        <p class="progress-text" id="add-progress-text">准备上传…</p>
+                    </div>
+
+                    <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+                        <button class="btn-primary" id="add-save-btn" onclick="saveNewStyle()">
+                            <span class="material-icons-round">save</span>保存风格
+                        </button>
+                        <button class="btn-ghost" onclick="resetAddForm()">
+                            <span class="material-icons-round">refresh</span>重新选择
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hint-box">
+            <span class="material-icons-round">lightbulb</span>
+            <div>
+                保存成功后，前台「风格选择页」会立即自动显示新风格。
+                分类标签相同的风格会被归为一组，出现在前台顶部筛选栏中。
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- ══════════════════════════════════════
+     PAGE: SETTINGS
+══════════════════════════════════════ -->
+<main class="main" id="page-settings">
+    <div class="section-header">
+        <div>
+            <div class="section-title">系统配置</div>
+            <div class="section-sub">Supabase 连接信息</div>
+        </div>
+    </div>
+    <div class="card" style="max-width:640px">
+        <div class="card-header">
+            <div class="card-title"><span class="material-icons-round">cloud</span>Supabase 配置</div>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+            <div class="form-group">
+                <label class="form-label">Project URL</label>
+                <input class="form-input" id="cfg-url" type="text" value="https://fuaamwgdbxymxbhmstxc.supabase.co" readonly>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Anon Key</label>
+                <input class="form-input" id="cfg-key" type="password" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1YWFtd2dkYnh5bXhiaG1zdHhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NjQ1OTEsImV4cCI6MjA5NDM0MDU5MX0.bKqwuNPV6iaozjCHBXGyj_sgfJt8oNfngnSyftmqb-g" readonly>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Storage Bucket</label>
+                <input class="form-input" id="cfg-bucket" type="text" value="style-images" readonly>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Database Table</label>
+                <input class="form-input" type="text" value="styles" readonly>
+            </div>
+            <div class="hint-box" style="background:rgba(255,77,109,.06);border-color:rgba(255,77,109,.2);margin-top:4px">
+                <span class="material-icons-round" style="color:var(--danger)">shield</span>
+                <div>
+                    <strong>⚠️ 如果新增风格报错 "row-level security policy"</strong>，需要在 Supabase 后台开启写入权限：<br><br>
+                    1. 打开 <strong>supabase.com</strong> → 你的项目<br>
+                    2. 左侧 <strong>Table Editor</strong> → <code>styles</code> 表 → 右上角 <strong>RLS</strong><br>
+                    3. 点 <strong>Add Policy</strong> → 选 <em>Enable insert/update/delete for all users</em><br>
+                    4. 左侧 <strong>Storage</strong> → <code>style-images</code> bucket → <strong>Policies</strong><br>
+                    5. 添加 <strong>INSERT</strong> 权限给 <code>anon</code> 角色
+                </div>
+            </div>
+            <div class="hint-box">
+                <span class="material-icons-round">info</span>
+                配置修改后请同步更新 <code>potoca_v9_fixed.html</code> 中的 <code>SUPABASE_URL</code> 和 <code>SUPABASE_ANON_KEY</code> 变量。
+            </div>
+        </div>
+    </div>
+</main>
+
+</div><!-- /.layout -->
+<!-- ══ Mobile Bottom Nav ══ -->
+<nav class="bottom-nav" id="bottom-nav">
+    <div class="bottom-nav-inner">
+        <button class="bnav-item active" id="bnav-0" onclick="navMobile('dashboard',this)">
+            <span class="material-icons-round">dashboard</span>总览
+        </button>
+        <button class="bnav-item" id="bnav-1" onclick="navMobile('styles-mgmt',this)">
+            <span class="material-icons-round">grid_view</span>风格库
+        </button>
+        <button class="bnav-item" id="bnav-2" onclick="navMobile('add-style',this)">
+            <span class="material-icons-round">add_photo_alternate</span>新增
+        </button>
+        <button class="bnav-item" id="bnav-3" onclick="navMobile('page-style',this)">
+            <span class="material-icons-round">style</span>映射
+        </button>
+        <button class="bnav-item" id="bnav-4" onclick="navMobile('settings',this)">
+            <span class="material-icons-round">settings</span>配置
+        </button>
+    </div>
+</nav>
+
+<!-- ══ Edit Modal ══ -->
+<div class="modal-overlay" id="edit-modal">
+    <div class="modal-card">
+        <div class="modal-header">
+            <span class="modal-title">编辑风格</span>
+            <button class="modal-close" onclick="closeEditModal()"><span class="material-icons-round">close</span></button>
+        </div>
+        <img class="modal-preview" id="modal-preview-img" src="" alt="预览">
+        <div class="modal-form">
+            <div class="form-group">
+                <label class="form-label">风格名称 *</label>
+                <input class="form-input" id="edit-name" type="text">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">分类标签</label>
+                    <input class="form-input" id="edit-category" type="text">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">排序</label>
+                    <input class="form-input" id="edit-sort" type="number" min="0">
+                </div>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-label">启用显示<small>关闭后前台不可见</small></div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="edit-enabled">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="form-group">
+                <label class="form-label">替换图片（可选）</label>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <input type="file" id="edit-img-input" accept="image/*" onchange="handleEditImagePreview(event)" style="display:none">
+                    <button class="btn-ghost" onclick="document.getElementById('edit-img-input').click()">
+                        <span class="material-icons-round">image</span>选择新图片
+                    </button>
+                    <span style="font-size:12px;color:var(--ink-soft)" id="edit-img-name"></span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-ghost" onclick="closeEditModal()">取消</button>
+            <button class="btn-primary" id="edit-save-btn" onclick="saveEditStyle()">
+                <span class="material-icons-round">check</span>保存修改
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ Toast ══ -->
+<div class="toast" id="toast">
+    <span class="material-icons-round" id="toast-icon">check_circle</span>
+    <span id="toast-msg"></span>
+</div>
+
+<script>
+    /* ──────────────────────────────────────────────
+       CONFIG
+    ────────────────────────────────────────────── */
+    const SUPABASE_URL  = 'https://fuaamwgdbxymxbhmstxc.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1YWFtd2dkYnh5bXhiaG1zdHhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NjQ1OTEsImV4cCI6MjA5NDM0MDU5MX0.bKqwuNPV6iaozjCHBXGyj_sgfJt8oNfngnSyftmqb-g';
+    const BUCKET_NAME   = 'style-images';
+
+    let sbClient        = null;
+    let allStylesData   = [];
+    let editingStyleId  = null;
+    let editNewImageFile = null;
+    let addSelectedFile  = null;
+
+    /* ──────────────────────────────────────────────
+       INIT
+    ────────────────────────────────────────────── */
+
+    function navMobile(page, btnEl) {
+        navTo(page, null);
+        document.querySelectorAll('.bnav-item').forEach(b => b.classList.remove('active'));
+        if (btnEl) btnEl.classList.add('active');
+    }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+        try {
+            sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            setStatus('connected', '已连接');
+            await loadStyles();
+        } catch(e) {
+            setStatus('error', '连接失败');
+            showToast('Supabase 连接失败: ' + e.message, 'error');
+        }
+    });
+
+    function setStatus(state, text) {
+        document.getElementById('status-dot').className = 'status-dot ' + state;
+        document.getElementById('status-text').textContent = text;
+    }
+
+    /* ──────────────────────────────────────────────
+       NAVIGATION
+    ────────────────────────────────────────────── */
+    function navTo(page, btnEl) {
+        // hide all mains
+        document.querySelectorAll('.main').forEach(m => m.classList.remove('active'));
+        document.getElementById('page-' + page).classList.add('active');
+        // update sidebar
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+        if (btnEl) btnEl.classList.add('active');
+    }
+
+    /* ──────────────────────────────────────────────
+       LOAD STYLES FROM SUPABASE
+    ────────────────────────────────────────────── */
+    async function loadStyles() {
+        if (!sbClient) return;
+        try {
+            const { data, error } = await sbClient
+                .from('styles')
+                .select('*')
+                .order('sort', { ascending: true });
+            if (error) throw error;
+            allStylesData = data || [];
+            refreshAllViews();
+        } catch(err) {
+            showToast('加载失败: ' + err.message, 'error');
+        }
+    }
+
+    function refreshAllViews() {
+        const data = allStylesData;
+        const total   = data.length;
+        const enabled = data.filter(s => s.enabled).length;
+
+        // stats
+        setEl('stat-total',   total);
+        setEl('stat-enabled', enabled);
+        setEl('stat-disabled', total - enabled);
+
+        // dashboard quick preview (first 6)
+        renderGrid('dashboard-style-preview', data.slice(0,6), false);
+
+        // styles-mgmt
+        setEl('mgmt-count', total + ' 个风格');
+        document.getElementById('mgmt-loading').style.display = 'none';
+        renderGrid('mgmt-grid', data, true);
+        document.getElementById('mgmt-empty').style.display = total ? 'none' : 'block';
+        document.getElementById('mgmt-grid').style.display = total ? 'grid' : 'none';
+
+        // style page count
+        setEl('style-page-count', enabled + ' 个已启用');
+        renderGrid('style-page-grid', data.filter(s=>s.enabled), false);
+        document.getElementById('style-page-empty').style.display = enabled ? 'none' : 'block';
+
+        // attract tags
+        const tagsEl = document.getElementById('attract-tags-preview');
+        tagsEl.innerHTML = data.filter(s=>s.enabled).map(s =>
+            `<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;
+                background:var(--surface2);border-radius:20px;font-size:12px;font-weight:600;color:var(--ink-soft)">
+                <span class="material-icons-round" style="font-size:13px!important;color:var(--accent)">auto_awesome</span>
+                ${s.name}
+            </span>`
+        ).join('') || '<span style="color:var(--ink-soft);font-size:13px">暂无已启用风格</span>';
+
+        // phone mockup style grid (first 4 enabled)
+        const mockGrid = document.getElementById('mock-style-grid');
+        if (mockGrid) {
+            mockGrid.innerHTML = data.filter(s=>s.enabled).slice(0,4).map(s => `
+                <div class="mock-style-card">
+                    <img src="${getPublicUrl(s.image)}" alt="${s.name}" onerror="this.src='https://picsum.photos/seed/${s.id}/120/160'">
+                    <div class="mock-style-name">${s.name}</div>
+                </div>
+            `).join('') || '';
+        }
+    }
+
+    function renderGrid(containerId, data, showActions) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        if (!data.length) { el.innerHTML = ''; return; }
+        el.innerHTML = data.map(style => {
+            const imgUrl = getPublicUrl(style.image);
+            return `
+            <div class="style-item ${style.enabled ? '' : 'disabled'}" data-id="${style.id}">
+                <div style="position:relative">
+                    <img class="style-item-img" src="${imgUrl}" alt="${style.name}"
+                         onerror="this.src='https://picsum.photos/seed/${style.id}/300/400'">
+                    <div class="sort-badge">#${style.sort ?? '—'}</div>
+                    <div class="style-item-badge ${style.enabled ? 'on' : 'off'}">
+                        ${style.enabled ? '✓ 显示中' : '✗ 已隐藏'}
+                    </div>
+                </div>
+                <div class="style-item-body">
+                    <div class="style-item-name" title="${style.name}">${style.name}</div>
+                    <div class="style-item-meta">
+                        ${style.category ? `<span class="meta-chip cat">${style.category}</span>` : ''}
+                        <span class="meta-chip ${style.enabled ? 'enabled' : 'disabled-chip'}">
+                            ${style.enabled ? '启用' : '隐藏'}
+                        </span>
+                    </div>
+                    ${showActions ? `
+                    <div class="style-item-actions">
+                        <button class="edit-btn" onclick="openEditModal(${style.id})">
+                            <span class="material-icons-round">edit</span>编辑
+                        </button>
+                        <button class="btn-danger" onclick="deleteStyle(${style.id},'${style.name.replace(/'/g,'&#39;')}')">
+                            <span class="material-icons-round">delete</span>
+                        </button>
+                    </div>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function filterMgmtStyles(q) {
+        const query = q.trim().toLowerCase();
+        const filtered = query
+            ? allStylesData.filter(s => s.name.toLowerCase().includes(query) || (s.category||'').toLowerCase().includes(query))
+            : allStylesData;
+        renderGrid('mgmt-grid', filtered, true);
+        setEl('mgmt-count', filtered.length + ' 个风格');
+    }
+
+    /* ──────────────────────────────────────────────
+       PUBLIC URL
+    ────────────────────────────────────────────── */
+    function getPublicUrl(imagePath) {
+        if (!imagePath) return 'https://picsum.photos/seed/placeholder/300/400';
+        if (imagePath.startsWith('http')) return imagePath;
+        return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${imagePath}`;
+    }
+
+    /* ──────────────────────────────────────────────
+       ADD STYLE — FILE HANDLING
+    ────────────────────────────────────────────── */
+    function handleDragOver(e, zoneId) {
+        e.preventDefault();
+        document.getElementById(zoneId).classList.add('drag-over');
+    }
+    function handleDragLeave(zoneId) {
+        document.getElementById(zoneId).classList.remove('drag-over');
+    }
+    function handleDrop(e, prefix) {
+        e.preventDefault();
+        document.getElementById(prefix + '-upload-zone').classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) processAddFile(file);
+    }
+    function handleFileSelect(e, prefix) {
+        const file = e.target.files[0];
+        if (file) processAddFile(file);
+    }
+    function processAddFile(file) {
+        if (file.size > 10 * 1024 * 1024) { showToast('图片不能超过 10MB', 'error'); return; }
+        addSelectedFile = file;
+        const reader = new FileReader();
+        reader.onload = ev => {
+            document.getElementById('add-preview-img').src = ev.target.result;
+            document.getElementById('add-upload-preview').classList.add('show');
+            document.getElementById('add-upload-zone').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function resetAddForm() {
+        addSelectedFile = null;
+        document.getElementById('add-upload-preview').classList.remove('show');
+        document.getElementById('add-upload-zone').style.display = 'block';
+        document.getElementById('add-img-input').value = '';
+        document.getElementById('add-field-name').value = '';
+        document.getElementById('add-field-category').value = '';
+        document.getElementById('add-field-sort').value = '100';
+        document.getElementById('add-field-enabled').checked = true;
+        document.getElementById('add-progress').classList.remove('show');
+        setAddProgress(0, '准备上传…');
+    }
+
+    function setAddProgress(pct, text) {
+        document.getElementById('add-progress-fill').style.width = pct + '%';
+        document.getElementById('add-progress-text').textContent = text;
+    }
+
+    /* ──────────────────────────────────────────────
+       UPLOAD HELPER — 原生 fetch 直传，绕过手机端 SDK CORS 问题
+    ────────────────────────────────────────────── */
+    async function uploadFileDirect(file, fileName) {
+        // 读取为 ArrayBuffer
+        const buf = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload  = () => res(r.result);
+            r.onerror = () => rej(new Error('文件读取失败'));
+            r.readAsArrayBuffer(file);
+        });
+        const url = `${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/${fileName}`;
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'apikey':        SUPABASE_ANON_KEY,
+                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+                'Content-Type':  file.type || 'image/jpeg',
+                'Cache-Control': '31536000',
+                'x-upsert':      'false'
+            },
+            body: buf
+        });
+        if (!resp.ok) {
+            const txt = await resp.text().catch(() => resp.status);
+            throw new Error('图片上传失败: ' + txt);
+        }
+    }
+
+    /* ──────────────────────────────────────────────
+       SAVE NEW STYLE
+    ────────────────────────────────────────────── */
+    async function saveNewStyle() {
+        if (!sbClient) { showToast('Supabase 未连接', 'error'); return; }
+        if (!addSelectedFile) { showToast('请先选择一张图片', 'error'); return; }
+
+        const name = document.getElementById('add-field-name').value.trim();
+        if (!name) { document.getElementById('add-field-name').focus(); showToast('请填写风格名称', 'error'); return; }
+
+        const category = document.getElementById('add-field-category').value.trim() || null;
+        const sort      = parseInt(document.getElementById('add-field-sort').value) || 100;
+        const enabled   = document.getElementById('add-field-enabled').checked;
+
+        const btn = document.getElementById('add-save-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-icons-round">hourglass_top</span> 上传中…';
+
+        document.getElementById('add-progress').classList.add('show');
+        setAddProgress(15, '正在上传图片…');
+
+        try {
+            // 1. Upload image via direct fetch（手机端兼容）
+            const ext      = (addSelectedFile.name.split('.').pop() || 'jpg').toLowerCase();
+            const fileName = 'style_' + Date.now() + '_' + Math.random().toString(36).substring(2,8) + '.' + ext;
+
+            await uploadFileDirect(addSelectedFile, fileName);
+            setAddProgress(65, '图片已上传，正在保存数据…');
+
+            // 2. Insert row
+            const { error: insertError } = await sbClient
+                .from('styles')
+                .insert({
+                    name,
+                    image: fileName,
+                    category,
+                    sort,
+                    enabled,
+                    created_at: new Date().toISOString()
+                })
+                .select()
+                .single();
+
+            if (insertError) throw new Error('数据保存失败: ' + insertError.message);
+
+            setAddProgress(100, '保存成功！');
+            showToast('风格「' + name + '」已添加！', 'success');
+            await loadStyles();
+            setTimeout(resetAddForm, 600);
+
+        } catch(err) {
+            console.error('[saveNewStyle]', err);
+            showToast(err.message || '保存失败', 'error');
+            setAddProgress(0, '上传失败，请重试');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-icons-round">save</span>保存风格';
+        }
+    }
+
+    /* ──────────────────────────────────────────────
+       EDIT MODAL
+    ────────────────────────────────────────────── */
+    function openEditModal(id) {
+        const style = allStylesData.find(s => s.id === id);
+        if (!style) return;
+        editingStyleId   = id;
+        editNewImageFile = null;
+
+        document.getElementById('modal-preview-img').src = getPublicUrl(style.image);
+        document.getElementById('edit-name').value       = style.name;
+        document.getElementById('edit-category').value   = style.category || '';
+        document.getElementById('edit-sort').value       = style.sort ?? 100;
+        document.getElementById('edit-enabled').checked  = style.enabled;
+        document.getElementById('edit-img-name').textContent = '';
+        document.getElementById('edit-img-input').value  = '';
+
+        document.getElementById('edit-modal').classList.add('show');
+    }
+
+    function closeEditModal() {
+        document.getElementById('edit-modal').classList.remove('show');
+        editingStyleId   = null;
+        editNewImageFile = null;
+    }
+
+    function handleEditImagePreview(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        editNewImageFile = file;
+        document.getElementById('edit-img-name').textContent = file.name;
+        const reader = new FileReader();
+        reader.onload = ev => document.getElementById('modal-preview-img').src = ev.target.result;
+        reader.readAsDataURL(file);
+    }
+
+    async function saveEditStyle() {
+        if (!sbClient || !editingStyleId) return;
+        const name = document.getElementById('edit-name').value.trim();
+        if (!name) { showToast('名称不能为空', 'error'); return; }
+
+        const category = document.getElementById('edit-category').value.trim() || null;
+        const sort      = parseInt(document.getElementById('edit-sort').value) || 100;
+        const enabled   = document.getElementById('edit-enabled').checked;
+
+        const btn = document.getElementById('edit-save-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-icons-round">hourglass_top</span> 保存中…';
+
+        try {
+            let imageField = undefined;
+
+            if (editNewImageFile) {
+                const ext      = (editNewImageFile.name.split('.').pop() || 'jpg').toLowerCase();
+                const fileName = 'style_' + Date.now() + '_' + Math.random().toString(36).substring(2,8) + '.' + ext;
+                await uploadFileDirect(editNewImageFile, fileName);
+                imageField = fileName;
+            }
+
+            const payload = { name, category, sort, enabled };
+            if (imageField) payload.image = imageField;
+
+            const { error: updateErr } = await sbClient
+                .from('styles')
+                .update(payload)
+                .eq('id', editingStyleId);
+
+            if (updateErr) throw new Error('更新失败: ' + updateErr.message);
+
+            showToast('修改已保存', 'success');
+            closeEditModal();
+            await loadStyles();
+        } catch(err) {
+            console.error('[saveEditStyle]', err);
+            showToast(err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-icons-round">check</span>保存修改';
+        }
+    }
+
+    /* ──────────────────────────────────────────────
+       DELETE
+    ────────────────────────────────────────────── */
+    async function deleteStyle(id, name) {
+        if (!confirm(`确定要删除「${name}」吗？\n\n删除后前台立即更新。图片文件不会自动删除。`)) return;
+        try {
+            const { error } = await sbClient.from('styles').delete().eq('id', id);
+            if (error) throw error;
+            showToast('已删除「' + name + '」', 'success');
+            await loadStyles();
+        } catch(err) {
+            showToast('删除失败: ' + err.message, 'error');
+        }
+    }
+
+    /* ──────────────────────────────────────────────
+       UTILS
+    ────────────────────────────────────────────── */
+    function setEl(id, val) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+    }
+
+    let toastTimer = null;
+    function showToast(msg, type = 'success') {
+        const toast  = document.getElementById('toast');
+        const msgEl  = document.getElementById('toast-msg');
+        const iconEl = document.getElementById('toast-icon');
+        toast.className = 'toast ' + type;
+        msgEl.textContent = msg;
+        iconEl.textContent = type === 'error' ? 'error' : 'check_circle';
+        toast.classList.add('show');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // Close modal on backdrop click
+    document.getElementById('edit-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeEditModal();
+    });
+
+    // Home mockup live preview
+    document.getElementById('home-hero-url')?.addEventListener('input', e => {
+        const v = e.target.value.trim();
+        if (v) document.getElementById('mock-hero-img').src = v;
+    });
+    document.getElementById('home-hero-label')?.addEventListener('input', e => {
+        document.getElementById('mock-hero-lbl').textContent = e.target.value || '效果图';
+    });
+    document.getElementById('home-thumb-url')?.addEventListener('input', e => {
+        const v = e.target.value.trim();
+        if (v) document.getElementById('mock-thumb-img').src = v;
+    });
+    document.getElementById('home-step2-url')?.addEventListener('input', e => {
+        const v = e.target.value.trim();
+        if (v) document.getElementById('mock-step2').src = v;
+    });
+</script>
+</body>
+</html>
