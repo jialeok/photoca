@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lumina AI Studio · 保存照片</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #0e0e12;
+            --ink-soft: #6b6b80;
+            --accent: #5b4fff;
+            --accent-glow: rgba(91,79,255,0.35);
+            --surface: #f4f4f8;
+            --white: #ffffff;
+            --success: #00c48c;
+            --danger: #ff4d6d;
+            --r-xl: 24px;
+            --r-2xl: 32px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        html, body { min-height: 100%; background: var(--surface); font-family: 'Noto Sans SC', sans-serif; color: var(--ink); }
+        .page { max-width: 480px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; background: var(--white); }
+
+        /* Topbar */
+        .topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 18px 20px; background: var(--white); border-bottom: 1px solid rgba(0,0,0,.06); }
+        .topbar-logo { font-family: 'Sora', sans-serif; font-size: 16px; font-weight: 800; color: var(--ink); }
+        .topbar-logo span { color: var(--accent); }
+
+        /* Body */
+        .body { flex: 1; padding: 24px 20px 48px; display: flex; flex-direction: column; gap: 20px; align-items: center; }
+
+        /* Loading */
+        .loading-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 60px 20px; }
+        .spin { width: 48px; height: 48px; border: 3px solid rgba(91,79,255,.15); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { font-size: 14px; color: var(--ink-soft); }
+
+        /* Error */
+        .error-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 60px 20px; text-align: center; }
+        .error-icon { width: 72px; height: 72px; border-radius: 50%; background: rgba(255,77,109,.08); display: flex; align-items: center; justify-content: center; }
+        .error-icon .material-icons-round { font-size: 36px !important; color: var(--danger); }
+        .error-title { font-family: 'Sora', sans-serif; font-size: 20px; font-weight: 800; color: var(--ink); }
+        .error-sub { font-size: 13px; color: var(--ink-soft); line-height: 1.7; }
+
+        /* Photo card */
+        .photo-card { width: 100%; border-radius: var(--r-2xl); overflow: hidden; box-shadow: 0 16px 48px rgba(91,79,255,.15); position: relative; }
+        .photo-card img { width: 100%; display: block; aspect-ratio: 3/4; object-fit: cover; background: var(--surface); }
+        .photo-badge { position: absolute; top: 14px; left: 14px; background: rgba(91,79,255,.9); color: #fff; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px; letter-spacing: .5px; }
+
+        /* Info */
+        .info-card { width: 100%; background: var(--surface); border-radius: var(--r-xl); padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
+        .info-title { font-family: 'Sora', sans-serif; font-size: 17px; font-weight: 800; color: var(--ink); }
+        .info-sub { font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+
+        /* Buttons */
+        .btn-download { width: 100%; padding: 18px; border: none; border-radius: var(--r-2xl); background: linear-gradient(135deg, var(--accent), #8b5cf6); color: #fff; font-family: 'Sora', sans-serif; font-size: 17px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 8px 28px var(--accent-glow); transition: transform .12s, opacity .12s; }
+        .btn-download:active { transform: scale(.97); }
+        .btn-download:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+        .btn-download .material-icons-round { font-size: 20px !important; }
+
+        /* Tip */
+        .tip-row { display: flex; align-items: flex-start; gap: 8px; background: rgba(0,196,140,.06); border: 1px solid rgba(0,196,140,.15); border-radius: 14px; padding: 12px 14px; font-size: 12px; color: var(--ink-soft); line-height: 1.6; width: 100%; }
+        .tip-row .material-icons-round { font-size: 16px !important; color: var(--success); flex-shrink: 0; margin-top: 1px; }
+
+        /* Wechat hint */
+        .wechat-hint { background: rgba(255,152,0,.08); border: 1px solid rgba(255,152,0,.2); border-radius: 14px; padding: 12px 14px; font-size: 12px; color: #b35c00; line-height: 1.6; width: 100%; display: none; }
+        .wechat-hint.show { display: block; }
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="topbar">
+        <div class="topbar-logo">Lumina <span>AI</span> Studio</div>
+    </div>
+    <div class="body" id="body">
+
+        <!-- 加载中 -->
+        <div class="loading-wrap" id="loading-state">
+            <div class="spin"></div>
+            <div class="loading-text">正在加载 AI 照片...</div>
+        </div>
+
+        <!-- 错误 -->
+        <div class="error-wrap" id="error-state" style="display:none">
+            <div class="error-icon"><span class="material-icons-round">broken_image</span></div>
+            <div class="error-title">加载失败</div>
+            <div class="error-sub" id="error-msg">二维码可能已过期<br>请返回大屏重新生成二维码</div>
+        </div>
+
+        <!-- 照片 + 下载 -->
+        <div id="photo-state" style="display:none; flex-direction:column; align-items:center; gap:20px; width:100%">
+            <div class="photo-card">
+                <img id="result-img" src="" alt="AI 生成图">
+                <div class="photo-badge">✨ AI 风格图</div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-title">🎉 你的 AI 照片来啦！</div>
+                <div class="info-sub">点击下方按钮下载图片<br>或长按图片选择「存储图片」</div>
+            </div>
+
+            <div class="wechat-hint" id="wechat-hint">
+                微信内长按图片 → 选择「保存图片」即可保存到相册
+            </div>
+
+            <button class="btn-download" id="download-btn" onclick="downloadPhoto()">
+                <span class="material-icons-round">download</span>
+                保存到手机相册
+            </button>
+
+            <div class="tip-row">
+                <span class="material-icons-round">info</span>
+                <span>如按钮无法下载，请长按上方照片 → 选择「存储图片」或「保存到相册」</span>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // 微信检测
+    const isWechat = /MicroMessenger/i.test(navigator.userAgent);
+    if (isWechat) {
+        document.getElementById('wechat-hint').classList.add('show');
+    }
+
+    // 从 URL 参数获取 ai 图片地址
+    const params = new URLSearchParams(window.location.search);
+    const aiUrl  = params.get('url');
+
+    function showError(msg) {
+        document.getElementById('loading-state').style.display = 'none';
+        document.getElementById('photo-state').style.display   = 'none';
+        document.getElementById('error-state').style.display   = 'flex';
+        if (msg) document.getElementById('error-msg').textContent = msg;
+    }
+
+    function showPhoto(url) {
+        document.getElementById('loading-state').style.display = 'none';
+        document.getElementById('error-state').style.display   = 'none';
+        const ps = document.getElementById('photo-state');
+        ps.style.display = 'flex';
+        const img = document.getElementById('result-img');
+        img.src = url;
+        img.onerror = () => showError('图片加载失败，请返回大屏重新扫码');
+    }
+
+    async function downloadPhoto() {
+        const btn = document.getElementById('download-btn');
+        const url = document.getElementById('result-img').src;
+        if (!url) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-icons-round">hourglass_top</span> 准备中...';
+
+        try {
+            const res  = await fetch(url);
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = 'Lumina_AI_' + Date.now() + '.jpg';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 3000);
+
+            btn.innerHTML = '<span class="material-icons-round">check_circle</span> 下载成功！';
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<span class="material-icons-round">download</span> 保存到手机相册';
+            }, 2500);
+        } catch(err) {
+            console.error('下载失败:', err);
+            // 降级：直接打开图片让用户长按保存
+            window.open(url, '_blank');
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-icons-round">download</span> 保存到手机相册';
+        }
+    }
+
+    // 初始化
+    if (!aiUrl) {
+        showError('链接无效，未包含图片地址\n请返回大屏重新生成二维码');
+    } else {
+        // 直接展示，不需要查数据库
+        showPhoto(decodeURIComponent(aiUrl));
+    }
+</script>
+</body>
+</html>

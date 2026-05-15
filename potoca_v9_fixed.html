@@ -1,0 +1,4657 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lumina AI Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+
+    <!-- ===== 手机扫码上传功能 - Supabase SDK + qrcode.js ===== -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --ink: #0e0e12;
+            --ink-soft: #6b6b80;
+            --accent: #5b4fff;
+            --accent-glow: rgba(91,79,255,0.35);
+            --surface: #f4f4f8;
+            --white: #ffffff;
+            --danger: #ff4d6d;
+            --success: #00c48c;
+            --r-xl: 24px;
+            --r-2xl: 32px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            background: var(--ink);
+        }
+
+        /* ── Phone shell ──────────────────────────────────── */
+        .phone {
+            width: 100%;
+            max-width: 420px;
+            height: 100dvh;
+            margin: 0 auto;
+            position: relative;
+            overflow: hidden;
+            background: var(--surface);
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+
+        /* ── Screen management ────────────────────────────── */
+        .screen {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(30px);
+            transition: opacity .28s ease, transform .28s ease;
+            overflow: hidden;
+        }
+        .screen.active {
+            opacity: 1;
+            pointer-events: all;
+            transform: translateX(0);
+        }
+        .screen.exit {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+
+        /* ── Common nav bar ───────────────────────────────── */
+        .topbar {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: var(--white);
+            border-bottom: 1px solid rgba(0,0,0,.06);
+            z-index: 10;
+        }
+        .topbar-title {
+            font-family: 'Sora', sans-serif;
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--ink);
+        }
+        .icon-btn {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: var(--surface);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            color: var(--ink);
+            transition: background .15s;
+        }
+        .icon-btn:active { background: #e0e0ea; }
+        .text-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: none;
+            background: var(--surface);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--ink-soft);
+            cursor: pointer;
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+
+        /* ── Scrollable body area ─────────────────────────── */
+        .screen-body {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .screen-body::-webkit-scrollbar { display: none; }
+
+        /* ── Bottom action area ───────────────────────────── */
+        .bottom-bar {
+            flex-shrink: 0;
+            padding: 16px 20px 28px;
+            background: var(--white);
+            border-top: 1px solid rgba(0,0,0,.06);
+        }
+
+        /* ── Primary button ───────────────────────────────── */
+        .btn-primary {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: var(--r-2xl);
+            background: var(--accent);
+            color: #fff;
+            font-family: 'Sora', sans-serif;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            box-shadow: 0 8px 28px var(--accent-glow);
+            transition: transform .12s, box-shadow .12s;
+            letter-spacing: .3px;
+        }
+        .btn-primary:active { transform: scale(.97); box-shadow: 0 4px 12px var(--accent-glow); }
+
+        .btn-ghost {
+            width: 100%;
+            padding: 16px;
+            border: 1.5px solid rgba(91,79,255,.3);
+            border-radius: var(--r-2xl);
+            background: transparent;
+            color: var(--accent);
+            font-family: 'Sora', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: background .15s;
+        }
+        .btn-ghost:active { background: rgba(91,79,255,.06); }
+
+        /* ═══════════════════════════════════════════════════
+           SCREEN 1 — HOME
+        ═══════════════════════════════════════════════════ */
+        #scr-home {
+            background: #fff;
+            overflow: hidden;
+        }
+
+        /* Top: big AI result image, fills ~58% of screen */
+        .home-hero {
+            flex-shrink: 0;
+            position: relative;
+            height: 58%;
+            overflow: hidden;
+        }
+        .home-hero-img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            object-position: top center;
+            display: block;
+        }
+        /* "效果图" label top-center */
+        .home-hero-label {
+            position: absolute;
+            top: 14px; left: 50%; transform: translateX(-50%);
+            background: rgba(255,255,255,.92);
+            border-radius: 20px;
+            padding: 5px 18px;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--ink);
+            letter-spacing: 2px;
+            white-space: nowrap;
+        }
+        /* Language toggle top-right */
+        .home-lang {
+            position: absolute;
+            top: 12px; right: 14px;
+            background: rgba(255,255,255,.92);
+            border-radius: 12px;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--ink);
+            display: flex; align-items: center; gap: 4px;
+        }
+        /* Original photo thumbnail bottom-left */
+        .home-origin-thumb {
+            position: absolute;
+            bottom: 14px; left: 14px;
+            width: 72px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2.5px solid #fff;
+            box-shadow: 0 4px 16px rgba(0,0,0,.25);
+        }
+        .home-origin-thumb img {
+            width: 100%; aspect-ratio: 3/4;
+            object-fit: cover; display: block;
+        }
+        .home-origin-label {
+            position: absolute;
+            bottom: 14px; left: 96px;
+            background: rgba(0,0,0,.55);
+            backdrop-filter: blur(8px);
+            border-radius: 10px;
+            padding: 4px 10px;
+            font-size: 11px;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        /* Bottom panel */
+        .home-bottom {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 20px 28px;
+            background: #fff;
+        }
+
+        /* CTA button */
+        .home-cta-btn {
+            width: 100%;
+            padding: 17px;
+            border: 2px solid var(--ink);
+            border-radius: var(--r-2xl);
+            background: transparent;
+            font-family: 'Noto Sans SC', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--ink);
+            cursor: pointer;
+            text-align: center;
+            letter-spacing: 2px;
+            transition: background .15s, color .15s;
+        }
+        .home-cta-btn:active {
+            background: var(--ink);
+            color: #fff;
+        }
+
+        /* 3-step cards row */
+        .home-steps {
+            width: 100%;
+            display: flex;
+            gap: 10px;
+        }
+        .home-step {
+            flex: 1;
+            border: 1.5px solid #e0e0ea;
+            border-radius: 18px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .home-step-header {
+            padding: 8px 10px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--ink-soft);
+            letter-spacing: .5px;
+        }
+        .home-step-img {
+            flex: 1;
+            min-height: 70px;
+            overflow: hidden;
+        }
+        .home-step-img img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        /* step 1 & 3 have no photo — show icon placeholder */
+        .home-step-placeholder {
+            flex: 1;
+            min-height: 70px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--surface);
+        }
+        .home-step-placeholder .material-icons-round {
+            font-size: 30px !important;
+            color: #c0c0d0;
+        }
+
+        /* scrolling subtitle */
+        .home-hint {
+            text-align: center;
+            margin-top: 14px;
+            font-size: 12px;
+            color: var(--ink-soft);
+        }
+
+        /* ═══════════════════════════════════════════════════
+           SCREEN 2 — STYLE
+        ═══════════════════════════════════════════════════ */
+        #scr-style { background: var(--surface); }
+
+        .filter-nav {
+            padding: 14px 16px 10px;
+            background: var(--white);
+            border-bottom: 1px solid rgba(0,0,0,.06);
+        }
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .filter-row:last-child { margin-bottom: 0; }
+        .filter-chip {
+            padding: 9px 4px;
+            border-radius: 12px;
+            border: 1.5px solid transparent;
+            background: var(--surface);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--ink-soft);
+            transition: all .15s;
+            font-family: 'Noto Sans SC', sans-serif;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .filter-chip.active {
+            background: var(--ink);
+            color: #fff;
+            border-color: var(--ink);
+        }
+        .filter-chip.active-accent {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+            box-shadow: 0 4px 14px var(--accent-glow);
+        }
+
+        .style-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            padding: 16px 20px 24px;
+        }
+        .style-card {
+            background: var(--white);
+            border-radius: var(--r-xl);
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform .15s, box-shadow .15s;
+            box-shadow: 0 2px 12px rgba(0,0,0,.06);
+            position: relative;
+        }
+        .style-card:active { transform: scale(.96); }
+        .style-card img {
+            width: 100%;
+            aspect-ratio: 3/4;
+            object-fit: cover;
+            display: block;
+        }
+        /* Style card color tint overlays — each style gets a unique feel */
+        .style-card[data-style="N-金币风格"] .style-img-wrap::after {
+            content:''; position:absolute; inset:0;
+            background: linear-gradient(160deg, rgba(255,200,50,.22) 0%, rgba(180,120,10,.18) 100%);
+            pointer-events:none;
+        }
+        .style-card[data-style="民族服饰"] .style-img-wrap::after {
+            content:''; position:absolute; inset:0;
+            background: linear-gradient(160deg, rgba(220,50,100,.18) 0%, rgba(120,30,180,.18) 100%);
+            pointer-events:none;
+        }
+        .style-card[data-style="证件照"] .style-img-wrap::after {
+            content:''; position:absolute; inset:0;
+            background: linear-gradient(160deg, rgba(50,120,240,.14) 0%, rgba(20,60,160,.14) 100%);
+            pointer-events:none;
+        }
+        .style-card[data-style="古韵禅心"] .style-img-wrap::after {
+            content:''; position:absolute; inset:0;
+            background: linear-gradient(160deg, rgba(140,100,60,.22) 0%, rgba(80,50,20,.2) 100%);
+            pointer-events:none;
+        }
+        .style-card[data-style="赛博朋克"] .style-img-wrap::after {
+            content:''; position:absolute; inset:0;
+            background: linear-gradient(160deg, rgba(0,230,255,.2) 0%, rgba(200,0,255,.2) 100%);
+            pointer-events:none;
+        }
+        .style-card[data-style="水墨丹青"] .style-img-wrap::after {
+            content:''; position:absolute; inset:0;
+            background: linear-gradient(160deg, rgba(0,0,0,.25) 0%, rgba(60,60,80,.18) 100%);
+            pointer-events:none;
+        }
+        .style-img-wrap { position: relative; overflow: hidden; }
+        .style-card-name {
+            padding: 12px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--ink);
+        }
+        .style-card-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: var(--accent);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 10px;
+            letter-spacing: .5px;
+        }
+
+        /* ── Upload sheet scrollable ─────────────────────── */
+        #scr-upload {
+            background: rgba(14,14,18,.6);
+            justify-content: flex-end;
+        }
+        .upload-sheet {
+            background: var(--white);
+            border-radius: 28px 28px 0 0;
+            padding: 12px 24px 0;
+            max-height: 88vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .upload-sheet::-webkit-scrollbar { display: none; }
+        .upload-sheet-inner { padding-bottom: 36px; }
+
+        /* ── Photo tips panel ────────────────────────────── */
+        .photo-tips-panel {
+            margin-top: 20px;
+            background: var(--surface);
+            border-radius: 20px;
+            padding: 16px;
+        }
+        .photo-tips-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--ink);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .photo-tips-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .photo-tip-item {
+            background: var(--white);
+            border-radius: 14px;
+            padding: 12px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            text-align: center;
+            border: 1.5px solid transparent;
+        }
+        .photo-tip-item.good {
+            border-color: rgba(0,196,140,.2);
+        }
+        .photo-tip-item.bad {
+            border-color: rgba(255,77,109,.15);
+            opacity: .85;
+        }
+        .photo-tip-item.good .material-icons-round {
+            font-size: 22px !important;
+            color: var(--success);
+        }
+        .photo-tip-item.bad .material-icons-round {
+            font-size: 22px !important;
+            color: var(--danger);
+        }
+        .photo-tip-item span:nth-child(2) {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--ink);
+        }
+        .tip-desc {
+            font-size: 10px;
+            color: var(--ink-soft);
+            line-height: 1.4;
+        }
+        .sheet-handle {
+            width: 40px; height: 4px;
+            background: #d0d0da;
+            border-radius: 2px;
+            margin: 0 auto 24px;
+        }
+        .upload-sheet h3 {
+            font-family: 'Sora', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--ink);
+            margin-bottom: 8px;
+        }
+        .upload-sheet p {
+            font-size: 13px;
+            color: var(--ink-soft);
+            margin-bottom: 28px;
+            line-height: 1.5;
+        }
+        .upload-option {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 18px;
+            border-radius: var(--r-xl);
+            background: var(--surface);
+            margin-bottom: 12px;
+            cursor: pointer;
+            border: 1.5px solid transparent;
+            transition: border-color .15s, background .15s;
+        }
+        .upload-option:active { background: #ebebf4; }
+        .upload-option.highlight {
+            background: rgba(91,79,255,.06);
+            border-color: rgba(91,79,255,.25);
+        }
+        .upload-icon-wrap {
+            width: 54px; height: 54px;
+            border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .upload-option.highlight .upload-icon-wrap { background: var(--accent); }
+        .upload-option:not(.highlight) .upload-icon-wrap { background: var(--white); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+        .upload-option .material-icons-round {
+            font-size: 26px !important;
+        }
+        .upload-option.highlight .material-icons-round { color: #fff; }
+        .upload-option:not(.highlight) .material-icons-round { color: var(--ink); }
+        .upload-text h4 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--ink);
+            margin-bottom: 3px;
+        }
+        .upload-text p {
+            font-size: 12px;
+            color: var(--ink-soft);
+            margin: 0;
+        }
+        .upload-arrow {
+            margin-left: auto;
+            color: var(--ink-soft);
+            font-size: 20px !important;
+        }
+
+        /* ═══════════════════════════════════════════════════
+           SCREEN 4 — CAPTURE
+        ═══════════════════════════════════════════════════ */
+        #scr-capture { background: #000; }
+
+        .camera-preview {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        .camera-preview img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            opacity: .75;
+        }
+        .camera-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+        }
+        /* Face frame guide */
+        .face-guide {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -55%);
+            width: 160px;
+            height: 200px;
+        }
+        .face-guide::before, .face-guide::after {
+            content: '';
+            position: absolute;
+            width: 36px; height: 36px;
+            border-color: rgba(255,255,255,.9);
+            border-style: solid;
+        }
+        .face-guide::before { top: 0; left: 0; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+        .face-guide::after  { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+        .face-guide-b::before, .face-guide-b::after {
+            content: '';
+            position: absolute;
+            width: 36px; height: 36px;
+            border-color: rgba(255,255,255,.9);
+            border-style: solid;
+        }
+        .face-guide-b::before { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+        .face-guide-b::after  { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+
+        .cam-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 52px 20px 16px;
+        }
+        .cam-pill {
+            background: rgba(0,0,0,.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,.15);
+            border-radius: 20px;
+            padding: 8px 18px;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* Pose reference strip */
+        .pose-strip {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .pose-thumb {
+            width: 64px;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            border: 2px solid transparent;
+        }
+        .pose-thumb.ok { border-color: var(--success); }
+        .pose-thumb.bad { border-color: var(--danger); opacity: .6; }
+        .pose-thumb img { width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block; }
+        .pose-tag {
+            position: absolute;
+            bottom: 4px; right: 4px;
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .pose-tag.ok { background: var(--success); }
+        .pose-tag.bad { background: var(--danger); }
+        .pose-tag .material-icons-round { font-size: 11px !important; color: #fff; }
+
+        .cam-bottom {
+            padding: 20px 20px 36px;
+            background: linear-gradient(to top, rgba(0,0,0,.7) 0%, transparent 100%);
+        }
+        .cam-hint {
+            background: rgba(0,0,0,.5);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 16px;
+            padding: 12px 16px;
+            color: rgba(255,255,255,.85);
+            font-size: 13px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .cam-shutter {
+            width: 100%;
+            padding: 20px;
+            border: none;
+            border-radius: var(--r-2xl);
+            background: var(--accent);
+            color: #fff;
+            font-family: 'Sora', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            box-shadow: 0 8px 32px var(--accent-glow);
+            cursor: pointer;
+            transition: transform .12s;
+        }
+        .cam-shutter:active { transform: scale(.96); }
+
+        /* Processing overlay */
+        #processing-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(14,14,18,.92);
+            backdrop-filter: blur(24px);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            z-index: 50;
+        }
+        #processing-overlay.show { display: flex; }
+        .spin-ring {
+            width: 80px; height: 80px;
+            border: 3px solid rgba(255,255,255,.1);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .proc-title {
+            font-family: 'Sora', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: #fff;
+        }
+        .proc-sub { font-size: 13px; color: rgba(255,255,255,.45); }
+        .proc-dots {
+            display: flex; gap: 8px;
+        }
+        .proc-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: bounce .8s ease-in-out infinite;
+        }
+        .proc-dot:nth-child(2) { animation-delay: .15s; }
+        .proc-dot:nth-child(3) { animation-delay: .3s; }
+        @keyframes bounce {
+            0%, 100% { transform: scale(.6); opacity: .4; }
+            50% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ═══════════════════════════════════════════════════
+           SCREEN 5 — RESULT (upgraded: multi-image gallery)
+        ═══════════════════════════════════════════════════ */
+        #scr-result { background: var(--surface); }
+
+        /* Gallery header */
+        .result-gallery-header {
+            padding: 16px 20px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .result-gallery-title {
+            font-family: 'Sora', sans-serif;
+            font-size: 17px;
+            font-weight: 800;
+            color: var(--ink);
+        }
+        .result-gallery-title span { color: var(--accent); }
+        .result-gallery-sub {
+            font-size: 12px;
+            color: var(--ink-soft);
+            margin-top: 2px;
+        }
+        .result-style-chip {
+            background: var(--accent);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 20px;
+            white-space: nowrap;
+            letter-spacing: .3px;
+        }
+
+        /* Main image */
+        .result-main-wrap {
+            padding: 0 20px 10px;
+        }
+        .result-image-card {
+            border-radius: var(--r-2xl);
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 16px 48px rgba(0,0,0,.14);
+        }
+        .result-image-card img {
+            width: 100%;
+            aspect-ratio: 3/4;
+            object-fit: cover;
+            display: block;
+        }
+        .result-tag {
+            position: absolute;
+            top: 14px; right: 14px;
+            background: rgba(14,14,18,.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,.15);
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: .5px;
+        }
+        .result-selected-badge {
+            position: absolute;
+            bottom: 14px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,196,140,.92);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 7px 16px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+            display: flex; align-items: center; gap: 5px;
+            white-space: nowrap;
+        }
+
+        /* Thumbnail strip */
+        .result-thumb-strip {
+            display: flex;
+            gap: 10px;
+            padding: 4px 20px 14px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .result-thumb-strip::-webkit-scrollbar { display: none; }
+        .result-thumb {
+            flex-shrink: 0;
+            width: 72px;
+            border-radius: 14px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2.5px solid transparent;
+            position: relative;
+            transition: border-color .15s, transform .12s;
+            box-shadow: 0 2px 10px rgba(0,0,0,.1);
+        }
+        .result-thumb:active { transform: scale(.95); }
+        .result-thumb.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+        .result-thumb img {
+            width: 100%;
+            aspect-ratio: 3/4;
+            object-fit: cover;
+            display: block;
+        }
+        .result-thumb-label {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            background: rgba(0,0,0,.5);
+            font-size: 9px;
+            font-weight: 700;
+            color: #fff;
+            text-align: center;
+            padding: 3px 0;
+            letter-spacing: .5px;
+        }
+        .result-thumb-check {
+            position: absolute;
+            top: 4px; right: 4px;
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .result-thumb.active .result-thumb-check { display: flex; }
+        .result-thumb-check .material-icons-round { font-size: 12px !important; color: #fff; }
+
+        .result-actions {
+            padding: 0 20px 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .action-card {
+            background: var(--white);
+            border-radius: var(--r-xl);
+            padding: 20px 16px;
+            text-align: center;
+            cursor: pointer;
+            border: 1.5px solid transparent;
+            transition: all .15s;
+            box-shadow: 0 2px 12px rgba(0,0,0,.06);
+        }
+        .action-card:active { transform: scale(.96); }
+        .action-card.primary-action {
+            background: var(--accent);
+            box-shadow: 0 8px 24px var(--accent-glow);
+        }
+        .action-card .material-icons-round {
+            font-size: 32px !important;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .action-card.primary-action .material-icons-round { color: #fff; }
+        .action-card:not(.primary-action) .material-icons-round { color: var(--accent); }
+        .action-card h4 {
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .action-card.primary-action h4 { color: #fff; }
+        .action-card:not(.primary-action) h4 { color: var(--ink); }
+        .action-card p {
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-top: 3px;
+            font-weight: 600;
+        }
+        .action-card.primary-action p { color: rgba(255,255,255,.6); }
+        .action-card:not(.primary-action) p { color: var(--ink-soft); }
+
+        .result-footer {
+            padding: 0 20px 32px;
+        }
+
+        /* ═══════════════════════════════════════════════════
+           SCREEN — QR CODE UPLOAD
+        ═══════════════════════════════════════════════════ */
+        #scr-qrcode { background: var(--surface); }
+
+        .qr-card {
+            width: 100%;
+            background: var(--white);
+            border-radius: var(--r-2xl);
+            padding: 28px 24px;
+            box-shadow: 0 4px 24px rgba(0,0,0,.07);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        .qr-title {
+            font-family: 'Sora', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--ink);
+        }
+        .qr-sub {
+            font-size: 13px;
+            color: var(--ink-soft);
+            text-align: center;
+            line-height: 1.6;
+        }
+        .qr-box {
+            position: relative;
+            width: 200px; height: 200px;
+            background: #fff;
+            border-radius: 18px;
+            border: 2px solid rgba(91,79,255,.15);
+            display: flex; align-items: center; justify-content: center;
+            padding: 10px;
+            box-shadow: 0 4px 20px rgba(91,79,255,.12);
+        }
+
+        /* ===== 手机扫码上传功能 - QR code container ===== */
+        #qrcode-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #qrcode-container canvas,
+        #qrcode-container img {
+            border-radius: 8px;
+        }
+        .qr-logo {
+            position: absolute;
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 36px; height: 36px;
+            background: #fff;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            border: 2px solid rgba(91,79,255,.2);
+        }
+        .qr-expire {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--ink-soft);
+            font-weight: 600;
+        }
+        .qr-expire span[id] { color: var(--success); font-weight: 700; }
+        .qr-steps {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .qr-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            color: var(--ink-soft);
+        }
+        .qr-step-num {
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            background: rgba(91,79,255,.1);
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+
+        /* ═══════════════════════════════════════════════════
+           SCREEN — PREVIEW CONFIRM
+        ═══════════════════════════════════════════════════ */
+        #scr-preview { background: var(--surface); }
+
+        .preview-photo-card {
+            border-radius: var(--r-2xl);
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 16px 48px rgba(0,0,0,.14);
+        }
+        .preview-photo-card img {
+            width: 100%;
+            aspect-ratio: 3/4;
+            object-fit: cover;
+            display: block;
+        }
+        .preview-badge {
+            position: absolute;
+            bottom: 14px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,196,140,.9);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 8px 18px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+            display: flex; align-items: center; gap: 6px;
+            white-space: nowrap;
+        }
+        .preview-quality-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .preview-quality-item {
+            flex: 1;
+            background: var(--white);
+            border-radius: 14px;
+            padding: 12px 8px;
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--ink-soft);
+            box-shadow: 0 2px 8px rgba(0,0,0,.05);
+        }
+        .preview-quality-item.good .material-icons-round { color: var(--success); font-size: 22px !important; }
+        .preview-style-badge {
+            background: rgba(91,79,255,.08);
+            border: 1.5px solid rgba(91,79,255,.2);
+            border-radius: 14px;
+            padding: 14px 16px;
+            display: flex; align-items: center; gap: 8px;
+            font-size: 14px;
+            color: var(--ink-soft);
+        }
+        .preview-style-badge .material-icons-round { color: var(--accent); }
+        .preview-style-badge strong { color: var(--accent); }
+
+        /* Countdown overlay */
+        #countdown-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(14,14,18,.85);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            z-index: 40;
+        }
+        #countdown-overlay.show { display: flex; }
+        .countdown-number {
+            font-family: 'Sora', sans-serif;
+            font-size: 120px;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1;
+            text-shadow: 0 0 60px var(--accent-glow);
+            animation: countPulse .9s ease-out;
+        }
+        @keyframes countPulse {
+            0% { transform: scale(1.4); opacity: 0; }
+            40% { transform: scale(1); opacity: 1; }
+            80% { opacity: 1; }
+            100% { opacity: .7; }
+        }
+        .countdown-label {
+            font-size: 16px;
+            color: rgba(255,255,255,.6);
+            font-weight: 600;
+            letter-spacing: 2px;
+        }
+
+        /* Toast notification */
+        #toast {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(14,14,18,.92);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 20px;
+            padding: 12px 22px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity .25s, transform .25s;
+            z-index: 999;
+            pointer-events: none;
+            white-space: nowrap;
+            display: flex; align-items: center; gap: 8px;
+        }
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ═══════════════════════════════════════════════════
+           UPGRADED PROCESSING OVERLAY — Step Progress
+        ═══════════════════════════════════════════════════ */
+        /* Override old spin-ring — no longer used */
+        .spin-ring { display: none; }
+
+        #processing-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(8, 6, 22, 0.97);
+            backdrop-filter: blur(24px);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            z-index: 50;
+            padding: 32px 28px;
+        }
+        #processing-overlay.show { display: flex; }
+
+        .proc-header { text-align: center; }
+        .proc-title {
+            font-family: 'Sora', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: #fff;
+        }
+        .proc-eta {
+            font-size: 13px;
+            color: rgba(255,255,255,.45);
+            margin-top: 6px;
+        }
+        .proc-eta span { color: var(--accent); font-weight: 700; }
+
+        /* Spinning rings illustration */
+        .proc-art {
+            position: relative;
+            width: 100px; height: 100px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .proc-art-ring {
+            position: absolute;
+            border-radius: 50%;
+            border: 2px solid transparent;
+        }
+        .proc-art-ring1 {
+            inset: 0;
+            border-top-color: var(--accent);
+            animation: spin 1.2s linear infinite;
+        }
+        .proc-art-ring2 {
+            inset: 12px;
+            border-right-color: rgba(91,79,255,.5);
+            animation: spin 1.8s linear infinite reverse;
+        }
+        .proc-art-ring3 {
+            inset: 24px;
+            border-bottom-color: rgba(91,79,255,.3);
+            animation: spin 2.4s linear infinite;
+        }
+        .proc-art-icon {
+            font-size: 28px !important;
+            color: var(--accent);
+            animation: pulse-icon 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse-icon {
+            0%, 100% { opacity: .6; transform: scale(.9); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        /* Steps list */
+        .proc-steps {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .proc-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.07);
+            border-radius: 16px;
+            padding: 12px 14px;
+            opacity: .35;
+            transition: opacity .3s, border-color .3s, background .3s;
+        }
+        .proc-step.active {
+            opacity: 1;
+            background: rgba(91,79,255,.15);
+            border-color: rgba(91,79,255,.4);
+        }
+        .proc-step.done {
+            opacity: .7;
+            background: rgba(0,196,140,.07);
+            border-color: rgba(0,196,140,.3);
+        }
+        .proc-step-icon {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            background: rgba(255,255,255,.08);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .proc-step.active .proc-step-icon { background: var(--accent); }
+        .proc-step.done .proc-step-icon { background: rgba(0,196,140,.2); }
+        .proc-step-icon .material-icons-round { font-size: 18px !important; color: rgba(255,255,255,.5); }
+        .proc-step.active .proc-step-icon .material-icons-round,
+        .proc-step.done .proc-step-icon .material-icons-round { color: #fff; }
+        .proc-step.done .proc-step-icon .material-icons-round { color: var(--success); }
+
+        .proc-step-body { flex: 1; }
+        .proc-step-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: rgba(255,255,255,.5);
+            margin-bottom: 6px;
+        }
+        .proc-step.active .proc-step-name,
+        .proc-step.done .proc-step-name { color: #fff; }
+        .proc-step-bar {
+            height: 3px;
+            background: rgba(255,255,255,.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .proc-step-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            border-radius: 2px;
+            transition: width .1s linear;
+        }
+        .proc-step.done .proc-step-fill {
+            width: 100%;
+            background: var(--success);
+        }
+
+        /* State indicator */
+        .proc-step-state { flex-shrink: 0; width: 20px; height: 20px; position: relative; }
+        .psi-done {
+            font-size: 20px !important;
+            color: var(--success);
+            display: none;
+        }
+        .proc-step.done .psi-done { display: block; }
+        .proc-step.done .psi-spin { display: none; }
+        .psi-spin {
+            width: 18px; height: 18px;
+            border: 2px solid rgba(255,255,255,.2);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            display: none;
+            animation: spin .8s linear infinite;
+        }
+        .proc-step.active .psi-spin { display: block; }
+        .proc-step.active .psi-done { display: none; }
+
+        /* ═══════════════════════════════════════════════════
+           SCREEN — PAYMENT
+        ═══════════════════════════════════════════════════ */
+        #scr-payment { background: var(--surface); }
+
+        .payment-hero {
+            background: linear-gradient(135deg, #1a1635 0%, #2d2060 100%);
+            padding: 28px 24px 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+        .payment-label {
+            font-size: 13px;
+            color: rgba(255,255,255,.5);
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        .payment-amount {
+            font-family: 'Sora', sans-serif;
+            font-size: 52px;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1;
+            display: flex;
+            align-items: flex-start;
+            gap: 4px;
+        }
+        .payment-amount-unit {
+            font-size: 22px;
+            font-weight: 600;
+            margin-top: 8px;
+            color: rgba(255,255,255,.7);
+        }
+        .payment-desc {
+            font-size: 13px;
+            color: rgba(255,255,255,.45);
+        }
+        .payment-expire {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,77,109,.15);
+            border: 1px solid rgba(255,77,109,.3);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 12px;
+            color: #ff9aab;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+        .payment-expire .material-icons-round { font-size: 14px !important; }
+
+        .payment-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 24px 16px;
+        }
+        .payment-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .payment-tab {
+            flex: 1;
+            padding: 12px;
+            border-radius: 16px;
+            border: 2px solid rgba(0,0,0,.08);
+            background: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--ink-soft);
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .payment-tab.active {
+            border-color: var(--accent);
+            background: rgba(91,79,255,.06);
+            color: var(--accent);
+        }
+        .payment-tab .material-icons-round { font-size: 20px !important; }
+        .payment-tab[data-method="wechat"].active { border-color: #07c160; color: #07c160; background: rgba(7,193,96,.06); }
+        .payment-tab[data-method="alipay"].active { border-color: #1677ff; color: #1677ff; background: rgba(22,119,255,.06); }
+
+        .payment-qr-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+        }
+        .payment-qr-box {
+            width: 180px; height: 180px;
+            background: #fff;
+            border-radius: 18px;
+            border: 2px solid rgba(0,0,0,.08);
+            display: flex; align-items: center; justify-content: center;
+            padding: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,.08);
+            position: relative;
+        }
+        .payment-qr-method-logo {
+            position: absolute;
+            bottom: -12px;
+            background: #fff;
+            border-radius: 10px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1.5px solid rgba(0,0,0,.08);
+        }
+        .payment-hint {
+            font-size: 13px;
+            color: var(--ink-soft);
+            text-align: center;
+            margin-top: 8px;
+        }
+        .payment-security {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--ink-soft);
+            margin-top: 8px;
+        }
+        .payment-security .material-icons-round { font-size: 14px !important; color: var(--success); }
+
+        /* ── #11 Print quantity selector ────────────────── */
+        .pay-qty-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin: 4px 0 2px;
+        }
+        .pay-qty-btn {
+            flex: 1;
+            border-radius: 14px;
+            border: 1.5px solid rgba(255,255,255,.18);
+            background: rgba(255,255,255,.08);
+            padding: 10px 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            cursor: pointer;
+            position: relative;
+            transition: background .15s, border-color .15s;
+        }
+        .pay-qty-btn.active {
+            background: rgba(255,255,255,.18);
+            border-color: #fff;
+        }
+        .pay-qty-num {
+            font-family: 'Sora', sans-serif;
+            font-size: 15px;
+            font-weight: 800;
+            color: #fff;
+        }
+        .pay-qty-price {
+            font-size: 11px;
+            color: rgba(255,255,255,.65);
+            font-weight: 600;
+        }
+        .pay-qty-save {
+            position: absolute;
+            top: -8px; right: -4px;
+            background: var(--danger);
+            color: #fff;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 8px;
+            letter-spacing: .3px;
+        }
+
+        /* ── #12 Printing progress screen ───────────────── */
+        #scr-printing {
+            background: var(--ink);
+        }
+        .printing-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 28px;
+            padding: 32px 28px;
+        }
+        .printing-icon-ring {
+            position: relative;
+            width: 110px; height: 110px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .printing-ring {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            border-top-color: var(--accent);
+            animation: spin 1.1s linear infinite;
+        }
+        .printing-ring2 {
+            inset: 10px;
+            border-top-color: transparent;
+            border-right-color: rgba(91,79,255,.5);
+            animation: spin 1.8s linear infinite reverse;
+        }
+        .printing-printer-icon {
+            font-size: 44px !important;
+            color: #fff;
+            animation: pulse-icon 1.6s ease-in-out infinite;
+        }
+        .printing-title {
+            font-family: 'Sora', sans-serif;
+            font-size: 26px;
+            font-weight: 800;
+            color: #fff;
+            text-align: center;
+        }
+        .printing-subtitle {
+            font-size: 14px;
+            color: rgba(255,255,255,.45);
+            text-align: center;
+            line-height: 1.6;
+        }
+        .printing-steps {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .printing-step {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 16px;
+            padding: 14px 16px;
+            opacity: .3;
+            transition: opacity .4s, border-color .4s, background .4s;
+        }
+        .printing-step.active {
+            opacity: 1;
+            background: rgba(91,79,255,.15);
+            border-color: rgba(91,79,255,.4);
+        }
+        .printing-step.done {
+            opacity: .7;
+            background: rgba(0,196,140,.07);
+            border-color: rgba(0,196,140,.3);
+        }
+        .printing-step-icon {
+            width: 38px; height: 38px;
+            border-radius: 12px;
+            background: rgba(255,255,255,.08);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .printing-step.active .printing-step-icon { background: var(--accent); }
+        .printing-step.done .printing-step-icon { background: rgba(0,196,140,.2); }
+        .printing-step-icon .material-icons-round { font-size: 20px !important; color: rgba(255,255,255,.4); }
+        .printing-step.active .printing-step-icon .material-icons-round,
+        .printing-step.done .printing-step-icon .material-icons-round { color: #fff; }
+        .printing-step-text { flex: 1; }
+        .printing-step-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: rgba(255,255,255,.4);
+        }
+        .printing-step.active .printing-step-name,
+        .printing-step.done .printing-step-name { color: #fff; }
+        .printing-step-desc {
+            font-size: 11px;
+            color: rgba(255,255,255,.3);
+            margin-top: 2px;
+        }
+        .printing-step.active .printing-step-desc { color: rgba(255,255,255,.5); }
+        .printing-step-check {
+            font-size: 20px !important;
+            color: var(--success);
+            display: none;
+        }
+        .printing-step.done .printing-step-check { display: block; }
+        .printing-eta {
+            font-size: 13px;
+            color: rgba(255,255,255,.4);
+            text-align: center;
+        }
+        .printing-eta span { color: var(--accent); font-weight: 700; }
+
+        /* ═══════════════════════════════════════════════════
+           #13 ATTRACT / IDLE SCREEN
+        ═══════════════════════════════════════════════════ */
+        #scr-attract {
+            background: #05040f;
+            cursor: pointer;
+            z-index: 100; /* sits above everything */
+        }
+        .attract-bg {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+        }
+        /* Animated gradient orbs */
+        .attract-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0;
+            animation: orbFloat 0s ease-in-out infinite;
+        }
+        .attract-orb1 {
+            width: 280px; height: 280px;
+            background: radial-gradient(circle, rgba(91,79,255,.7), transparent 70%);
+            top: -60px; left: -60px;
+            animation: orbFloat1 7s ease-in-out infinite;
+        }
+        .attract-orb2 {
+            width: 240px; height: 240px;
+            background: radial-gradient(circle, rgba(180,60,255,.5), transparent 70%);
+            bottom: 80px; right: -40px;
+            animation: orbFloat2 9s ease-in-out infinite;
+        }
+        .attract-orb3 {
+            width: 200px; height: 200px;
+            background: radial-gradient(circle, rgba(0,200,200,.35), transparent 70%);
+            top: 40%; left: 30%;
+            animation: orbFloat3 11s ease-in-out infinite;
+        }
+        @keyframes orbFloat1 {
+            0%,100% { transform: translate(0,0) scale(1); opacity:.8; }
+            50%      { transform: translate(40px,60px) scale(1.15); opacity:1; }
+        }
+        @keyframes orbFloat2 {
+            0%,100% { transform: translate(0,0) scale(1); opacity:.6; }
+            50%      { transform: translate(-50px,-40px) scale(1.2); opacity:.9; }
+        }
+        @keyframes orbFloat3 {
+            0%,100% { transform: translate(0,0) scale(1); opacity:.4; }
+            50%      { transform: translate(30px,-50px) scale(1.1); opacity:.65; }
+        }
+
+        .attract-content {
+            position: relative;
+            z-index: 2;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            padding: 32px 28px;
+            text-align: center;
+        }
+        .attract-logo {
+            font-family: 'Sora', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            color: rgba(255,255,255,.4);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: 28px;
+        }
+        .attract-headline {
+            font-family: 'Sora', sans-serif;
+            font-size: 38px;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1.15;
+            margin-bottom: 12px;
+        }
+        .attract-headline em {
+            font-style: normal;
+            background: linear-gradient(90deg, #a78bfa, #818cf8, #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .attract-sub {
+            font-size: 14px;
+            color: rgba(255,255,255,.45);
+            line-height: 1.7;
+            margin-bottom: 48px;
+        }
+        /* Pulsing tap-to-start pill */
+        .attract-cta {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+        }
+        .attract-tap-ring {
+            width: 72px; height: 72px;
+            border-radius: 50%;
+            background: rgba(91,79,255,.15);
+            border: 2px solid rgba(91,79,255,.5);
+            display: flex; align-items: center; justify-content: center;
+            animation: tapPulse 2s ease-in-out infinite;
+        }
+        @keyframes tapPulse {
+            0%,100% { transform: scale(1);   box-shadow: 0 0 0 0 rgba(91,79,255,.4); }
+            50%      { transform: scale(1.08); box-shadow: 0 0 0 14px rgba(91,79,255,0); }
+        }
+        .attract-tap-ring .material-icons-round {
+            font-size: 32px !important;
+            color: var(--accent);
+        }
+        .attract-tap-label {
+            font-family: 'Sora', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: rgba(255,255,255,.7);
+            letter-spacing: 1px;
+        }
+        /* Scrolling style tags at bottom */
+        .attract-tags {
+            position: absolute;
+            bottom: 36px; left: 0; right: 0;
+            overflow: hidden;
+            -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 15%, #000 85%, transparent 100%);
+            mask-image: linear-gradient(90deg, transparent 0%, #000 15%, #000 85%, transparent 100%);
+        }
+        .attract-tags-inner {
+            display: flex;
+            gap: 10px;
+            white-space: nowrap;
+            animation: scrollTags 18s linear infinite;
+            width: max-content;
+        }
+        @keyframes scrollTags {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .attract-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(255,255,255,.06);
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255,255,255,.55);
+        }
+        .attract-tag .material-icons-round { font-size: 13px !important; color: var(--accent); }
+
+        /* ===== 手机扫码上传功能 - 手机上传屏幕样式 ===== */
+        #scr-phone-upload {
+            background: var(--surface);
+        }
+        #scr-phone-upload .screen-body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 32px 24px;
+        }
+        .phone-upload-card {
+            width: 100%;
+            background: var(--white);
+            border-radius: var(--r-2xl);
+            padding: 28px 24px;
+            box-shadow: 0 4px 24px rgba(0,0,0,.07);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        .phone-upload-icon-hero {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(91,79,255,.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .phone-upload-icon-hero .material-icons-round {
+            font-size: 36px !important;
+            color: var(--accent);
+        }
+        .phone-upload-title {
+            font-family: 'Sora', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--ink);
+            text-align: center;
+        }
+        .phone-upload-sub {
+            font-size: 13px;
+            color: var(--ink-soft);
+            text-align: center;
+            line-height: 1.6;
+        }
+        .phone-session-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0,196,140,.08);
+            border: 1px solid rgba(0,196,140,.2);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--success);
+        }
+        .phone-session-badge .material-icons-round {
+            font-size: 14px !important;
+        }
+        .phone-file-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 32px 20px;
+            border: 2px dashed rgba(91,79,255,.3);
+            border-radius: var(--r-xl);
+            background: rgba(91,79,255,.03);
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .phone-file-label:active {
+            background: rgba(91,79,255,.08);
+            border-color: var(--accent);
+        }
+        .phone-file-label .material-icons-round {
+            font-size: 40px !important;
+            color: var(--accent);
+        }
+        .phone-file-label span {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+        .phone-file-hint {
+            font-size: 11px;
+            color: var(--ink-soft);
+            font-weight: 400;
+        }
+        .phone-preview-area {
+            width: 100%;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        .phone-preview-area.show {
+            display: flex;
+        }
+        .phone-preview-img-wrap {
+            width: 100%;
+            max-width: 280px;
+            border-radius: var(--r-xl);
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,.12);
+        }
+        .phone-preview-img-wrap img {
+            width: 100%;
+            aspect-ratio: 3/4;
+            object-fit: cover;
+            display: block;
+        }
+        .phone-success-card {
+            width: 100%;
+            background: var(--white);
+            border-radius: var(--r-2xl);
+            padding: 36px 24px;
+            box-shadow: 0 4px 24px rgba(0,0,0,.07);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        .phone-success-card.show {
+            display: flex;
+        }
+        .phone-success-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(0,196,140,.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: phoneSuccessPop .5s ease-out;
+        }
+        @keyframes phoneSuccessPop {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.15); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .phone-success-icon .material-icons-round {
+            font-size: 44px !important;
+            color: var(--success);
+        }
+        .phone-success-title {
+            font-family: 'Sora', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--ink);
+        }
+        .phone-success-sub {
+            font-size: 14px;
+            color: var(--ink-soft);
+            text-align: center;
+            line-height: 1.6;
+        }
+        .phone-error-msg {
+            width: 100%;
+            background: rgba(255,77,109,.08);
+            border: 1px solid rgba(255,77,109,.2);
+            border-radius: 14px;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: var(--danger);
+            text-align: center;
+            display: none;
+        }
+        .phone-error-msg.show {
+            display: block;
+        }
+        .phone-tips-row {
+            width: 100%;
+            display: flex;
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .phone-tip-chip {
+            flex: 1;
+            background: var(--white);
+            border-radius: 12px;
+            padding: 10px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            color: var(--ink-soft);
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,.04);
+        }
+        .phone-tip-chip .material-icons-round {
+            font-size: 18px !important;
+            color: var(--accent);
+        }
+        .phone-uploading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(14,14,18,.92);
+            backdrop-filter: blur(16px);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            z-index: 50;
+        }
+        .phone-uploading-overlay.show {
+            display: flex;
+        }
+        .phone-uploading-spin {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(255,255,255,.1);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .phone-uploading-text {
+            font-family: 'Sora', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .phone-uploading-sub {
+            font-size: 13px;
+            color: rgba(255,255,255,.45);
+        }
+
+        /* ===== AI结果下载功能 - 下载二维码弹窗样式 ===== */
+        .download-qr-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(14,14,18,.75);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .3s ease;
+        }
+        .download-qr-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .download-qr-card {
+            background: var(--white);
+            border-radius: var(--r-2xl);
+            padding: 36px 32px 28px;
+            width: 340px;
+            max-width: 90vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            position: relative;
+            box-shadow: 0 12px 48px rgba(0,0,0,.25);
+        }
+        .download-qr-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            background: var(--surface);
+            color: var(--muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background .2s;
+        }
+        .download-qr-close:hover {
+            background: #e5e5ea;
+        }
+        .download-qr-close .material-icons-round {
+            font-size: 18px;
+        }
+        .download-qr-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0e0e12, #2a2a35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .download-qr-icon .material-icons-round {
+            font-size: 28px;
+            color: #fff;
+        }
+        .download-qr-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -.3px;
+        }
+        .download-qr-sub {
+            font-size: 13px;
+            color: var(--muted);
+            text-align: center;
+            line-height: 1.5;
+        }
+        .download-qr-box {
+            padding: 12px;
+            background: #fff;
+            border-radius: var(--r-xl);
+            box-shadow: 0 2px 16px rgba(0,0,0,.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .download-qr-box img,
+        .download-qr-box canvas {
+            display: block;
+            border-radius: 8px;
+        }
+        .download-qr-tip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+        .download-qr-tip .material-icons-round {
+            font-size: 14px;
+            color: var(--warning, #f59e0b);
+        }
+
+        /* ===== AI结果下载功能 - 手机下载屏幕样式 ===== */
+        #scr-download {
+            background: var(--surface);
+        }
+        .dl-card {
+            width: 100%;
+            background: var(--white);
+            border-radius: var(--r-2xl);
+            padding: 20px;
+            box-shadow: 0 2px 16px rgba(0,0,0,.06);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        .dl-card img {
+            width: 100%;
+            height: auto;
+            border-radius: var(--r-xl);
+            display: block;
+            aspect-ratio: 3/4;
+            object-fit: cover;
+            background: var(--surface);
+        }
+        .dl-info-card {
+            width: 100%;
+            background: var(--white);
+            border-radius: var(--r-2xl);
+            padding: 20px;
+            box-shadow: 0 2px 16px rgba(0,0,0,.06);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .dl-info-title {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -.3px;
+        }
+        .dl-info-sub {
+            font-size: 13px;
+            color: var(--muted);
+            text-align: center;
+            line-height: 1.5;
+        }
+        .dl-btn-download {
+            width: 100%;
+            padding: 14px 24px;
+            border: none;
+            border-radius: var(--r-xl);
+            background: linear-gradient(135deg, #0e0e12, #2a2a35);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            font-family: inherit;
+            letter-spacing: -.2px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: opacity .2s, transform .1s;
+        }
+        .dl-btn-download:active {
+            transform: scale(.98);
+            opacity: .9;
+        }
+        .dl-btn-download .material-icons-round {
+            font-size: 20px;
+        }
+        .dl-tip-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+        .dl-tip-row .material-icons-round {
+            font-size: 14px;
+        }
+        .dl-loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 60px 20px;
+        }
+        .dl-loading-spin {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--surface);
+            border-top-color: #0e0e12;
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .dl-loading-text {
+            font-size: 14px;
+            color: var(--muted);
+        }
+        .dl-error-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 60px 20px;
+            text-align: center;
+        }
+        .dl-error-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: #fee2e2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dl-error-icon .material-icons-round {
+            font-size: 28px;
+            color: #ef4444;
+        }
+        .dl-error-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .dl-error-sub {
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+<div class="phone">
+
+    <!-- ══════════ 0. ATTRACT / IDLE ══════════ -->
+    <section id="scr-attract" class="screen active" onclick="dismissAttract()">
+        <div class="attract-bg">
+            <div class="attract-orb attract-orb1"></div>
+            <div class="attract-orb attract-orb2"></div>
+            <div class="attract-orb attract-orb3"></div>
+        </div>
+        <div class="attract-content">
+            <div class="attract-logo">Lumina AI Studio</div>
+            <div class="attract-headline"><span id="attract-h1">秒变</span><br><em id="attract-h2">AI 艺术照</em></div>
+            <div class="attract-sub" id="attract-sub">选风格 · 拍一张 · 即刻打印<br>带走属于你的专属大片</div>
+            <div class="attract-cta">
+                <div class="attract-tap-ring">
+                    <span class="material-icons-round">touch_app</span>
+                </div>
+                <div class="attract-tap-label" id="attract-tap">触摸屏幕开始</div>
+            </div>
+        </div>
+        <!-- Scrolling style tags -->
+        <div class="attract-tags">
+            <div class="attract-tags-inner">
+                <span class="attract-tag"><span class="material-icons-round">auto_awesome</span><span data-i18n="style_gold">N-金币风格</span></span>
+                <span class="attract-tag"><span class="material-icons-round">auto_awesome</span><span data-i18n="style_ethnic">民族服饰</span></span>
+                <span class="attract-tag"><span class="material-icons-round">auto_awesome</span><span data-i18n="style_cyber">赛博朋克</span></span>
+                <span class="attract-tag"><span class="material-icons-round">auto_awesome</span><span data-i18n="style_zen">古韵禅心</span></span>
+                <span class="attract-tag"><span class="material-icons-round">auto_awesome</span><span data-i18n="style_ink">水墨丹青</span></span>
+                <span class="attract-tag"><span class="material-icons-round">auto_awesome</span><span data-i18n="style_idphoto">证件照</span></span>
+                <!-- duplicate for seamless loop -->
+                <span class="attract-tag"><span class="material-icons-round">auto_awesome</span><span data-i18n="style_gold">N-金币风格</span></span>
+                <span class="attract-tag"><span class="material-icons-round">auto_awesome</span><span data-i18n="style_ethnic">民族服饰</span></span>
+                <span class="attract-tag"><span class="material-icons-round">auto_awesome</span><span data-i18n="style_cyber">赛博朋克</span></span>
+                <span class="attract-tag"><span class="material-icons-round">auto_awesome</span><span data-i18n="style_zen">古韵禅心</span></span>
+                <span class="attract-tag"><span class="material-icons-round">auto_awesome</span><span data-i18n="style_ink">水墨丹青</span></span>
+                <span class="attract-tag"><span class="material-icons-round">auto_awesome</span><span data-i18n="style_idphoto">证件照</span></span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 1. HOME ══════════ -->
+    <section id="scr-home" class="screen" onclick="navTo('scr-style')">
+
+        <!-- Upper: big AI result photo -->
+        <div class="home-hero">
+            <img class="home-hero-img"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAhza_x6qUs5hKj4SQCBdM0eLawcgzW1t7wzMa2YH7FAxnRN-q7FGQFKbrGaAxJF8X8kn-UH4MrJqJIjYFhFpv9_dtdJqUExQFi1IRiayPH9t6syQIICUhn0k-UNBNU01Dvd5HUnYvwb6F47-p4GRxiOvDpT5ZbP9viIOBWjbG3UyYbgk-Xo0g8dAZRQ9EwyG6i5-Gp9g9cU9MBUuYBcOvj0emQZPW2W8ZFCTzyf791dLsNuEftEqe4Bc7Vs8gCVuaWlEGVs86GuR0"
+                alt="AI效果图">
+
+            <!-- Labels -->
+            <div class="home-hero-label" data-i18n="home_label_effect">效果图</div>
+            <div class="home-lang" onclick="cycleLang(event)" style="cursor:pointer">
+                <span class="material-icons-round" style="font-size:14px!important">translate</span>
+                <span id="lang-label">简体中文</span>
+            </div>
+
+            <!-- Original photo thumbnail -->
+            <div class="home-origin-thumb">
+                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIyGpjJuhXJqRSCs3fpnzkV3S6Xlwd5yiSSRViXSn4ryaJfxD6D6dbCV6ScQlhtHuo41pxGF5sTNuoDckHLdW_QThGeUCrxP9BLVk3tMlRG1bC3phsXyGCiE0lnGDmIEvzgKRjSU1_4_oPdZaAl4iyFvvshmjlmQMfVlhO8RjrwY4Rur6FQctfyeLxmF5RZq0LVWb4Zu7uPJN3jE0pyLyw8_CRG8zjmr5_cUmt5AupvU30IjW94-njWelwYHDXmxol9d-v3BjxzVE" alt="原图">
+            </div>
+            <div class="home-origin-label" data-i18n="home_label_origin">原图</div>
+        </div>
+
+        <!-- Lower: CTA + steps -->
+        <div class="home-bottom">
+            <!-- CTA button -->
+            <button class="home-cta-btn">点击屏幕开始体验</button>
+
+            <!-- 3-step flow cards -->
+            <div class="home-steps">
+                <!-- Step 01 -->
+                <div class="home-step">
+                    <div class="home-step-header" data-i18n="home_step1">01 选择风格</div>
+                    <div class="home-step-placeholder">
+                        <span class="material-icons-round">style</span>
+                    </div>
+                </div>
+                <!-- Step 02: show a generated sample -->
+                <div class="home-step">
+                    <div class="home-step-header" data-i18n="home_step2">02 照片生成</div>
+                    <div class="home-step-img">
+                        <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIyGpjJuhXJqRSCs3fpnzkV3S6Xlwd5yiSSRViXSn4ryaJfxD6D6dbCV6ScQlhtHuo41pxGF5sTNuoDckHLdW_QThGeUCrxP9BLVk3tMlRG1bC3phsXyGCiE0lnGDmIEvzgKRjSU1_4_oPdZaAl4iyFvvshmjlmQMfVlhO8RjrwY4Rur6FQctfyeLxmF5RZq0LVWb4Zu7uPJN3jE0pyLyw8_CRG8zjmr5_cUmt5AupvU30IjW94-njWelwYHDXmxol9d-v3BjxzVE" alt="生成效果">
+                    </div>
+                </div>
+                <!-- Step 03: print -->
+                <div class="home-step">
+                    <div class="home-step-header" data-i18n="home_step3">03 照片打印</div>
+                    <div class="home-step-placeholder">
+                        <span class="material-icons-round">print</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scrolling hint -->
+            <p style="font-size:12px; color:var(--ink-soft); text-align:center; letter-spacing:.5px">
+                点击屏幕开始 · Click the screen to start
+            </p>
+        </div>
+    </section>
+
+    <!-- ══════════ 2. STYLE ══════════ -->
+    <section id="scr-style" class="screen">
+        <div class="topbar">
+            <button class="icon-btn" onclick="navTo('scr-home')">
+                <span class="material-icons-round" style="font-size:20px">arrow_back</span>
+            </button>
+            <span class="topbar-title" data-i18n="style_title">选择风格</span>
+            <button class="text-btn" onclick="navTo('scr-home')" data-i18n="style_exit">退出</button>
+        </div>
+
+        <div class="filter-nav">
+            <div class="filter-row" id="filter-row-1" style="grid-template-columns: repeat(5, 1fr)">
+                <button class="filter-chip active-accent" data-cat="全部" onclick="filterCat(this)">全部</button>
+                <button class="filter-chip" data-cat="天使风" onclick="filterCat(this)">天使风</button>
+                <button class="filter-chip" data-cat="动漫风" onclick="filterCat(this)">动漫风</button>
+                <button class="filter-chip" data-cat="公主风" onclick="filterCat(this)">公主风</button>
+                <button class="filter-chip" data-cat="梦幻风" onclick="filterCat(this)">梦幻风</button>
+            </div>
+            <div class="filter-row" id="filter-row-2" style="grid-template-columns: repeat(5, 1fr)">
+                <button class="filter-chip" data-cat="水墨风" onclick="filterCat(this)">水墨风</button>
+                <button class="filter-chip" data-cat="浪漫光影" onclick="filterCat(this)">浪漫光影</button>
+                <button class="filter-chip" data-cat="陶瓷娃娃" onclick="filterCat(this)">陶瓷娃娃</button>
+                <button class="filter-chip" data-cat="丑萌粘土" onclick="filterCat(this)">丑萌粘土</button>
+                <button class="filter-chip" data-cat="可爱玩偶" onclick="filterCat(this)">可爱玩偶</button>
+            </div>
+        </div>
+
+        <div class="screen-body">
+            <div class="style-grid">
+                <div class="style-card" data-sub="天使风" onclick="selectStyle('天使风')">
+                    <div class="style-img-wrap">
+                        <img src="https://picsum.photos/seed/angel-style/300/400" alt="天使风">
+                    </div>
+                    <div class="style-card-badge">HOT</div>
+                    <div class="style-card-name">天使风</div>
+                </div>
+                <div class="style-card" data-sub="动漫风" onclick="selectStyle('动漫风')">
+                    <div class="style-img-wrap">
+                        <img src="https://picsum.photos/seed/anime-style/300/400" alt="动漫风">
+                    </div>
+                    <div class="style-card-name">动漫风</div>
+                </div>
+                <div class="style-card" data-sub="公主风" onclick="selectStyle('公主风')">
+                    <div class="style-img-wrap">
+                        <img src="https://picsum.photos/seed/princess-style/300/400" alt="公主风">
+                    </div>
+                    <div class="style-card-name">公主风</div>
+                </div>
+                <div class="style-card" data-sub="梦幻风" onclick="selectStyle('梦幻风')">
+                    <div class="style-img-wrap">
+                        <img src="https://picsum.photos/seed/fantasy-style/300/400" alt="梦幻风">
+                    </div>
+                    <div class="style-card-name">梦幻风</div>
+                </div>
+                <div class="style-card" data-sub="水墨风" onclick="selectStyle('水墨风')">
+                    <div class="style-img-wrap">
+                        <img src="https://picsum.photos/seed/inkwash-style/300/400" alt="水墨风">
+                    </div>
+                    <div class="style-card-name">水墨风</div>
+                </div>
+                <div class="style-card" data-sub="浪漫光影" onclick="selectStyle('浪漫光影')">
+                    <div class="style-img-wrap">
+                        <img src="https://picsum.photos/seed/romantic-light/300/400" alt="浪漫光影">
+                    </div>
+                    <div class="style-card-name">浪漫光影</div>
+                </div>
+                <div class="style-card" data-sub="陶瓷娃娃" onclick="selectStyle('陶瓷娃娃')">
+                    <div class="style-img-wrap">
+                        <img src="https://picsum.photos/seed/porcelain-doll/300/400" alt="陶瓷娃娃">
+                    </div>
+                    <div class="style-card-name">陶瓷娃娃</div>
+                </div>
+                <div class="style-card" data-sub="丑萌粘土" onclick="selectStyle('丑萌粘土')">
+                    <div class="style-img-wrap">
+                        <img src="https://picsum.photos/seed/clay-cute/300/400" alt="丑萌粘土">
+                    </div>
+                    <div class="style-card-name">丑萌粘土</div>
+                </div>
+                <div class="style-card" data-sub="可爱玩偶" onclick="selectStyle('可爱玩偶')">
+                    <div class="style-img-wrap">
+                        <img src="https://picsum.photos/seed/cute-doll/300/400" alt="可爱玩偶">
+                    </div>
+                    <div class="style-card-name">可爱玩偶</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 3. UPLOAD ══════════ -->
+    <section id="scr-upload" class="screen">
+        <div style="flex:1" onclick="navTo('scr-style')"></div>
+        <div class="upload-sheet">
+            <div class="sheet-handle"></div>
+            <div class="upload-sheet-inner">
+            <h3 data-i18n="upload_title">上传照片</h3>
+            <p data-i18n-html="upload_sub">选择拍照方式，保持光线充足<br>效果更好哦 ✨</p>
+
+            <div class="upload-option" onclick="navTo('scr-capture')">
+                <div class="upload-icon-wrap" style="background:#f0f0f8; box-shadow: 0 2px 8px rgba(0,0,0,.08)">
+                    <span class="material-icons-round" style="color:var(--ink); font-size:26px!important">photo_camera</span>
+                </div>
+                <div class="upload-text">
+                    <h4 data-i18n="upload_camera">设备拍照</h4>
+                    <p data-i18n="upload_camera_desc">现场拍摄，即时生成</p>
+                </div>
+                <span class="material-icons-round upload-arrow">chevron_right</span>
+            </div>
+
+            <div class="upload-option highlight" onclick="navTo('scr-qrcode')">
+                <div class="upload-icon-wrap">
+                    <span class="material-icons-round">smartphone</span>
+                </div>
+                <div class="upload-text">
+                    <h4 data-i18n="upload_phone">手机上传</h4>
+                    <p data-i18n="upload_phone_desc">扫码上传手机相册照片</p>
+                </div>
+                <span class="material-icons-round upload-arrow" style="color:rgba(255,255,255,.5)">chevron_right</span>
+            </div>
+
+            <!-- #10 FIX: Photo quality tips panel -->
+            <div class="photo-tips-panel">
+                <div class="photo-tips-title">
+                    <span class="material-icons-round" style="font-size:15px!important;color:var(--accent)">tips_and_updates</span>
+                    <span data-i18n="upload_tips_title">拍照小贴士，效果更出众</span>
+                </div>
+                <div class="photo-tips-grid">
+                    <div class="photo-tip-item good">
+                        <span class="material-icons-round">light_mode</span>
+                        <span data-i18n="upload_tip_light">光线充足</span>
+                        <span class="tip-desc" data-i18n="upload_tip_light_desc">正面自然光最佳，避免逆光</span>
+                    </div>
+                    <div class="photo-tip-item good">
+                        <span class="material-icons-round">face</span>
+                        <span data-i18n="upload_tip_face">正面半身</span>
+                        <span class="tip-desc" data-i18n="upload_tip_face_desc">头肩入镜，五官清晰朝前</span>
+                    </div>
+                    <div class="photo-tip-item good">
+                        <span class="material-icons-round">auto_fix_high</span>
+                        <span data-i18n="upload_tip_makeup">妆容建议</span>
+                        <span class="tip-desc" data-i18n="upload_tip_makeup_desc">淡妆或无妆均可，避免遮脸刘海</span>
+                    </div>
+                    <div class="photo-tip-item good">
+                        <span class="material-icons-round">hd</span>
+                        <span data-i18n="upload_tip_clear">照片清晰</span>
+                        <span class="tip-desc" data-i18n="upload_tip_clear_desc">避免模糊、曝光过度或滤镜照</span>
+                    </div>
+                    <div class="photo-tip-item bad">
+                        <span class="material-icons-round">do_not_disturb_on</span>
+                        <span data-i18n="upload_tip_side">避免侧脸</span>
+                        <span class="tip-desc" data-i18n="upload_tip_side_desc">侧身或低头影响生成质量</span>
+                    </div>
+                    <div class="photo-tip-item bad">
+                        <span class="material-icons-round">do_not_disturb_on</span>
+                        <span data-i18n="upload_tip_block">避免遮挡</span>
+                        <span class="tip-desc" data-i18n="upload_tip_block_desc">口罩、墨镜、帽檐遮脸请取下</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 4. CAPTURE ══════════ -->
+    <section id="scr-capture" class="screen">
+        <div class="camera-preview">
+            <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6t1vbmqNpC-XGzdHHNF-j5WkMg8TaG8jzcUShDWBDsydStS89kLZHdUhl3pHXymSCk-nblnkNySpXGznVHHIcC9_zCi-1sA1nr6hZ3NuR_bynXJrZAXd0HTEwYQHcIDWK4kMybEDH8qv6SfAtUHLzvCc_eeDOPT2ZPkYu3y2T2ET1DLE4qAEGCUtSRquDyEE0baflR077vqC4YOqMqJmKq4hWdZ4FAbGpV-EObTZ4VdDAcw44AuB3XAUCkB0wsGq1R8UCJ4KFbiE" alt="Camera Preview">
+
+            <div class="camera-overlay">
+                <!-- Top bar -->
+                <div class="cam-topbar">
+                    <button class="icon-btn" style="background:rgba(0,0,0,.4); color:#fff" onclick="navTo('scr-upload')">
+                        <span class="material-icons-round" style="font-size:20px">arrow_back</span>
+                    </button>
+                    <div class="cam-pill" data-i18n="capture_pill">艺术照拍摄</div>
+                    <button class="text-btn" style="background:rgba(0,0,0,.4); color:rgba(255,255,255,.7)" onclick="navTo('scr-home')" data-i18n="capture_exit">退出</button>
+                </div>
+
+                <!-- Face guide frame -->
+                <div style="flex:1; position:relative;">
+                    <div class="face-guide">
+                        <div class="face-guide-b" style="position:absolute; inset:0"></div>
+                    </div>
+                    <!-- Pose reference -->
+                    <div class="pose-strip">
+                        <div class="pose-thumb ok">
+                            <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUdWBxiyDDJlaRunRclLfhmk7QWX64dljJ0GuboZzG-T0coZlBWhnXsm2ZNyMrXwMu7-AK4qHrksE1ufNWYrboCO8evrGun3hwbd9qvxrmszk9kfEkBkzp6ygvI3cDneTLgBu1ZgHsj8FOXocp5R_Kep3qU4-pIBxjG6vS_bO7RMKgXkiICx1MabVc-AsKe98qCEnWDql6vlJDJkSOFF8REmX0xDLdyfLhofTjG318jJd02l1jNRLTxf72wrs79PQyan0b5acSH7Y" alt="ok">
+                            <div class="pose-tag ok"><span class="material-icons-round">check</span></div>
+                        </div>
+                        <div class="pose-thumb bad">
+                            <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUdWBxiyDDJlaRunRclLfhmk7QWX64dljJ0GuboZzG-T0coZlBWhnXsm2ZNyMrXwMu7-AK4qHrksE1ufNWYrboCO8evrGun3hwbd9qvxrmszk9kfEkBkzp6ygvI3cDneTLgBu1ZgHsj8FOXocp5R_Kep3qU4-pIBxjG6vS_bO7RMKgXkiICx1MabVc-AsKe98qCEnWDql6vlJDJkSOFF8REmX0xDLdyfLhofTjG318jJd02l1jNRLTxf72wrs79PQyan0b5acSH7Y" alt="bad">
+                            <div class="pose-tag bad"><span class="material-icons-round">close</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom controls -->
+                <div class="cam-bottom">
+                    <div class="cam-hint" data-i18n="capture_hint">请保持正面半身，五官清晰</div>
+                    <button class="cam-shutter" onclick="startCountdown()">
+                        <span class="material-icons-round">photo_camera</span>
+                        <span data-i18n="capture_shutter">立即拍照</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Countdown overlay -->
+            <div id="countdown-overlay">
+                <div class="countdown-number" id="countdown-num">3</div>
+                <div class="countdown-label" data-i18n="capture_countdown">准备好了吗</div>
+            </div>
+
+            <!-- Processing overlay — step-by-step progress -->
+            <div id="processing-overlay">
+                <div class="proc-header">
+                    <div class="proc-title" data-i18n="capture_proc_title">AI 正在为你作画</div>
+                    <div class="proc-eta" id="proc-eta"><span data-i18n="capture_proc_eta">预计还需</span> <span id="proc-seconds">18</span> <span data-i18n="capture_proc_eta_sec">秒</span></div>
+                </div>
+
+                <!-- Animated illustration area -->
+                <div class="proc-art">
+                    <div class="proc-art-ring proc-art-ring1"></div>
+                    <div class="proc-art-ring proc-art-ring2"></div>
+                    <div class="proc-art-ring proc-art-ring3"></div>
+                    <span class="material-icons-round proc-art-icon">auto_awesome</span>
+                </div>
+
+                <!-- Steps list -->
+                <div class="proc-steps">
+                    <div class="proc-step" id="pstep-0">
+                        <div class="proc-step-icon">
+                            <span class="material-icons-round">face</span>
+                        </div>
+                        <div class="proc-step-body">
+                            <div class="proc-step-name" data-i18n="capture_proc_face">人脸识别</div>
+                            <div class="proc-step-bar"><div class="proc-step-fill"></div></div>
+                        </div>
+                        <div class="proc-step-state">
+                            <span class="material-icons-round psi-done">check_circle</span>
+                            <div class="psi-spin"></div>
+                        </div>
+                    </div>
+                    <div class="proc-step" id="pstep-1">
+                        <div class="proc-step-icon">
+                            <span class="material-icons-round">palette</span>
+                        </div>
+                        <div class="proc-step-body">
+                            <div class="proc-step-name" data-i18n="capture_proc_style">风格渲染</div>
+                            <div class="proc-step-bar"><div class="proc-step-fill"></div></div>
+                        </div>
+                        <div class="proc-step-state">
+                            <span class="material-icons-round psi-done">check_circle</span>
+                            <div class="psi-spin"></div>
+                        </div>
+                    </div>
+                    <div class="proc-step" id="pstep-2">
+                        <div class="proc-step-icon">
+                            <span class="material-icons-round">hd</span>
+                        </div>
+                        <div class="proc-step-body">
+                            <div class="proc-step-name" data-i18n="capture_proc_hd">高清增强</div>
+                            <div class="proc-step-bar"><div class="proc-step-fill"></div></div>
+                        </div>
+                        <div class="proc-step-state">
+                            <span class="material-icons-round psi-done">check_circle</span>
+                            <div class="psi-spin"></div>
+                        </div>
+                    </div>
+                    <div class="proc-step" id="pstep-3">
+                        <div class="proc-step-icon">
+                            <span class="material-icons-round">image</span>
+                        </div>
+                        <div class="proc-step-body">
+                            <div class="proc-step-name" data-i18n="capture_proc_output">输出成片</div>
+                            <div class="proc-step-bar"><div class="proc-step-fill"></div></div>
+                        </div>
+                        <div class="proc-step-state">
+                            <span class="material-icons-round psi-done">check_circle</span>
+                            <div class="psi-spin"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="proc-dots">
+                    <div class="proc-dot"></div>
+                    <div class="proc-dot"></div>
+                    <div class="proc-dot"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ 5. RESULT ══════════ -->
+    <section id="scr-result" class="screen">
+        <div class="topbar">
+            <button class="icon-btn" onclick="navTo('scr-home')">
+                <span class="material-icons-round" style="font-size:20px">home</span>
+            </button>
+            <span class="topbar-title" style="color:var(--accent)" data-i18n="result_title">生成完成 ✦</span>
+            <button class="text-btn" onclick="navTo('scr-home')" data-i18n="result_done">完成</button>
+        </div>
+
+        <div class="screen-body">
+            <!-- #8 FIX: Multi-image selection — 4 AI variants to pick from -->
+            <div class="result-gallery-header">
+                <div>
+                    <div class="result-gallery-title" data-i18n-html="result_gallery_title">AI 为你生成了 <span id="result-count">4</span> 张</div>
+                    <div class="result-gallery-sub" data-i18n="result_gallery_sub">选择一张满意的，再打印</div>
+                </div>
+                <div class="result-style-chip" id="result-style-label">N-金币风格</div>
+            </div>
+
+            <!-- Main selected image (large) -->
+            <div class="result-main-wrap">
+                <div class="result-image-card" id="result-main-card">
+                    <img id="result-main-img"
+                        src="https://picsum.photos/seed/result-v1/400/533" alt="Result">
+                    <div class="result-tag" data-i18n="result_tag">4K · AI 生成</div>
+                    <div class="result-selected-badge" data-i18n-html="result_selected">
+                        <span class="material-icons-round" style="font-size:14px!important">check_circle</span>
+                        已选第 <span id="result-selected-num">1</span> 张
+                    </div>
+                </div>
+            </div>
+
+            <!-- Thumbnail strip — 4 variants -->
+            <div class="result-thumb-strip">
+                <div class="result-thumb active" data-idx="0" onclick="selectResultPhoto(this, 0)">
+                    <img src="https://picsum.photos/seed/result-v1/120/160" alt="版本1">
+                    <div class="result-thumb-label"><span data-i18n="result_version">版本</span> 1</div>
+                    <div class="result-thumb-check"><span class="material-icons-round">check</span></div>
+                </div>
+                <div class="result-thumb" data-idx="1" onclick="selectResultPhoto(this, 1)">
+                    <img src="https://picsum.photos/seed/result-v2/120/160" alt="版本2">
+                    <div class="result-thumb-label"><span data-i18n="result_version">版本</span> 2</div>
+                    <div class="result-thumb-check"><span class="material-icons-round">check</span></div>
+                </div>
+                <div class="result-thumb" data-idx="2" onclick="selectResultPhoto(this, 2)">
+                    <img src="https://picsum.photos/seed/result-v3/120/160" alt="版本3">
+                    <div class="result-thumb-label"><span data-i18n="result_version">版本</span> 3</div>
+                    <div class="result-thumb-check"><span class="material-icons-round">check</span></div>
+                </div>
+                <div class="result-thumb" data-idx="3" onclick="selectResultPhoto(this, 3)">
+                    <img src="https://picsum.photos/seed/result-v4/120/160" alt="版本4">
+                    <div class="result-thumb-label"><span data-i18n="result_version">版本</span> 4</div>
+                    <div class="result-thumb-check"><span class="material-icons-round">check</span></div>
+                </div>
+            </div>
+
+            <div class="result-actions">
+                <div class="action-card primary-action" onclick="startPrinting()">
+                    <span class="material-icons-round">print</span>
+                    <h4 data-i18n="result_print">立即打印</h4>
+                    <p data-i18n="result_print_sub">Print Now</p>
+                </div>
+                <div class="action-card" onclick="showDownloadQR()">
+                    <span class="material-icons-round">qr_code_2</span>
+                    <h4 data-i18n="result_download">扫码下载</h4>
+                    <p data-i18n="result_download_sub">Scan to Save</p>
+                </div>
+            </div>
+
+            <div class="result-footer">
+                <button class="btn-ghost" onclick="navTo('scr-style')">
+                    <span class="material-icons-round" style="font-size:18px!important">refresh</span>
+                    <span data-i18n="result_again">再来一张</span>
+                </button>
+            </div>
+        </div>
+    </section>
+    <!-- ══════════ PAYMENT (新增) ══════════ -->
+    <section id="scr-payment" class="screen">
+        <div class="topbar">
+            <button class="icon-btn" onclick="cancelPayment()">
+                <span class="material-icons-round" style="font-size:20px">arrow_back</span>
+            </button>
+            <span class="topbar-title" data-i18n="payment_title">确认支付</span>
+            <div style="width:40px"></div>
+        </div>
+
+        <!-- Amount hero -->
+        <div class="payment-hero">
+            <div class="payment-label" data-i18n-html="payment_label">AI 艺术照 · <span id="pay-qty-label">打印 1 张</span></div>
+            <div class="payment-amount">
+                <span class="payment-amount-unit">¥</span>
+                <span id="payment-price">19.90</span>
+            </div>
+
+            <!-- #11 FIX: Print quantity selector -->
+            <div class="pay-qty-row">
+                <div class="pay-qty-btn active" data-qty="1" data-price="19.90" onclick="selectQty(this)">
+                    <span class="pay-qty-num">1 <span data-i18n="payment_label_sheet">张</span></span>
+                    <span class="pay-qty-price">¥19.90</span>
+                </div>
+                <div class="pay-qty-btn" data-qty="2" data-price="35.90" onclick="selectQty(this)">
+                    <span class="pay-qty-num">2 <span data-i18n="payment_label_sheet">张</span></span>
+                    <span class="pay-qty-price">¥35.90</span>
+                    <span class="pay-qty-save"><span data-i18n="payment_qty_save">省</span>¥3.9</span>
+                </div>
+                <div class="pay-qty-btn" data-qty="4" data-price="59.90" onclick="selectQty(this)">
+                    <span class="pay-qty-num">4 <span data-i18n="payment_label_sheet">张</span></span>
+                    <span class="pay-qty-price">¥59.90</span>
+                    <span class="pay-qty-save"><span data-i18n="payment_qty_save">省</span>¥19.7</span>
+                </div>
+            </div>
+
+            <div class="payment-desc"><span data-i18n="payment_style">已选风格：</span><strong style="color:#fff" id="pay-style-name">N-金币风格</strong></div>
+            <div class="payment-expire">
+                <span class="material-icons-round">timer</span>
+                <span data-i18n="payment_expire">订单</span> <span id="pay-timer">04:59</span> <span data-i18n="payment_expire_suffix">后失效</span>
+            </div>
+        </div>
+
+        <div class="payment-body">
+            <!-- Payment method tabs -->
+            <div class="payment-tabs">
+                <div class="payment-tab active" data-method="wechat" onclick="switchPayMethod('wechat')">
+                    <span class="material-icons-round" style="color:#07c160">chat_bubble</span>
+                    <span data-i18n="payment_wechat">微信支付</span>
+                </div>
+                <div class="payment-tab" data-method="alipay" onclick="switchPayMethod('alipay')">
+                    <span class="material-icons-round" style="color:#1677ff">account_balance_wallet</span>
+                    <span data-i18n="payment_alipay">支付宝</span>
+                </div>
+            </div>
+
+            <!-- QR code -->
+            <div class="payment-qr-wrap">
+                <div class="payment-qr-box" id="payment-qr-box">
+                    <svg width="148" height="148" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="10" y="10" width="50" height="50" rx="6" fill="#0e0e12"/>
+                        <rect x="18" y="18" width="34" height="34" rx="3" fill="white"/>
+                        <rect x="26" y="26" width="18" height="18" rx="2" fill="#07c160"/>
+                        <rect x="120" y="10" width="50" height="50" rx="6" fill="#0e0e12"/>
+                        <rect x="128" y="18" width="34" height="34" rx="3" fill="white"/>
+                        <rect x="136" y="26" width="18" height="18" rx="2" fill="#07c160"/>
+                        <rect x="10" y="120" width="50" height="50" rx="6" fill="#0e0e12"/>
+                        <rect x="18" y="128" width="34" height="34" rx="3" fill="white"/>
+                        <rect x="26" y="136" width="18" height="18" rx="2" fill="#07c160"/>
+                        <rect x="72" y="10" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="84" y="10" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="96" y="22" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="72" y="34" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="84" y="46" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="96" y="10" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="10" y="72" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="34" y="72" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="46" y="84" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="10" y="96" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="22" y="108" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="72" y="72" width="8" height="8" rx="2" fill="#07c160"/>
+                        <rect x="84" y="72" width="8" height="8" rx="2" fill="#07c160"/>
+                        <rect x="96" y="72" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="108" y="72" width="8" height="8" rx="2" fill="#07c160"/>
+                        <rect x="120" y="84" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="144" y="72" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="156" y="84" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="72" y="84" width="8" height="8" rx="2" fill="#07c160"/>
+                        <rect x="96" y="96" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="132" y="96" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="156" y="96" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="84" y="108" width="8" height="8" rx="2" fill="#07c160"/>
+                        <rect x="108" y="108" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="120" y="120" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="144" y="108" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="72" y="120" width="8" height="8" rx="2" fill="#07c160"/>
+                        <rect x="96" y="132" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="132" y="132" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="156" y="144" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="84" y="144" width="8" height="8" rx="2" fill="#07c160"/>
+                        <rect x="108" y="144" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="144" y="156" width="8" height="8" rx="2" fill="#0e0e12"/>
+                        <rect x="72" y="156" width="8" height="8" rx="2" fill="#07c160"/>
+                        <rect x="132" y="156" width="8" height="8" rx="2" fill="#07c160"/>
+                    </svg>
+                    <div class="qr-logo" id="pay-method-logo">
+                        <span class="material-icons-round" style="color:#07c160;font-size:20px">chat_bubble</span>
+                    </div>
+                </div>
+                <div class="payment-hint"><span data-i18n="payment_hint">使用</span><span id="pay-method-name">微信</span><span data-i18n="payment_hint_suffix">扫一扫支付</span></div>
+                <div class="payment-security">
+                    <span class="material-icons-round">lock</span>
+                    <span data-i18n="payment_security">安全加密支付 · 付款后自动打印</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-bar" style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn-primary" onclick="simulatePaySuccess()" style="background:linear-gradient(135deg,#07c160,#04a84f)">
+                <span class="material-icons-round" style="font-size:20px!important">check_circle</span>
+                <span data-i18n="payment_simulate">模拟支付成功（演示）</span>
+            </button>
+            <button class="btn-ghost" onclick="cancelPayment()" data-i18n="payment_cancel">取消支付</button>
+        </div>
+    </section>
+
+    <!-- ══════════ PRINTING PROGRESS (#12) ══════════ -->
+    <section id="scr-printing" class="screen">
+        <div class="topbar" style="background:rgba(14,14,18,.9); border-bottom-color:rgba(255,255,255,.08)">
+            <div style="width:40px"></div>
+            <span class="topbar-title" style="color:#fff" data-i18n="printing_title">打印中</span>
+            <div style="width:40px"></div>
+        </div>
+        <div class="printing-body">
+            <div class="printing-icon-ring">
+                <div class="printing-ring"></div>
+                <div class="printing-ring printing-ring2"></div>
+                <span class="material-icons-round printing-printer-icon">print</span>
+            </div>
+            <div style="text-align:center">
+                <div class="printing-title" data-i18n="printing_main">正在打印</div>
+                <div class="printing-subtitle" data-i18n-html="printing_sub">请稍候，照片正在输出<br>预计还需 <span id="print-eta-sec" style="color:var(--accent);font-weight:700">12</span> <span data-i18n="printing_sub_sec">秒</span></div>
+            </div>
+            <div class="printing-steps">
+                <div class="printing-step" id="prstep-0">
+                    <div class="printing-step-icon">
+                        <span class="material-icons-round">send</span>
+                    </div>
+                    <div class="printing-step-text">
+                        <div class="printing-step-name" data-i18n="printing_step1_name">发送打印任务</div>
+                        <div class="printing-step-desc" data-i18n="printing_step1_desc">图像数据传输至打印机</div>
+                    </div>
+                    <span class="material-icons-round printing-step-check">check_circle</span>
+                </div>
+                <div class="printing-step" id="prstep-1">
+                    <div class="printing-step-icon">
+                        <span class="material-icons-round">tune</span>
+                    </div>
+                    <div class="printing-step-text">
+                        <div class="printing-step-name" data-i18n="printing_step2_name">色彩校准</div>
+                        <div class="printing-step-desc" data-i18n="printing_step2_desc">自动优化打印色彩还原</div>
+                    </div>
+                    <span class="material-icons-round printing-step-check">check_circle</span>
+                </div>
+                <div class="printing-step" id="prstep-2">
+                    <div class="printing-step-icon">
+                        <span class="material-icons-round">photo_size_select_large</span>
+                    </div>
+                    <div class="printing-step-text">
+                        <div class="printing-step-name" data-i18n="printing_step3_name">出纸中</div>
+                        <div class="printing-step-desc" data-i18n="printing_step3_desc">照片正在从出纸口输出</div>
+                    </div>
+                    <span class="material-icons-round printing-step-check">check_circle</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════ QR CODE UPLOAD ══════════ -->
+    <section id="scr-qrcode" class="screen">
+        <div class="topbar">
+            <button class="icon-btn" onclick="navTo('scr-upload')">
+                <span class="material-icons-round" style="font-size:20px">arrow_back</span>
+            </button>
+            <span class="topbar-title" data-i18n="qrcode_title">手机上传</span>
+            <button class="text-btn" onclick="navTo('scr-home')" data-i18n="qrcode_exit">退出</button>
+        </div>
+        <div class="screen-body" style="display:flex; flex-direction:column; align-items:center; padding:32px 24px;">
+            <div class="qr-card">
+                <div class="qr-title" data-i18n="qrcode_card_title">扫码上传照片</div>
+                <div class="qr-sub" data-i18n-html="qrcode_card_sub">用手机扫描下方二维码<br>从相册选择照片上传</div>
+                <div class="qr-box">
+                    <!-- ===== 手机扫码上传功能 - 真实二维码容器 ===== -->
+                    <div id="qrcode-container"></div>
+                    <div class="qr-logo">
+                        <span class="material-icons-round" style="font-size:22px;color:#5b4fff">auto_awesome</span>
+                    </div>
+                </div>
+                <div class="qr-expire">
+                    <span class="material-icons-round" style="font-size:14px;color:var(--success)">schedule</span>
+                    <span data-i18n="qrcode_expire">二维码有效期</span> <span id="qr-timer">04:59</span>
+                </div>
+                <div class="qr-steps">
+                    <div class="qr-step"><span class="qr-step-num">1</span><span data-i18n="qrcode_step1">打开手机相机或微信扫一扫</span></div>
+                    <div class="qr-step"><span class="qr-step-num">2</span><span data-i18n="qrcode_step2">从相册选择清晰的正脸照片</span></div>
+                    <div class="qr-step"><span class="qr-step-num">3</span><span data-i18n="qrcode_step3">上传成功后本屏自动跳转</span></div>
+                </div>
+            </div>
+            <div style="height:24px"></div>
+            <!-- Simulate upload received for demo -->
+            <button class="btn-primary" onclick="simulateUploadReceived()">
+                <span class="material-icons-round" style="font-size:20px!important">check_circle</span>
+                <span data-i18n="qrcode_simulate">模拟：照片已上传（演示）</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- ══════════ PREVIEW (新增) ══════════ -->
+    <section id="scr-preview" class="screen">
+        <div class="topbar">
+            <button class="icon-btn" onclick="retakePhoto()">
+                <span class="material-icons-round" style="font-size:20px">arrow_back</span>
+            </button>
+            <span class="topbar-title" data-i18n="preview_title">确认照片</span>
+            <div style="width:40px"></div>
+        </div>
+        <div class="screen-body">
+            <div style="padding:20px 20px 12px">
+                <div class="preview-photo-card">
+                    <img id="preview-photo-img" src="https://picsum.photos/seed/camera-preview/400/533" alt="预览">
+                    <div class="preview-badge" id="preview-source-badge">
+                        <span class="material-icons-round" style="font-size:14px!important">check_circle</span>
+                        <span id="preview-source-label">照片已拍摄</span>
+                    </div>
+                </div>
+            </div>
+            <div style="padding:0 20px">
+                <div class="preview-quality-row">
+                    <div class="preview-quality-item good">
+                        <span class="material-icons-round">light_mode</span>
+                        <span data-i18n="preview_quality_light">光线充足</span>
+                    </div>
+                    <div class="preview-quality-item good">
+                        <span class="material-icons-round">face</span>
+                        <span data-i18n="preview_quality_face">面部清晰</span>
+                    </div>
+                    <div class="preview-quality-item good">
+                        <span class="material-icons-round">center_focus_strong</span>
+                        <span data-i18n="preview_quality_focus">对焦清晰</span>
+                    </div>
+                </div>
+                <div class="preview-style-badge">
+                    <span class="material-icons-round" style="font-size:16px!important">auto_awesome</span>
+                    <span data-i18n="preview_style">已选风格：</span><strong id="preview-style-name">N-金币风格</strong>
+                </div>
+            </div>
+        </div>
+        <div class="bottom-bar" style="display:flex; flex-direction:column; gap:10px">
+            <button class="btn-primary" onclick="startProcessing()">
+                <span class="material-icons-round" style="font-size:20px!important">auto_awesome</span>
+                <span data-i18n="preview_confirm">确认，开始AI生成</span>
+            </button>
+            <button class="btn-ghost" onclick="retakePhoto()">
+                <span class="material-icons-round" style="font-size:18px!important">replay</span>
+                <span data-i18n="preview_retake">重新拍摄</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- ===== 手机扫码上传功能 - 手机端上传屏幕 ===== -->
+    <section id="scr-phone-upload" class="screen">
+        <div class="topbar">
+            <span class="topbar-title">Lumina AI Studio</span>
+        </div>
+        <div class="screen-body">
+
+            <div class="phone-upload-card" id="phone-upload-card">
+                <div class="phone-upload-icon-hero">
+                    <span class="material-icons-round">cloud_upload</span>
+                </div>
+                <div class="phone-upload-title" data-i18n="phone_title">上传照片</div>
+                <div class="phone-upload-sub" data-i18n-html="phone_sub">从手机相册选择一张清晰的正脸照片<br>上传至大屏 AI 拍照机</div>
+
+                <div class="phone-session-badge" id="phone-session-badge" style="display:none">
+                    <span class="material-icons-round">link</span>
+                    <span id="phone-session-display"></span>
+                </div>
+
+                <div style="width:100%">
+                    <div class="phone-file-label" id="phone-file-label" onclick="document.getElementById('phone-photo-input').click()">
+                        <span class="material-icons-round">add_photo_alternate</span>
+                        <span data-i18n="phone_select">点击选择照片</span>
+                        <span class="phone-file-hint" data-i18n="phone_hint">支持 JPG / PNG，建议正面半身照</span>
+                    </div>
+                    <input type="file" id="phone-photo-input" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/*" style="display:none">
+                </div>
+
+                <div class="phone-preview-area" id="phone-preview-area">
+                    <div class="phone-preview-img-wrap">
+                        <img id="phone-preview-img" src="" alt="预览">
+                    </div>
+                    <button class="btn-primary" id="phone-upload-btn" onclick="phoneUploadPhoto()">
+                        <span class="material-icons-round">cloud_upload</span>
+                        <span data-i18n="phone_confirm">确认上传</span>
+                    </button>
+                    <button class="btn-ghost" onclick="phoneResetSelection()">
+                        <span class="material-icons-round">replay</span>
+                        <span data-i18n="phone_reselect">重新选择</span>
+                    </button>
+                </div>
+
+                <div class="phone-error-msg" id="phone-error-msg"></div>
+            </div>
+
+            <div class="phone-success-card" id="phone-success-card">
+                <div class="phone-success-icon">
+                    <span class="material-icons-round">check_circle</span>
+                </div>
+                <div class="phone-success-title" data-i18n="phone_success_title">上传成功</div>
+                <div class="phone-success-sub" data-i18n-html="phone_success_sub">请返回大屏继续操作<br>照片已自动同步至 AI 拍照机</div>
+            </div>
+
+            <div class="phone-tips-row">
+                <div class="phone-tip-chip">
+                    <span class="material-icons-round">face</span>
+                    <span data-i18n="phone_tip_face">正面半身</span>
+                </div>
+                <div class="phone-tip-chip">
+                    <span class="material-icons-round">light_mode</span>
+                    <span data-i18n="phone_tip_light">光线充足</span>
+                </div>
+                <div class="phone-tip-chip">
+                    <span class="material-icons-round">hd</span>
+                    <span data-i18n="phone_tip_clear">照片清晰</span>
+                </div>
+                <div class="phone-tip-chip">
+                    <span class="material-icons-round">no_accounts</span>
+                    <span data-i18n="phone_tip_single">单人照片</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="phone-uploading-overlay" id="phone-uploading-overlay">
+            <div class="phone-uploading-spin"></div>
+            <div class="phone-uploading-text" data-i18n="phone_uploading">正在上传...</div>
+            <div class="phone-uploading-sub" data-i18n="phone_uploading_sub">请勿关闭页面</div>
+        </div>
+    </section>
+
+    <!-- ===== AI结果下载功能 - 手机端下载屏幕 ===== -->
+    <section id="scr-download" class="screen">
+        <div class="topbar">
+            <span class="topbar-title">Lumina AI Studio</span>
+        </div>
+        <div class="screen-body">
+
+            <div class="dl-loading-state" id="dl-loading-state">
+                <div class="dl-loading-spin"></div>
+                <div class="dl-loading-text" data-i18n="dl_loading">正在加载照片...</div>
+            </div>
+
+            <div class="dl-error-state" id="dl-error-state" style="display:none">
+                <div class="dl-error-icon">
+                    <span class="material-icons-round">error_outline</span>
+                </div>
+                <div class="dl-error-title" data-i18n="dl_error_title">无法加载照片</div>
+                <div class="dl-error-sub" id="dl-error-msg" data-i18n-html="dl_error_msg">请确认二维码是否有效<br>或返回大屏重新生成</div>
+            </div>
+
+            <div id="dl-photo-state" style="display:none;width:100%;display:none;flex-direction:column;align-items:center;gap:20px">
+                <div class="dl-card">
+                    <img id="dl-result-photo" src="" alt="AI 成品照片">
+                </div>
+                <div class="dl-info-card">
+                    <div class="dl-info-title" data-i18n="dl_photo_title">AI 成品照片</div>
+                    <div class="dl-info-sub" data-i18n="dl_photo_sub">长按图片即可保存到相册</div>
+                </div>
+                <button class="dl-btn-download" id="dl-btn-download" onclick="dlDownloadPhoto()">
+                    <span class="material-icons-round">download</span>
+                    <span data-i18n="dl_download_btn">下载图片</span>
+                </button>
+                <div class="dl-tip-row">
+                    <span class="material-icons-round">info</span>
+                    <span data-i18n="dl_tip">如无法下载，请长按图片选择"保存图片"</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== AI结果下载功能 - 下载二维码弹窗 ===== -->
+    <div class="download-qr-overlay" id="download-qr-overlay" onclick="hideDownloadQR()">
+        <div class="download-qr-card" onclick="event.stopPropagation()">
+            <button class="download-qr-close" onclick="hideDownloadQR()">
+                <span class="material-icons-round">close</span>
+            </button>
+            <div class="download-qr-icon">
+                <span class="material-icons-round">qr_code_2</span>
+            </div>
+            <div class="download-qr-title" data-i18n="dl_qr_title">扫码保存照片</div>
+            <div class="download-qr-sub" data-i18n-html="dl_qr_sub">打开手机相机扫描二维码<br>即可下载 AI 成品照片</div>
+            <div class="download-qr-box" id="download-qrcode-container"></div>
+            <div class="download-qr-tip">
+                <span class="material-icons-round">info</span>
+                <span data-i18n="dl_qr_tip">二维码有效期 30 分钟</span>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div id="toast">
+    <span class="material-icons-round" style="font-size:18px;color:var(--success)">check_circle</span>
+    <span id="toast-msg"></span>
+</div>
+
+<script>
+    // ── State ──────────────────────────────────────────
+    let selectedStyle = '';
+    let selectedQty = 1;
+    let qrTimerInterval = null;
+    let countdownInterval = null; // #16: track countdown so retake can cancel it
+    let uploadSource = 'camera'; // #17: 'camera' | 'qrcode'
+
+    // ===== 手机扫码上传功能 - Supabase 初始化 =====
+    const SUPABASE_URL = 'https://fuaamwgdbxymxbhmstxc.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1YWFtd2dkYnh5bXhiaG1zdHhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NjQ1OTEsImV4cCI6MjA5NDM0MDU5MX0.bKqwuNPV6iaozjCHBXGyj_sgfJt8oNfngnSyftmqb-g';
+    let supabaseClient = null;
+
+    function initSupabase() {
+        try {
+            if (window.supabase) {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } else {
+                console.warn('Supabase SDK 未加载，手机上传/下载功能不可用');
+            }
+        } catch (e) {
+            console.warn('Supabase 初始化失败:', e.message);
+        }
+    }
+
+    // defer脚本在DOMContentLoaded前执行完，但为了安全起见用事件兜底
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSupabase);
+    } else {
+        initSupabase();
+    }
+
+    // ===== 手机扫码上传功能 - 会话与轮询状态 =====
+    let currentSessionId = null;
+    let uploadPollInterval = null;
+    let qrCodeInstance = null;
+
+    // ===== 手机扫码上传功能 - 生成 sessionId =====
+    function generateSessionId() {
+        return 'sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 10);
+    }
+
+    // ===== 手机扫码上传功能 - 生成真实二维码 =====
+    function generateQRCode(sessionId) {
+        const container = document.getElementById('qrcode-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        // 指向部署在 Supabase Storage 的固定上传页
+        const UPLOAD_PAGE_URL = 'https://jialeok.github.io/photoca/upload.html';
+        const uploadUrl = UPLOAD_PAGE_URL + '?session=' + sessionId;
+
+        qrCodeInstance = new QRCode(container, {
+            text: uploadUrl,
+            width: 160,
+            height: 160,
+            colorDark: '#0e0e12',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M
+        });
+    }
+
+    // ===== 手机扫码上传功能 - 启动二维码页面（生成session + 二维码 + 开始轮询） =====
+    function startQrUploadSession() {
+        currentSessionId = generateSessionId();
+        generateQRCode(currentSessionId);
+        startUploadPolling();
+    }
+
+    // ===== 手机扫码上传功能 - 停止二维码页面（清理轮询） =====
+    function stopQrUploadSession() {
+        stopUploadPolling();
+        currentSessionId = null;
+        const container = document.getElementById('qrcode-container');
+        if (container) container.innerHTML = '';
+        qrCodeInstance = null;
+    }
+
+    // ===== 手机扫码上传功能 - 轮询检测上传状态（每2秒） =====
+    function startUploadPolling() {
+        stopUploadPolling();
+        uploadPollInterval = setInterval(async () => {
+            if (!currentSessionId || !supabaseClient) return;
+            try {
+                const { data, error } = await supabaseClient
+                    .from('uploads')
+                    .select('*')
+                    .eq('session', currentSessionId)
+                    .eq('uploaded', true)
+                    .order('id', { ascending: false })
+                    .limit(1);
+
+                if (error) {
+                    console.error('轮询错误:', error);
+                    return;
+                }
+
+                if (data && data.length > 0) {
+                    const record = data[0];
+                    const imageUrl = record.image_url;
+                    stopQrUploadSession();
+                    stopQrTimer();
+                    showToast(t('toast_upload_received'));
+                    handleUploadedPhoto(imageUrl, record.session || currentSessionId);
+                }
+            } catch (err) {
+                console.error('轮询异常:', err);
+            }
+        }, 2000);
+    }
+
+    function stopUploadPolling() {
+        if (uploadPollInterval) {
+            clearInterval(uploadPollInterval);
+            uploadPollInterval = null;
+        }
+    }
+
+    // ===== 手机扫码上传功能 - 处理上传成功的照片（大屏调AI） =====
+    function handleUploadedPhoto(imageUrl, sessionId) {
+        const imgEl = document.getElementById('preview-photo-img');
+        if (imgEl) imgEl.src = imageUrl;
+        const labelEl = document.getElementById('preview-source-label');
+        if (labelEl) labelEl.textContent = t('preview_badge');
+        const badgeEl = document.getElementById('preview-source-badge');
+        if (badgeEl) {
+            const iconEl = badgeEl.querySelector('.material-icons-round');
+            if (iconEl) iconEl.textContent = 'smartphone';
+        }
+        uploadSource = 'qrcode';
+        updatePreviewStyle();
+
+        // 先跳到预览页，用户点确认再调AI
+        // 把sessionId和imageUrl存起来供后续AI调用
+        pendingUploadSessionId = sessionId;
+        pendingUploadImageUrl = imageUrl;
+
+        setTimeout(() => {
+            navTo('scr-preview');
+        }, 600);
+    }
+
+    // ===== 大屏端 AI 调用（收到手机上传后，用户确认时触发） =====
+    let pendingUploadSessionId = null;
+    let pendingUploadImageUrl = null;
+    const EDGE_FUNCTION_URL = SUPABASE_URL + '/functions/v1/clever-handler';
+
+    async function callAiAndWriteBack(sessionId, imageUrl, style) {
+        if (!supabaseClient || !sessionId || !imageUrl) return null;
+        try {
+            const aiRes = await fetch(EDGE_FUNCTION_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    image_url:  imageUrl,
+                    style:      style,
+                }),
+            });
+            const aiData = await aiRes.json();
+            if (!aiRes.ok || !aiData.success) {
+                console.error('大屏AI生成失败:', aiData.error);
+                return null;
+            }
+            const aiImageUrl = aiData.ai_image_url;
+            // 把AI图URL写回 uploads 表，供手机端轮询
+            await supabaseClient
+                .from('uploads')
+                .update({ ai_image_url: aiImageUrl })
+                .eq('session', sessionId);
+            return aiImageUrl;
+        } catch(err) {
+            console.error('大屏AI调用异常:', err);
+            return null;
+        }
+    }
+
+    // ===== 手机扫码上传功能 - 手机端文件选择处理 =====
+    let phoneSelectedFile = null;
+
+    function phoneHandleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // 微信 WebView 里 file.type 可能为空，不做严格类型校验
+        if (file.size > 20 * 1024 * 1024) {
+            phoneShowError(t('js_file_size_error'));
+            return;
+        }
+
+        phoneSelectedFile = file;
+        phoneHideError();
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const previewImg = document.getElementById('phone-preview-img');
+            const previewArea = document.getElementById('phone-preview-area');
+            const fileLabel = document.getElementById('phone-file-label');
+            if (previewImg) previewImg.src = e.target.result;
+            if (previewArea) previewArea.classList.add('show');
+            if (fileLabel) fileLabel.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // ===== 手机扫码上传功能 - 手机端上传照片到 Supabase =====
+    async function phoneUploadPhoto() {
+        if (!phoneSelectedFile) {
+            phoneShowError(t('js_no_file'));
+            return;
+        }
+
+        if (!supabaseClient) {
+            phoneShowError('Supabase 未初始化，请检查网络连接');
+            return;
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session');
+
+        if (!sessionId) {
+            phoneShowError(t('js_no_session'));
+            return;
+        }
+
+        const overlay = document.getElementById('phone-uploading-overlay');
+        const uploadBtn = document.getElementById('phone-upload-btn');
+        if (overlay) overlay.classList.add('show');
+        if (uploadBtn) uploadBtn.disabled = true;
+        phoneHideError();
+
+        try {
+            const fileExt = phoneSelectedFile.name.split('.').pop().toLowerCase() || 'jpg';
+            const fileName = sessionId + '_' + Date.now() + '.' + fileExt;
+            const filePath = 'uploads/' + fileName;
+
+            const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                .from('photos')
+                .upload(filePath, phoneSelectedFile, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
+
+            if (uploadError) {
+                console.error('上传错误:', uploadError);
+                throw new Error(t('js_upload_fail') + uploadError.message);
+            }
+
+            const { data: urlData } = supabaseClient.storage
+                .from('photos')
+                .getPublicUrl(filePath);
+
+            const imageUrl = urlData.publicUrl;
+
+            const { error: insertError } = await supabaseClient
+                .from('uploads')
+                .insert({
+                    session: sessionId,
+                    image_url: imageUrl,
+                    uploaded: true
+                });
+
+            if (insertError) {
+                console.error('写入数据库错误:', insertError);
+                throw new Error(t('js_db_fail') + insertError.message);
+            }
+
+            if (overlay) overlay.classList.remove('show');
+
+            const uploadCard = document.getElementById('phone-upload-card');
+            const successCard = document.getElementById('phone-success-card');
+            if (uploadCard) uploadCard.style.display = 'none';
+            if (successCard) successCard.classList.add('show');
+
+        } catch (err) {
+            if (overlay) overlay.classList.remove('show');
+            if (uploadBtn) uploadBtn.disabled = false;
+            phoneShowError(err.message || t('js_retry'));
+        }
+    }
+
+    // ===== 手机扫码上传功能 - 手机端重新选择照片 =====
+    function phoneResetSelection() {
+        phoneSelectedFile = null;
+        const previewArea = document.getElementById('phone-preview-area');
+        const fileLabel = document.getElementById('phone-file-label');
+        const photoInput = document.getElementById('phone-photo-input');
+        const previewImg = document.getElementById('phone-preview-img');
+        if (previewArea) previewArea.classList.remove('show');
+        if (fileLabel) fileLabel.style.display = '';
+        if (photoInput) photoInput.value = '';
+        if (previewImg) previewImg.src = '';
+        phoneHideError();
+    }
+
+    // ===== 手机扫码上传功能 - 手机端错误提示 =====
+    function phoneShowError(msg) {
+        const el = document.getElementById('phone-error-msg');
+        if (el) {
+            el.textContent = msg;
+            el.classList.add('show');
+        }
+    }
+
+    function phoneHideError() {
+        const el = document.getElementById('phone-error-msg');
+        if (el) el.classList.remove('show');
+    }
+
+    // ===== 手机扫码上传功能 - 页面加载时检测 mode=upload 参数 =====
+    (function initPhoneUploadMode() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode');
+        const sessionId = urlParams.get('session');
+
+        if (mode === 'upload' && sessionId) {
+            document.addEventListener('DOMContentLoaded', function() {
+                const phoneScreen = document.getElementById('scr-phone-upload');
+                if (!phoneScreen) return;
+
+                document.querySelectorAll('.screen').forEach(s => {
+                    s.classList.remove('active');
+                });
+                phoneScreen.classList.add('active');
+
+                const badge = document.getElementById('phone-session-badge');
+                const display = document.getElementById('phone-session-display');
+                if (badge) badge.style.display = 'flex';
+                if (display) display.textContent = t('js_connected') + sessionId.substring(0, 12) + '...';
+
+                // 微信 WebView 兼容：绑 change + input 双事件
+                const inp = document.getElementById('phone-photo-input');
+                if (inp) {
+                    inp.addEventListener('change', phoneHandleFileSelect);
+                    inp.addEventListener('input', phoneHandleFileSelect);
+                }
+            });
+        }
+    })();
+
+    // ===== AI结果下载功能 - 上传成品图到 Supabase Storage =====
+    let downloadSessionId = null;
+    let downloadImageUrl = null;
+
+    async function uploadResultToSupabase(imageSrc) {
+        if (!supabaseClient) return;
+        try {
+            downloadSessionId = 'dl_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+
+            let imageBlob;
+            if (imageSrc.startsWith('data:')) {
+                const response = await fetch(imageSrc);
+                imageBlob = await response.blob();
+            } else {
+                const response = await fetch(imageSrc);
+                imageBlob = await response.blob();
+            }
+
+            const fileExt = 'jpg';
+            const fileName = 'result_' + downloadSessionId + '.' + fileExt;
+            const filePath = 'results/' + fileName;
+
+            const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                .from('photos')
+                .upload(filePath, imageBlob, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    contentType: 'image/jpeg'
+                });
+
+            if (uploadError) {
+                console.error('成品图上传错误:', uploadError);
+                return;
+            }
+
+            const { data: urlData } = supabaseClient.storage
+                .from('photos')
+                .getPublicUrl(filePath);
+
+            downloadImageUrl = urlData.publicUrl;
+
+            const { error: insertError } = await supabaseClient
+                .from('uploads')
+                .insert({
+                    session: downloadSessionId,
+                    image_url: downloadImageUrl,
+                    uploaded: true
+                });
+
+            if (insertError) {
+                console.error('下载session写入错误:', insertError);
+            }
+        } catch (err) {
+            console.error('上传成品图异常:', err);
+        }
+    }
+
+    // ===== AI结果下载功能 - 显示下载二维码弹窗 =====
+    let downloadQRInstance = null;
+
+    function showDownloadQR() {
+        const overlay = document.getElementById('download-qr-overlay');
+        if (!overlay) return;
+
+        if (!downloadSessionId || !downloadImageUrl) {
+            alert(t('js_not_ready'));
+            return;
+        }
+
+        const container = document.getElementById('download-qrcode-container');
+        if (container) {
+            container.innerHTML = '';
+
+            // 下载页URL：指向独立的 download.html，带上AI图地址
+            const DOWNLOAD_PAGE_URL = 'https://jialeok.github.io/photoca/download.html';
+            const downloadUrl = DOWNLOAD_PAGE_URL + '?url=' + encodeURIComponent(downloadImageUrl)
+                + '&session=' + encodeURIComponent(downloadSessionId || 'dl_' + Date.now());
+
+            if (downloadQRInstance) {
+                downloadQRInstance.clear();
+            }
+
+            downloadQRInstance = new QRCode(container, {
+                text: downloadUrl,
+                width: 180,
+                height: 180,
+                colorDark: '#0e0e12',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        }
+
+        overlay.classList.add('show');
+    }
+
+    function hideDownloadQR() {
+        const overlay = document.getElementById('download-qr-overlay');
+        if (overlay) overlay.classList.remove('show');
+    }
+
+    // ===== AI结果下载功能 - 手机端下载屏幕逻辑 =====
+    async function dlLoadPhoto() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session');
+
+        if (!sessionId) {
+            dlShowError(t('js_no_dl_link'));
+            return;
+        }
+
+        if (!supabaseClient) {
+            dlShowError(t('js_network_error'));
+            return;
+        }
+
+        try {
+            const { data, error } = await supabaseClient
+                .from('uploads')
+                .select('image_url')
+                .eq('session', sessionId)
+                .eq('uploaded', true)
+                .order('id', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (error || !data || !data.image_url) {
+                console.error('查询错误:', error);
+                dlShowError(t('js_expired'));
+                return;
+            }
+
+            const photoImg = document.getElementById('dl-result-photo');
+            if (photoImg) {
+                photoImg.src = data.image_url;
+                photoImg.onload = function() {
+                    dlShowPhotoState();
+                };
+                photoImg.onerror = function() {
+                    dlShowError(t('js_load_fail'));
+                };
+            }
+        } catch (err) {
+            console.error('加载异常:', err);
+            dlShowError(t('js_network_error'));
+        }
+    }
+
+    function dlShowPhotoState() {
+        document.getElementById('dl-loading-state').style.display = 'none';
+        document.getElementById('dl-error-state').style.display = 'none';
+        const photoState = document.getElementById('dl-photo-state');
+        photoState.style.display = 'flex';
+    }
+
+    function dlShowError(msg) {
+        document.getElementById('dl-loading-state').style.display = 'none';
+        document.getElementById('dl-photo-state').style.display = 'none';
+        const errorState = document.getElementById('dl-error-state');
+        errorState.style.display = 'flex';
+        if (msg) {
+            document.getElementById('dl-error-msg').textContent = msg;
+        }
+    }
+
+    async function dlDownloadPhoto() {
+        const img = document.getElementById('dl-result-photo');
+        if (!img || !img.src) return;
+
+        const btn = document.getElementById('dl-btn-download');
+        const originalHTML = btn.innerHTML;
+
+        try {
+            btn.innerHTML = '<span class="material-icons-round">hourglass_top</span> ' + t('js_preparing');
+            btn.style.opacity = '.7';
+
+            const response = await fetch(img.src);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Lumina_AI_' + Date.now() + '.jpg';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            btn.innerHTML = '<span class="material-icons-round">check_circle</span> ' + t('js_dl_done');
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.style.opacity = '1';
+            }, 2000);
+        } catch (err) {
+            console.error('下载失败:', err);
+            btn.innerHTML = '<span class="material-icons-round">error</span> ' + t('js_dl_fail');
+            btn.style.opacity = '1';
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+            }, 2500);
+        }
+    }
+
+    // ===== AI结果下载功能 - 页面加载时检测 mode=download 参数 =====
+    (function initDownloadMode() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode');
+        const sessionId = urlParams.get('session');
+
+        if (mode === 'download' && sessionId) {
+            document.addEventListener('DOMContentLoaded', function() {
+                const dlScreen = document.getElementById('scr-download');
+                if (!dlScreen) return;
+
+                document.querySelectorAll('.screen').forEach(s => {
+                    s.classList.remove('active');
+                });
+                dlScreen.classList.add('active');
+
+                dlLoadPhoto();
+            });
+        }
+    })();
+
+    // ── #13: Attract / Idle screen ────────────────────
+    const IDLE_MS = 30000; // 30 seconds
+    let idleTimer = null;
+
+    function resetIdleTimer() {
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(showAttract, IDLE_MS);
+    }
+
+    function showAttract() {
+        navTo('scr-attract');
+    }
+
+    function dismissAttract() {
+        // Force-clear all screens, then cleanly activate home
+        // (avoids navTo's "prev===next" early-return when state gets out of sync)
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active', 'exit'));
+        const home = document.getElementById('scr-home');
+        if (home) home.classList.add('active');
+        resetIdleTimer();
+    }
+
+    // Reset idle timer on any user interaction
+    document.addEventListener('click',      resetIdleTimer, true);
+    document.addEventListener('touchstart', resetIdleTimer, { capture: true, passive: true });
+
+    // Start idle timer on load
+    resetIdleTimer();
+
+    // ── #14: Language toggle ──────────────────────────
+    const LANGS = [
+        { code: 'zh', label: '简体中文' },
+        { code: 'en', label: 'English' },
+    ];
+    let currentLangIdx = 0;
+
+    const I18N = {
+        zh: {
+            // Attract
+            attract_headline1: '秒变',
+            attract_headline2: 'AI 艺术照',
+            attract_sub: '选风格 · 拍一张 · 即刻打印<br>带走属于你的专属大片',
+            attract_tap: '触摸屏幕开始',
+            // Home
+            home_cta: '点击屏幕开始体验',
+            home_hint: '点击屏幕开始 · Click the screen to start',
+            home_label_effect: '效果图',
+            home_label_origin: '原图',
+            home_step1: '01 选择风格',
+            home_step2: '02 照片生成',
+            home_step3: '03 照片打印',
+            // Style
+            style_title: '选择风格',
+            style_exit: '退出',
+            style_filter_female: '女生',
+            style_filter_male: '男生',
+            style_filter_girl: '女童',
+            style_filter_boy: '男童',
+            style_filter_group: '合照',
+            style_filter_all: '全部',
+            style_filter_checkin: '打卡',
+            style_filter_anime: '动漫',
+            style_filter_portrait: '写真',
+            style_filter_art: '艺术',
+            style_hot: 'HOT',
+            // Upload
+            upload_title: '上传照片',
+            upload_sub: '选择拍照方式，保持光线充足<br>效果更好哦 ✨',
+            upload_camera: '设备拍照',
+            upload_camera_desc: '现场拍摄，即时生成',
+            upload_phone: '手机上传',
+            upload_phone_desc: '扫码上传手机相册照片',
+            upload_tips_title: '拍照小贴士，效果更出众',
+            upload_tip_light: '光线充足',
+            upload_tip_light_desc: '正面自然光最佳，避免逆光',
+            upload_tip_face: '正面半身',
+            upload_tip_face_desc: '头肩入镜，五官清晰朝前',
+            upload_tip_makeup: '妆容建议',
+            upload_tip_makeup_desc: '淡妆或无妆均可，避免遮脸刘海',
+            upload_tip_clear: '照片清晰',
+            upload_tip_clear_desc: '避免模糊、曝光过度或滤镜照',
+            upload_tip_side: '避免侧脸',
+            upload_tip_side_desc: '侧身或低头影响生成质量',
+            upload_tip_block: '避免遮挡',
+            upload_tip_block_desc: '口罩、墨镜、帽檐遮脸请取下',
+            // Capture
+            capture_pill: '艺术照拍摄',
+            capture_exit: '退出',
+            capture_hint: '请保持正面半身，五官清晰',
+            capture_shutter: '立即拍照',
+            capture_countdown: '准备好了吗',
+            capture_proc_title: 'AI 正在为你作画',
+            capture_proc_eta: '预计还需',
+            capture_proc_eta_sec: '秒',
+            capture_proc_face: '人脸识别',
+            capture_proc_style: '风格渲染',
+            capture_proc_hd: '高清增强',
+            capture_proc_output: '输出成片',
+            // Result
+            result_title: '生成完成 ✦',
+            result_done: '完成',
+            result_gallery_title: 'AI 为你生成了',
+            result_gallery_title_suffix: '张',
+            result_gallery_sub: '选择一张满意的，再打印',
+            result_tag: '4K · AI 生成',
+            result_selected: '已选第',
+            result_selected_suffix: '张',
+            result_version: '版本',
+            result_print: '立即打印',
+            result_print_sub: 'Print Now',
+            result_download: '扫码下载',
+            result_download_sub: 'Scan to Save',
+            result_again: '再来一张',
+            // Payment
+            payment_title: '确认支付',
+            payment_label: 'AI 艺术照 · <span id="pay-qty-label">打印 1 张</span>',
+            payment_label_print: '打印',
+            payment_label_sheet: '张',
+            payment_qty_save: '省',
+            payment_style: '已选风格：',
+            payment_expire: '订单',
+            payment_expire_suffix: '后失效',
+            payment_wechat: '微信支付',
+            payment_alipay: '支付宝',
+            payment_hint: '使用',
+            payment_hint_suffix: '扫一扫支付',
+            payment_security: '安全加密支付 · 付款后自动打印',
+            payment_simulate: '模拟支付成功（演示）',
+            payment_cancel: '取消支付',
+            // Printing
+            printing_title: '打印中',
+            printing_main: '正在打印',
+            printing_sub: '请稍候，照片正在输出<br>预计还需',
+            printing_sub_sec: '秒',
+            printing_step1_name: '发送打印任务',
+            printing_step1_desc: '图像数据传输至打印机',
+            printing_step2_name: '色彩校准',
+            printing_step2_desc: '自动优化打印色彩还原',
+            printing_step3_name: '出纸中',
+            printing_step3_desc: '照片正在从出纸口输出',
+            // QR Code
+            qrcode_title: '手机上传',
+            qrcode_exit: '退出',
+            qrcode_card_title: '扫码上传照片',
+            qrcode_card_sub: '用手机扫描下方二维码<br>从相册选择照片上传',
+            qrcode_expire: '二维码有效期',
+            qrcode_step1: '打开手机相机或微信扫一扫',
+            qrcode_step2: '从相册选择清晰的正脸照片',
+            qrcode_step3: '上传成功后本屏自动跳转',
+            qrcode_simulate: '模拟：照片已上传（演示）',
+            // Preview
+            preview_title: '确认照片',
+            preview_badge: '照片已拍摄',
+            preview_quality_light: '光线充足',
+            preview_quality_face: '面部清晰',
+            preview_quality_focus: '对焦清晰',
+            preview_style: '已选风格：',
+            preview_confirm: '确认，开始AI生成',
+            preview_retake: '重新拍摄',
+            // Phone Upload
+            phone_title: '上传照片',
+            phone_sub: '从手机相册选择一张清晰的正脸照片<br>上传至大屏 AI 拍照机',
+            phone_select: '点击选择照片',
+            phone_hint: '支持 JPG / PNG / HEIC，建议正面半身照',
+            phone_confirm: '确认上传',
+            phone_reselect: '重新选择',
+            phone_success_title: '上传成功',
+            phone_success_sub: '请返回大屏继续操作<br>照片已自动同步至 AI 拍照机',
+            phone_tip_face: '正面半身',
+            phone_tip_light: '光线充足',
+            phone_tip_clear: '照片清晰',
+            phone_tip_single: '单人照片',
+            phone_uploading: '正在上传...',
+            phone_uploading_sub: '请勿关闭页面',
+            // Download Screen
+            dl_loading: '正在加载照片...',
+            dl_error_title: '无法加载照片',
+            dl_error_msg: '请确认二维码是否有效<br>或返回大屏重新生成',
+            dl_photo_title: 'AI 成品照片',
+            dl_photo_sub: '长按图片即可保存到相册',
+            dl_download_btn: '下载图片',
+            dl_tip: '如无法下载，请长按图片选择"保存图片"',
+            // Download QR Overlay
+            dl_qr_title: '扫码保存照片',
+            dl_qr_sub: '打开手机相机扫描二维码<br>即可下载 AI 成品照片',
+            dl_qr_tip: '二维码有效期 30 分钟',
+            // JS Messages
+            js_file_type_error: '请选择 JPG / PNG / HEIC / WebP 格式的照片',
+            js_file_size_error: '照片大小不能超过 20MB',
+            js_no_file: '请先选择一张照片',
+            js_no_session: '未检测到大屏连接，请重新扫描二维码',
+            js_upload_fail: '照片上传失败: ',
+            js_db_fail: '数据记录失败: ',
+            js_retry: '上传失败，请重试',
+            js_not_ready: '成品图尚未就绪，请稍后重试',
+            js_no_dl_link: '未检测到有效的下载链接',
+            js_expired: '照片已过期或不存在，请返回大屏重新生成',
+            js_load_fail: '照片加载失败，请检查网络连接',
+            js_network_error: '网络异常，请检查网络连接后重试',
+            js_preparing: '准备中...',
+            js_dl_done: '下载完成',
+            js_dl_fail: '下载失败，请长按保存',
+            js_connected: '已连接大屏 · ',
+            // Toast
+            toast_upload_received: '照片已接收，正在跳转...',
+            toast_pay_success: '支付成功！开始打印...',
+            toast_print_done: '打印完成！请取走照片',
+            toast_style_selected: '已选择风格：',
+            // Style names (for dynamic use)
+            style_gold: 'N-金币风格',
+            style_ethnic: '民族服饰',
+            style_idphoto: '证件照',
+            style_zen: '古韵禅心',
+            style_cyber: '赛博朋克',
+            style_ink: '水墨丹青',
+        },
+        en: {
+            // Attract
+            attract_headline1: 'Become an',
+            attract_headline2: 'AI Portrait',
+            attract_sub: 'Pick a style · Snap · Print<br>Take home your AI masterpiece',
+            attract_tap: 'Touch to Start',
+            // Home
+            home_cta: 'Tap to Start',
+            home_hint: 'Tap anywhere to begin',
+            home_label_effect: 'Preview',
+            home_label_origin: 'Original',
+            home_step1: '01 Choose Style',
+            home_step2: '02 AI Generate',
+            home_step3: '03 Print Photo',
+            // Style
+            style_title: 'Choose Style',
+            style_exit: 'Exit',
+            style_filter_female: 'Female',
+            style_filter_male: 'Male',
+            style_filter_girl: 'Girl',
+            style_filter_boy: 'Boy',
+            style_filter_group: 'Group',
+            style_filter_all: 'All',
+            style_filter_checkin: 'Check-in',
+            style_filter_anime: 'Anime',
+            style_filter_portrait: 'Portrait',
+            style_filter_art: 'Art',
+            style_hot: 'HOT',
+            // Upload
+            upload_title: 'Upload Photo',
+            upload_sub: 'Choose how to take your photo<br>for the best results ✨',
+            upload_camera: 'Device Camera',
+            upload_camera_desc: 'Take a photo on the spot',
+            upload_phone: 'Phone Upload',
+            upload_phone_desc: 'Scan QR to upload from phone',
+            upload_tips_title: 'Photo Tips for Best Results',
+            upload_tip_light: 'Good Lighting',
+            upload_tip_light_desc: 'Natural front light is best, avoid backlight',
+            upload_tip_face: 'Front-facing',
+            upload_tip_face_desc: 'Head and shoulders in frame, face forward',
+            upload_tip_makeup: 'Makeup Tips',
+            upload_tip_makeup_desc: 'Light or no makeup, avoid bangs covering face',
+            upload_tip_clear: 'Clear Photo',
+            upload_tip_clear_desc: 'Avoid blur, overexposure or filtered photos',
+            upload_tip_side: 'No Side Profile',
+            upload_tip_side_desc: 'Side or lowered face affects quality',
+            upload_tip_block: 'No Obstruction',
+            upload_tip_block_desc: 'Remove masks, sunglasses, or hats',
+            // Capture
+            capture_pill: 'AI Portrait',
+            capture_exit: 'Exit',
+            capture_hint: 'Face forward, keep head and shoulders visible',
+            capture_shutter: 'Capture',
+            capture_countdown: 'Get Ready',
+            capture_proc_title: 'AI is creating your portrait',
+            capture_proc_eta: 'Estimated',
+            capture_proc_eta_sec: 's left',
+            capture_proc_face: 'Face Detection',
+            capture_proc_style: 'Style Rendering',
+            capture_proc_hd: 'HD Enhancement',
+            capture_proc_output: 'Final Output',
+            // Result
+            result_title: 'Generation Complete ✦',
+            result_done: 'Done',
+            result_gallery_title: 'AI generated',
+            result_gallery_title_suffix: 'variations',
+            result_gallery_sub: 'Pick your favorite, then print',
+            result_tag: '4K · AI Generated',
+            result_selected: 'Selected #',
+            result_selected_suffix: '',
+            result_version: 'Version',
+            result_print: 'Print Now',
+            result_print_sub: 'Print Now',
+            result_download: 'Scan to Save',
+            result_download_sub: 'Scan to Save',
+            result_again: 'Try Again',
+            // Payment
+            payment_title: 'Confirm Payment',
+            payment_label: 'AI Portrait · <span id="pay-qty-label">Print 1 sheet</span>',
+            payment_label_print: 'Print',
+            payment_label_sheet: 'sheet',
+            payment_qty_save: 'Save',
+            payment_style: 'Style: ',
+            payment_expire: 'Order expires in',
+            payment_expire_suffix: '',
+            payment_wechat: 'WeChat Pay',
+            payment_alipay: 'Alipay',
+            payment_hint: 'Scan with',
+            payment_hint_suffix: 'to pay',
+            payment_security: 'Secure payment · Auto-print after payment',
+            payment_simulate: 'Simulate Payment Success (Demo)',
+            payment_cancel: 'Cancel',
+            // Printing
+            printing_title: 'Printing',
+            printing_main: 'Printing in Progress',
+            printing_sub: 'Please wait, your photo is being printed<br>Estimated',
+            printing_sub_sec: 's left',
+            printing_step1_name: 'Sending Print Job',
+            printing_step1_desc: 'Transferring image data to printer',
+            printing_step2_name: 'Color Calibration',
+            printing_step2_desc: 'Optimizing color accuracy',
+            printing_step3_name: 'Outputting',
+            printing_step3_desc: 'Photo is coming out of the printer',
+            // QR Code
+            qrcode_title: 'Phone Upload',
+            qrcode_exit: 'Exit',
+            qrcode_card_title: 'Scan to Upload',
+            qrcode_card_sub: 'Scan the QR code with your phone<br>to upload a photo from your album',
+            qrcode_expire: 'QR code expires in',
+            qrcode_step1: 'Open camera or WeChat scan',
+            qrcode_step2: 'Select a clear front-facing photo',
+            qrcode_step3: 'Screen auto-advances after upload',
+            qrcode_simulate: 'Simulate: Photo Uploaded (Demo)',
+            // Preview
+            preview_title: 'Confirm Photo',
+            preview_badge: 'Photo Captured',
+            preview_quality_light: 'Good Lighting',
+            preview_quality_face: 'Face Clear',
+            preview_quality_focus: 'In Focus',
+            preview_style: 'Style: ',
+            preview_confirm: 'Confirm & Generate AI',
+            preview_retake: 'Retake',
+            // Phone Upload
+            phone_title: 'Upload Photo',
+            phone_sub: 'Select a clear front-facing photo from your album<br>to upload to the AI Photo Booth',
+            phone_select: 'Tap to Select Photo',
+            phone_hint: 'Supports JPG / PNG / HEIC, front-facing portrait recommended',
+            phone_confirm: 'Confirm Upload',
+            phone_reselect: 'Reselect',
+            phone_success_title: 'Upload Successful',
+            phone_success_sub: 'Please return to the main screen<br>Photo has been synced to the AI Photo Booth',
+            phone_tip_face: 'Front-facing',
+            phone_tip_light: 'Well-lit',
+            phone_tip_clear: 'Clear',
+            phone_tip_single: 'Single Person',
+            phone_uploading: 'Uploading...',
+            phone_uploading_sub: 'Please do not close this page',
+            // Download Screen
+            dl_loading: 'Loading photo...',
+            dl_error_title: 'Unable to Load Photo',
+            dl_error_msg: 'Please check if the QR code is valid<br>or return to the main screen to regenerate',
+            dl_photo_title: 'AI Portrait',
+            dl_photo_sub: 'Long press the image to save to gallery',
+            dl_download_btn: 'Download Image',
+            dl_tip: 'If download fails, long press and select "Save Image"',
+            // Download QR Overlay
+            dl_qr_title: 'Scan to Save Photo',
+            dl_qr_sub: 'Open your phone camera to scan the QR code<br>and download your AI portrait',
+            dl_qr_tip: 'QR code valid for 30 minutes',
+            // JS Messages
+            js_file_type_error: 'Please select a JPG / PNG / HEIC / WebP photo',
+            js_file_size_error: 'Photo size cannot exceed 20MB',
+            js_no_file: 'Please select a photo first',
+            js_no_session: 'No screen connection detected, please scan the QR code again',
+            js_upload_fail: 'Photo upload failed: ',
+            js_db_fail: 'Database write failed: ',
+            js_retry: 'Upload failed, please try again',
+            js_not_ready: 'Photo not ready yet, please try again later',
+            js_no_dl_link: 'No valid download link detected',
+            js_expired: 'Photo has expired or does not exist, please return to the main screen',
+            js_load_fail: 'Photo failed to load, please check your network',
+            js_network_error: 'Network error, please check your connection and try again',
+            js_preparing: 'Preparing...',
+            js_dl_done: 'Download Complete',
+            js_dl_fail: 'Download failed, long press to save',
+            js_connected: 'Connected · ',
+            // Toast
+            toast_upload_received: 'Photo received, redirecting...',
+            toast_pay_success: 'Payment successful! Printing...',
+            toast_print_done: 'Print complete! Please take your photo',
+            toast_style_selected: 'Style selected: ',
+            // Style names
+            style_gold: 'Gold Coin',
+            style_ethnic: 'Ethnic Costume',
+            style_idphoto: 'ID Photo',
+            style_zen: 'Zen Spirit',
+            style_cyber: 'Cyberpunk',
+            style_ink: 'Ink Wash',
+        },
+    };
+
+    function t(key) {
+        const lang = LANGS[currentLangIdx].code;
+        return I18N[lang][key] || key;
+    }
+
+    function applyLanguage() {
+        const lang = LANGS[currentLangIdx].code;
+        const strings = I18N[lang];
+
+        // Update all elements with data-i18n attribute
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (strings[key]) {
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    el.placeholder = strings[key];
+                } else {
+                    el.textContent = strings[key];
+                }
+            }
+        });
+
+        // Update all elements with data-i18n-html attribute (for HTML content)
+        document.querySelectorAll('[data-i18n-html]').forEach(el => {
+            const key = el.getAttribute('data-i18n-html');
+            if (strings[key]) {
+                el.innerHTML = strings[key];
+            }
+        });
+
+        // Update lang label
+        const labelEl = document.getElementById('lang-label');
+        if (labelEl) labelEl.textContent = lang === 'zh' ? '简体中文' : 'English';
+
+        // Update home CTA (button text)
+        const ctaEl = document.querySelector('.home-cta-btn');
+        if (ctaEl) ctaEl.textContent = strings.home_cta;
+
+        // Update home hint
+        const hintEl = document.querySelector('#scr-home .home-bottom p');
+        if (hintEl) hintEl.textContent = strings.home_hint;
+
+        // Update attract screen (these use innerHTML for <br>)
+        const h1 = document.getElementById('attract-h1');
+        const h2 = document.getElementById('attract-h2');
+        const sub = document.getElementById('attract-sub');
+        const tap = document.getElementById('attract-tap');
+        if (h1) h1.textContent = strings.attract_headline1;
+        if (h2) h2.textContent = strings.attract_headline2;
+        if (sub) sub.innerHTML = strings.attract_sub;
+        if (tap) tap.textContent = strings.attract_tap;
+
+        // Update dynamic content that depends on state
+        updateDynamicI18n();
+    }
+
+    function updateDynamicI18n() {
+        const lang = LANGS[currentLangIdx].code;
+        const strings = I18N[lang];
+
+        // Update result gallery title
+        const countEl = document.getElementById('result-count');
+        const galleryTitleEl = document.querySelector('.result-gallery-title');
+        if (galleryTitleEl && countEl) {
+            const count = countEl.textContent;
+            galleryTitleEl.innerHTML = strings.result_gallery_title + ' <span id="result-count">' + count + '</span> ' + strings.result_gallery_title_suffix;
+        }
+
+        // Update result selected badge
+        const numEl = document.getElementById('result-selected-num');
+        const badgeEl = document.querySelector('.result-selected-badge');
+        if (badgeEl && numEl) {
+            const num = numEl.textContent;
+            badgeEl.innerHTML = '<span class="material-icons-round" style="font-size:14px!important">check_circle</span> ' + strings.result_selected + ' <span id="result-selected-num">' + num + '</span> ' + strings.result_selected_suffix;
+        }
+
+        // Update payment label
+        const qtyLabelEl = document.getElementById('pay-qty-label');
+        if (qtyLabelEl) {
+            qtyLabelEl.textContent = strings.payment_label_print + ' ' + selectedQty + ' ' + strings.payment_label_sheet;
+        }
+
+        // Update payment style
+        const styleNameEl = document.getElementById('pay-style-name');
+        if (styleNameEl) {
+            const styleKey = getStyleI18nKey(styleNameEl.textContent);
+            styleNameEl.textContent = strings[styleKey] || styleNameEl.textContent;
+        }
+
+        // Update preview style badge
+        const previewStyleEl = document.getElementById('preview-style-name');
+        if (previewStyleEl) {
+            const styleKey = getStyleI18nKey(previewStyleEl.textContent);
+            previewStyleEl.textContent = strings[styleKey] || previewStyleEl.textContent;
+        }
+
+        // Update result style chip
+        const resultStyleEl = document.getElementById('result-style-label');
+        if (resultStyleEl) {
+            const styleKey = getStyleI18nKey(resultStyleEl.textContent);
+            resultStyleEl.textContent = strings[styleKey] || resultStyleEl.textContent;
+        }
+
+        // Update payment method name
+        const payMethodEl = document.getElementById('pay-method-name');
+        if (payMethodEl) {
+            const currentText = payMethodEl.textContent;
+            if (currentText === '微信支付' || currentText === 'WeChat Pay') {
+                payMethodEl.textContent = strings.payment_wechat;
+            } else if (currentText === '支付宝' || currentText === 'Alipay') {
+                payMethodEl.textContent = strings.payment_alipay;
+            }
+        }
+
+        // Update preview source label
+        const sourceLabelEl = document.getElementById('preview-source-label');
+        if (sourceLabelEl) {
+            sourceLabelEl.textContent = strings.preview_badge;
+        }
+    }
+
+    function getStyleI18nKey(styleName) {
+        const map = {
+            'N-金币风格': 'style_gold',
+            'Gold Coin': 'style_gold',
+            '民族服饰': 'style_ethnic',
+            'Ethnic Costume': 'style_ethnic',
+            '证件照': 'style_idphoto',
+            'ID Photo': 'style_idphoto',
+            '古韵禅心': 'style_zen',
+            'Zen Spirit': 'style_zen',
+            '赛博朋克': 'style_cyber',
+            'Cyberpunk': 'style_cyber',
+            '水墨丹青': 'style_ink',
+            'Ink Wash': 'style_ink',
+        };
+        return map[styleName] || '';
+    }
+
+    function cycleLang(e) {
+        e.stopPropagation();
+        currentLangIdx = (currentLangIdx + 1) % LANGS.length;
+        applyLanguage();
+        showToast('\u{1F310} ' + LANGS[currentLangIdx].label);
+    }
+
+    // Apply language on page load
+    applyLanguage();
+
+    // ── Filter chip interaction ────────────────────────
+    function filterCat(chip) {
+        // Clear active from ALL filter chips across all rows
+        document.querySelectorAll('.filter-chip').forEach(c => {
+            c.classList.remove('active', 'active-accent');
+        });
+        chip.classList.add('active-accent');
+
+        const cat = chip.dataset.cat;
+        document.querySelectorAll('.style-card').forEach(card => {
+            if (cat === '全部') {
+                card.style.display = '';
+            } else {
+                card.style.display = card.dataset.sub === cat ? '' : 'none';
+            }
+        });
+    }
+
+    // ── Navigation ─────────────────────────────────────
+    function navTo(id) {
+        const prev = document.querySelector('.screen.active');
+        const next = document.getElementById(id);
+        if (!next || prev === next) return;
+        prev?.classList.add('exit');
+        setTimeout(() => prev?.classList.remove('active', 'exit'), 300);
+        next.classList.add('active');
+        next.scrollTop = 0;
+        if (id === 'scr-qrcode') { startQrTimer(); startQrUploadSession(); }
+        else { stopQrTimer(); stopQrUploadSession(); }
+        if (id === 'scr-printing') {
+            // Reset all printing steps
+            for (let i = 0; i < 3; i++) {
+                const s = document.getElementById('prstep-' + i);
+                if (s) s.classList.remove('active', 'done');
+            }
+        }
+    }
+
+    // ── FIX 1: Record selected style ──────────────────
+    function selectStyle(styleName) {
+        selectedStyle = styleName;
+        document.querySelectorAll('.style-card').forEach(c => c.classList.remove('selected-style'));
+        event.currentTarget.classList.add('selected-style');
+        if (!document.getElementById('selected-style-css')) {
+            const s = document.createElement('style');
+            s.id = 'selected-style-css';
+            s.textContent = `.style-card.selected-style { outline: 3px solid var(--accent); outline-offset: 2px; }`;
+            document.head.appendChild(s);
+        }
+        setTimeout(() => navTo('scr-upload'), 180);
+    }
+
+    // ── FIX 2: QR code timer countdown ────────────────
+    function startQrTimer() {
+        let seconds = 299;
+        stopQrTimer();
+        const el = document.getElementById('qr-timer');
+        qrTimerInterval = setInterval(() => {
+            if (seconds <= 0) { stopQrTimer(); return; }
+            seconds--;
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            if (el) el.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        }, 1000);
+    }
+    function stopQrTimer() {
+        if (qrTimerInterval) { clearInterval(qrTimerInterval); qrTimerInterval = null; }
+    }
+    function simulateUploadReceived() {
+        stopQrTimer();
+        stopQrUploadSession();
+        showToast(t('toast_upload_received'));
+        setTimeout(() => {
+            setPreviewSource('qrcode');
+            updatePreviewStyle();
+            navTo('scr-preview');
+        }, 800);
+    }
+
+    // ── FIX 3 + FIX #16: Countdown before capture ─────
+    // #16 fix: cancelCountdown clears any running countdown so retake never conflicts
+    function cancelCountdown() {
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+        const overlay = document.getElementById('countdown-overlay');
+        if (overlay) overlay.classList.remove('show');
+    }
+
+    function startCountdown() {
+        cancelCountdown(); // safety: clear any prior countdown first
+        const overlay = document.getElementById('countdown-overlay');
+        const numEl = document.getElementById('countdown-num');
+        let count = 3;
+        overlay.classList.add('show');
+        numEl.textContent = count;
+        countdownInterval = setInterval(() => {
+            count--;
+            if (count <= 0) {
+                cancelCountdown();
+                // FIX 4: Go to preview confirm instead of straight to result
+                setPreviewSource('camera'); // #17: mark as camera shot
+                updatePreviewStyle();
+                navTo('scr-preview');
+            } else {
+                numEl.style.animation = 'none';
+                numEl.offsetHeight;
+                numEl.style.animation = '';
+                numEl.textContent = count;
+            }
+        }, 1000);
+    }
+
+    // ── FIX 4: Update preview with selected style ─────
+    function updatePreviewStyle() {
+        const label = document.getElementById('preview-style-name');
+        const styleName = selectedStyle || 'N-金币风格';
+        const styleKey = getStyleI18nKey(styleName);
+        if (label) label.textContent = t(styleKey) || styleName;
+    }
+
+    // ── FIX 16: Safe retake ───────────────────────────
+    // Cancels any running countdown before going back to camera,
+    // preventing the countdown callback from later firing navTo('scr-preview')
+    function retakePhoto() {
+        cancelCountdown();
+        navTo('scr-capture');
+    }
+
+    // ── FIX 17: Per-source preview image + badge ──────
+    // Gives camera-shot and QR-upload paths visually distinct previews
+    const PREVIEW_SOURCES = {
+        camera: {
+            img: 'https://picsum.photos/seed/camera-selfie/400/533',
+            label: '照片已拍摄',
+            icon: 'camera_alt',
+        },
+        qrcode: {
+            img: 'https://picsum.photos/seed/phone-upload/400/533',
+            label: '照片已上传',
+            icon: 'smartphone',
+        },
+    };
+
+    function setPreviewSource(source) {
+        const cfg = PREVIEW_SOURCES[source] || PREVIEW_SOURCES.camera;
+        const imgEl   = document.getElementById('preview-photo-img');
+        const labelEl = document.getElementById('preview-source-label');
+        const badgeEl = document.getElementById('preview-source-badge');
+        if (imgEl)   imgEl.src = cfg.img;
+        if (labelEl) labelEl.textContent = t('preview_badge');
+        if (badgeEl) {
+            const iconEl = badgeEl.querySelector('.material-icons-round');
+            if (iconEl) iconEl.textContent = cfg.icon;
+        }
+    }
+
+    // ── Processing (called from preview confirm btn) ───
+    function startProcessing() {
+        navTo('scr-capture');
+        const overlay = document.getElementById('processing-overlay');
+        overlay.classList.add('show');
+
+        // Step timing: each step takes ~900ms to fill bar, then moves on
+        const stepDurations = [900, 1000, 900, 800]; // ms per step
+        let currentStep = 0;
+        let elapsed = 0;
+        let totalTime = 18; // seconds countdown
+        let fillInterval = null;
+
+        function activateStep(idx) {
+            // Mark previous done
+            if (idx > 0) {
+                const prev = document.getElementById('pstep-' + (idx - 1));
+                if (prev) {
+                    prev.classList.remove('active');
+                    prev.classList.add('done');
+                    prev.querySelector('.proc-step-fill').style.width = '100%';
+                }
+            }
+            const step = document.getElementById('pstep-' + idx);
+            if (!step) return;
+            step.classList.add('active');
+
+            // Animate fill bar
+            let pct = 0;
+            const fill = step.querySelector('.proc-step-fill');
+            if (fillInterval) clearInterval(fillInterval);
+            fillInterval = setInterval(() => {
+                pct = Math.min(pct + 2, 98);
+                fill.style.width = pct + '%';
+                if (pct >= 98) clearInterval(fillInterval);
+            }, stepDurations[idx] / 50);
+        }
+
+        activateStep(0);
+
+        // Countdown timer
+        const etaEl = document.getElementById('proc-seconds');
+        const countdownInterval = setInterval(() => {
+            totalTime = Math.max(0, totalTime - 1);
+            if (etaEl) etaEl.textContent = totalTime;
+        }, 1000);
+
+        // Advance steps
+        const stepTimings = [900, 1900, 2900, 3600];
+        stepTimings.forEach((delay, i) => {
+            if (i === 0) return;
+            setTimeout(() => activateStep(i), delay);
+        });
+
+        setTimeout(() => {
+            clearInterval(countdownInterval);
+            if (fillInterval) clearInterval(fillInterval);
+
+            // Mark last step done
+            const lastStep = document.getElementById('pstep-3');
+            if (lastStep) {
+                lastStep.classList.remove('active');
+                lastStep.classList.add('done');
+                lastStep.querySelector('.proc-step-fill').style.width = '100%';
+            }
+
+            // Reset steps for next run (after a brief pause)
+            setTimeout(() => {
+                overlay.classList.remove('show');
+                for (let i = 0; i < 4; i++) {
+                    const s = document.getElementById('pstep-' + i);
+                    if (s) {
+                        s.classList.remove('active', 'done');
+                        s.querySelector('.proc-step-fill').style.width = '0%';
+                    }
+                }
+                const styleLabel = document.getElementById('result-style-label');
+                const sName = selectedStyle || 'N-金币风格';
+                const sKey = getStyleI18nKey(sName);
+                if (styleLabel) styleLabel.textContent = t(sKey) || sName;
+                // Reset thumbnail selection to first item
+                document.querySelectorAll('.result-thumb').forEach((t, i) => {
+                    t.classList.toggle('active', i === 0);
+                });
+                const mainImg = document.getElementById('result-main-img');
+                if (mainImg) mainImg.src = resultPhotos[0];
+                const numEl = document.getElementById('result-selected-num');
+                if (numEl) numEl.textContent = '1';
+
+                // ===== 大屏AI调用：手机上传路径 =====
+                if (uploadSource === 'qrcode' && pendingUploadSessionId && pendingUploadImageUrl) {
+                    const styleKey = (selectedStyle || 'angel').toLowerCase()
+                        .replace('天使风','angel').replace('动漫风','anime')
+                        .replace('公主风','princess').replace('梦幻风','dream')
+                        .replace('水墨风','ink').replace('浪漫光影','romantic')
+                        .replace('陶瓷娃娃','ceramic').replace('丑萌粘土','clay')
+                        .replace('可爱玩偶','doll');
+                    const aiUrl = await callAiAndWriteBack(pendingUploadSessionId, pendingUploadImageUrl, styleKey);
+                    if (aiUrl) {
+                        downloadImageUrl = aiUrl;
+                        // 把大屏结果图也显示出来
+                        const mainImg = document.getElementById('result-main-img');
+                        if (mainImg) mainImg.src = aiUrl;
+                        resultPhotos[0] = aiUrl;
+                    }
+                    pendingUploadSessionId = null;
+                    pendingUploadImageUrl = null;
+                } else {
+                    // 设备拍照路径：用原来的 uploadResultToSupabase
+                    uploadResultToSupabase(resultPhotos[0]);
+                }
+
+                navTo('scr-result');
+            }, 400);
+        }, 4200);
+    }
+
+    // ── FIX 5 + FIX 6: Print goes to payment screen first ─
+    function startPrinting() {
+        // Reset quantity selector to default (1张) every time
+        document.querySelectorAll('.pay-qty-btn').forEach(b => b.classList.remove('active'));
+        const defaultQty = document.querySelector('.pay-qty-btn[data-qty="1"]');
+        if (defaultQty) defaultQty.classList.add('active');
+        selectedQty = 1;
+        const priceEl = document.getElementById('payment-price');
+        if (priceEl) priceEl.textContent = '19.90';
+        const qtyLabelEl = document.getElementById('pay-qty-label');
+        if (qtyLabelEl) qtyLabelEl.textContent = t('payment_label_print') + ' 1 ' + t('payment_label_sheet');
+
+        // Reset payment method to wechat
+        switchPayMethod('wechat');
+
+        // Reset timer display
+        const timerEl = document.getElementById('pay-timer');
+        if (timerEl) timerEl.textContent = '04:59';
+
+        // Update style label
+        const payStyle = document.getElementById('pay-style-name');
+        const styleName = selectedStyle || 'N-金币风格';
+        const styleKey = getStyleI18nKey(styleName);
+        if (payStyle) payStyle.textContent = t(styleKey) || styleName;
+
+        startPayTimer();
+        navTo('scr-payment');
+    }
+
+    // ── #15: Cancel payment — full cleanup ───────────
+    function cancelPayment() {
+        stopPayTimer();
+        // Reset timer display so next open shows fresh 04:59
+        const timerEl = document.getElementById('pay-timer');
+        if (timerEl) timerEl.textContent = '04:59';
+        navTo('scr-result');
+    }
+
+    // ── FIX 6: Payment screen logic ───────────────────
+    let payTimerInterval = null;
+
+    function startPayTimer() {
+        let seconds = 299;
+        stopPayTimer();
+        const el = document.getElementById('pay-timer');
+        payTimerInterval = setInterval(() => {
+            if (seconds <= 0) { stopPayTimer(); return; }
+            seconds--;
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            if (el) el.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        }, 1000);
+    }
+    function stopPayTimer() {
+        if (payTimerInterval) { clearInterval(payTimerInterval); payTimerInterval = null; }
+    }
+
+    function switchPayMethod(method) {
+        document.querySelectorAll('.payment-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector(`.payment-tab[data-method="${method}"]`).classList.add('active');
+
+        const nameEl = document.getElementById('pay-method-name');
+        const logoEl = document.getElementById('pay-method-logo');
+
+        if (method === 'wechat') {
+            if (nameEl) nameEl.textContent = t('payment_wechat');
+            if (logoEl) logoEl.innerHTML = '<span class="material-icons-round" style="color:#07c160;font-size:20px">chat_bubble</span>';
+        } else {
+            if (nameEl) nameEl.textContent = t('payment_alipay');
+            if (logoEl) logoEl.innerHTML = '<span class="material-icons-round" style="color:#1677ff;font-size:20px">account_balance_wallet</span>';
+        }
+    }
+
+    function simulatePaySuccess() {
+        stopPayTimer();
+        showToast(t('toast_pay_success'));
+        setTimeout(() => {
+            startPrintingProgress();
+        }, 800);
+    }
+
+    // ── #12: Printing progress screen ────────────────
+    function startPrintingProgress() {
+        navTo('scr-printing');
+        let eta = 12;
+        const etaEl = document.getElementById('print-eta-sec');
+
+        // Activate step 0 immediately
+        activatePrintStep(0);
+
+        const etaInterval = setInterval(() => {
+            eta = Math.max(0, eta - 1);
+            if (etaEl) etaEl.textContent = eta;
+        }, 1000);
+
+        // Step transitions
+        setTimeout(() => { donePrintStep(0); activatePrintStep(1); }, 2500);
+        setTimeout(() => { donePrintStep(1); activatePrintStep(2); }, 5500);
+        setTimeout(() => {
+            clearInterval(etaInterval);
+            donePrintStep(2);
+            if (etaEl) etaEl.textContent = '0';
+            setTimeout(() => {
+                navTo('scr-result');
+                showToast(t('toast_print_done'));
+            }, 1000);
+        }, 9000);
+    }
+
+    function activatePrintStep(idx) {
+        const s = document.getElementById('prstep-' + idx);
+        if (s) s.classList.add('active');
+    }
+    function donePrintStep(idx) {
+        const s = document.getElementById('prstep-' + idx);
+        if (s) { s.classList.remove('active'); s.classList.add('done'); }
+    }
+
+    // ── #11: Quantity selector ────────────────────────
+    function selectQty(el) {
+        document.querySelectorAll('.pay-qty-btn').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        const qty = el.dataset.qty;
+        selectedQty = parseInt(qty) || 1;
+        const price = el.dataset.price;
+        const priceEl = document.getElementById('payment-price');
+        const labelEl = document.getElementById('pay-qty-label');
+        if (priceEl) priceEl.textContent = price;
+        if (labelEl) labelEl.textContent = t('payment_label_print') + ' ' + qty + ' ' + t('payment_label_sheet');
+    }
+
+    // ── FIX 8: Multi-image selection on result page ───
+    const resultPhotos = [
+        'https://picsum.photos/seed/result-v1/400/533',
+        'https://picsum.photos/seed/result-v2/400/533',
+        'https://picsum.photos/seed/result-v3/400/533',
+        'https://picsum.photos/seed/result-v4/400/533',
+    ];
+
+    function selectResultPhoto(el, idx) {
+        // Update thumbnails
+        document.querySelectorAll('.result-thumb').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        // Update main image
+        const mainImg = document.getElementById('result-main-img');
+        if (mainImg) mainImg.src = resultPhotos[idx];
+        // Update badge
+        const numEl = document.getElementById('result-selected-num');
+        if (numEl) numEl.textContent = idx + 1;
+    }
+
+    // ── Toast helper ──────────────────────────────────
+    let toastTimer = null;
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        const msgEl = document.getElementById('toast-msg');
+        if (msgEl) msgEl.textContent = msg;
+        toast.classList.add('show');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+</script>
+</body>
+</html>
