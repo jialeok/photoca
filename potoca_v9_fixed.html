@@ -4693,19 +4693,18 @@
         console.log('[Voice] 播第', idx + 1, '/', urls.length, '段');
     }
 
-    // ── 字幕：逐行淡入（最多保留3行，旧行淡出） ─────────────
+    // ── 字幕：每段只显示当前字幕，前一段立即清除 ─────────────
     function showSubtitleLine(text) {
         const bar = document.getElementById('voice-subtitle-bar');
         if (!bar || !_voiceSubtitleEnabled) return;
         bar.classList.remove('hidden');
 
-        // 超过3行时，让最旧一行淡出后移除
+        // 清除所有旧字幕行，只保留当前段
         const existing = bar.querySelectorAll('.voice-subtitle-line');
-        if (existing.length >= 3) {
-            const oldest = existing[0];
-            oldest.classList.add('fade-out');
-            setTimeout(() => { if (oldest.parentNode) oldest.remove(); }, 230);
-        }
+        existing.forEach(el => {
+            el.classList.add('fade-out');
+            setTimeout(() => { if (el.parentNode) el.remove(); }, 230);
+        });
 
         const line = document.createElement('div');
         line.className = 'voice-subtitle-line';
