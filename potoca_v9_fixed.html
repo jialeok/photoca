@@ -1087,39 +1087,44 @@
         /* ── 播完后显示的印章 ───────────────────────────────── */
         .voice-stamp {
             position: absolute;
-            bottom: 28px;
-            right: 18px;
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            border: 3.5px solid rgba(220, 50, 50, 0.88);
-            background: rgba(200, 30, 30, 0.10);
-            backdrop-filter: blur(2px);
-            -webkit-backdrop-filter: blur(2px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            bottom: 32px;
+            right: 16px;
+            padding: 6px 10px;
+            border-radius: 3px;
+            border: 2.5px solid rgba(190, 28, 28, 0.80);
+            background: rgba(190, 28, 28, 0.06);
             pointer-events: none;
             opacity: 0;
-            transform: scale(1.4) rotate(-18deg);
-            transition: opacity 0.45s ease, transform 0.45s cubic-bezier(.22,1.2,.36,1);
+            transform: scale(1.15) rotate(-12deg);
+            transition: opacity 0.4s ease, transform 0.42s cubic-bezier(.18,1.3,.4,1);
             z-index: 6;
+            filter: url(#stamp-rough);
         }
         .voice-stamp.show {
             opacity: 1;
-            transform: scale(1) rotate(-18deg);
+            transform: scale(1) rotate(-12deg);
+        }
+        /* 内边框：仿真印章双框 */
+        .voice-stamp-inner {
+            border: 1.2px solid rgba(190, 28, 28, 0.55);
+            border-radius: 1px;
+            padding: 5px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .voice-stamp-text {
-            color: rgba(210, 30, 30, 0.92);
+            color: rgba(185, 25, 25, 0.88);
             font-family: 'Noto Sans SC', sans-serif;
             font-weight: 900;
-            font-size: 15px;
-            line-height: 1.35;
+            font-size: 17px;
+            line-height: 1.45;
             text-align: center;
-            letter-spacing: 2px;
-            /* 多字自动换行：≤4字单行，5~6字两行 */
-            max-width: 58px;
+            letter-spacing: 4px;
+            /* 超长自动折行 */
+            max-width: 120px;
             word-break: break-all;
+            white-space: normal;
         }
 
         /* ═══════════════════════════════════════════════════
@@ -2420,6 +2425,23 @@
 </head>
 <body>
 <div class="phone">
+    <!-- SVG滤镜：印章做旧/残缺效果 -->
+    <svg width="0" height="0" style="position:absolute">
+        <defs>
+            <filter id="stamp-rough" x="-10%" y="-10%" width="120%" height="120%">
+                <!-- 噪点纹理 -->
+                <feTurbulence type="fractalNoise" baseFrequency="0.065" numOctaves="4" seed="3" result="noise"/>
+                <!-- 把噪点转成位移，让边缘和笔画产生不规则形变 -->
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+                <!-- 轻微模糊，让边缘有墨水渗透感 -->
+                <feGaussianBlur in="displaced" stdDeviation="0.4" result="blurred"/>
+                <!-- 把灰度拉高对比，让残缺更明显 -->
+                <feComponentTransfer in="blurred">
+                    <feFuncA type="discrete" tableValues="0 0 1 1"/>
+                </feComponentTransfer>
+            </filter>
+        </defs>
+    </svg>
 
     <!-- ══════════ 0. ATTRACT / IDLE ══════════ -->
     <section id="scr-attract" class="screen active" onclick="dismissAttract()">
@@ -2820,9 +2842,11 @@
                     </button>
                     <!-- 字幕层（图片底部渐变，逐段显示） -->
                     <div class="voice-subtitle-bar hidden" id="voice-subtitle-bar"></div>
-                    <!-- 播完后印章 -->
+                    <!-- 播完后印章（长方形，双边框，做旧） -->
                     <div class="voice-stamp" id="voice-stamp">
-                        <span class="voice-stamp-text" id="voice-stamp-text"></span>
+                        <div class="voice-stamp-inner">
+                            <span class="voice-stamp-text" id="voice-stamp-text"></span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -4591,6 +4615,7 @@
     let _voicePlaybackDone   = false;  // 本次已播放过，防止重复
     let _voiceStopped        = false;  // 强制停止标志
     let _voiceSubtitleEnabled = true;  // 由 display-config 控制，默认开启
+    let _voiceStampEnabled    = true;  // 印章开关，由 display-config 控制，默认开启
 
     // 当前缓存的音频URL和字幕（供重播使用）
     let _cachedAudioUrls   = [];
@@ -4736,19 +4761,17 @@
         console.log('[Voice] 播第', idx + 1, '/', urls.length, '段');
     }
 
-    // ── 字幕：逐行淡入（最多保留3行，旧行淡出） ─────────────
+    // ── 字幕：每段只显示当前段，旧段立即淡出清除 ────────────
     function showSubtitleLine(text) {
         const bar = document.getElementById('voice-subtitle-bar');
         if (!bar || !_voiceSubtitleEnabled) return;
         bar.classList.remove('hidden');
 
-        // 超过3行时，让最旧一行淡出后移除
-        const existing = bar.querySelectorAll('.voice-subtitle-line');
-        if (existing.length >= 3) {
-            const oldest = existing[0];
-            oldest.classList.add('fade-out');
-            setTimeout(() => { if (oldest.parentNode) oldest.remove(); }, 230);
-        }
+        // 清除所有旧字幕行，只保留当前段
+        bar.querySelectorAll('.voice-subtitle-line').forEach(el => {
+            el.classList.add('fade-out');
+            setTimeout(() => { if (el.parentNode) el.remove(); }, 230);
+        });
 
         const line = document.createElement('div');
         line.className = 'voice-subtitle-line';
@@ -4800,16 +4823,81 @@
         return '';
     }
 
+    // ── 盖章音效（Web Audio API 合成，无需外部文件）────────────
+    function playStampSound() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+            // 第一层：低频冲击（章体落下的重击感）
+            const bufLen = ctx.sampleRate * 0.18;
+            const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+            const data = buf.getChannelData(0);
+            for (let i = 0; i < bufLen; i++) {
+                const t = i / ctx.sampleRate;
+                // 噪声 + 低频正弦叠加，模拟橡皮章击打声
+                const noise = (Math.random() * 2 - 1);
+                const thud  = Math.sin(2 * Math.PI * 120 * t) * Math.exp(-t * 28);
+                const click = Math.sin(2 * Math.PI * 800 * t) * Math.exp(-t * 80);
+                data[i] = (noise * 0.35 + thud * 0.55 + click * 0.18) * Math.exp(-t * 18);
+            }
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+
+            // 低通滤波让声音更"沉"，像章盖在纸上
+            const lpf = ctx.createBiquadFilter();
+            lpf.type = 'lowpass';
+            lpf.frequency.value = 900;
+
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(0.72, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+
+            src.connect(lpf);
+            lpf.connect(gain);
+            gain.connect(ctx.destination);
+            src.start();
+
+            // 第二层：轻微回响（章离纸的尾音）
+            setTimeout(() => {
+                try {
+                    const buf2 = ctx.createBuffer(1, ctx.sampleRate * 0.06, ctx.sampleRate);
+                    const d2 = buf2.getChannelData(0);
+                    for (let i = 0; i < d2.length; i++) {
+                        const t = i / ctx.sampleRate;
+                        d2[i] = (Math.random() * 2 - 1) * 0.12 * Math.exp(-t * 60);
+                    }
+                    const src2 = ctx.createBufferSource();
+                    src2.buffer = buf2;
+                    const g2 = ctx.createGain();
+                    g2.gain.value = 0.28;
+                    src2.connect(g2);
+                    g2.connect(ctx.destination);
+                    src2.start();
+                    setTimeout(() => ctx.close(), 300);
+                } catch(e) {}
+            }, 80);
+        } catch(e) {
+            console.warn('[StampSound] 音效播放失败:', e.message);
+        }
+    }
+
     function showVoiceStamp() {
+        if (!_voiceStampEnabled) return;
         const stamp   = document.getElementById('voice-stamp');
         const textEl  = document.getElementById('voice-stamp-text');
         if (!stamp || !textEl) return;
         const text = getStampText();
         if (!text) return;
         textEl.textContent = text;
-        // 字数决定字号：2字大，3~4字中，5~6字小
-        textEl.style.fontSize = text.length <= 2 ? '20px' : text.length <= 4 ? '15px' : '12px';
+        // 长方形印章：字数多自动折行，字号统一稍大
+        const len = text.length;
+        textEl.style.fontSize = len <= 2 ? '22px' : len <= 4 ? '18px' : len <= 6 ? '15px' : '13px';
+        textEl.style.letterSpacing = len <= 4 ? '4px' : '2px';
+        // 超过5字允许折行，否则单行
+        textEl.style.whiteSpace = len > 5 ? 'normal' : 'nowrap';
         stamp.classList.add('show');
+        // 盖章音效：印章出现的同时触发
+        playStampSound();
     }
 
     function hideVoiceStamp() {
@@ -4831,14 +4919,15 @@
         }
     }
 
-    // ── Admin开关：字幕+按钮可见性 ────────────────────────────
+    // ── Admin开关：字幕+按钮+印章可见性 ──────────────────────
     function applyVoiceSubtitleVisibility() {
-        // 按钮由播放逻辑控制（idle=hidden），字幕由 clearSubtitles 清除
-        // 若功能关闭，确保两者都隐藏
         if (!_voiceSubtitleEnabled) {
             clearSubtitles();
             const btn = document.getElementById('voice-replay-btn');
             if (btn) btn.classList.add('hidden');
+        }
+        if (!_voiceStampEnabled) {
+            hideVoiceStamp();
         }
     }
 
@@ -5439,6 +5528,8 @@
             showLikes = config.showLikes === true;
             // 语音字幕功能开关（默认开启）
             _voiceSubtitleEnabled = config.voice_subtitle_enabled !== false;
+            // 印章开关（默认开启）
+            _voiceStampEnabled = config.voice_stamp_enabled !== false;
             // 如果风格已经渲染了，重新渲染一次以应用配置
             if (allStyles.length > 0) renderStyleGrid(allStyles);
         } catch(_) {}
