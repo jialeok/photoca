@@ -1021,6 +1021,69 @@
             padding: 0 20px 32px;
         }
 
+        /* ── 语音播报字幕层 ────────────────────────────────── */
+        .voice-subtitle-bar {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            padding: 40px 16px 18px;
+            background: linear-gradient(to top, rgba(0,0,0,.75) 0%, rgba(0,0,0,.3) 60%, transparent 100%);
+            border-radius: 0 0 var(--r-2xl) var(--r-2xl);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            pointer-events: none;
+            min-height: 60px;
+        }
+        .voice-subtitle-bar.hidden { display: none; }
+
+        .voice-subtitle-line {
+            font-size: 15px;
+            font-weight: 600;
+            color: #fff;
+            line-height: 1.55;
+            text-shadow: 0 1px 8px rgba(0,0,0,.7);
+            text-align: center;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity .38s ease, transform .38s ease;
+        }
+        .voice-subtitle-line.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .voice-subtitle-line.fade-out {
+            opacity: 0;
+            transform: translateY(-6px);
+            transition: opacity .22s ease, transform .22s ease;
+        }
+
+        /* ── 右上角播放/重播按钮 ───────────────────────────── */
+        .voice-replay-btn {
+            position: absolute;
+            top: 14px; right: 14px;
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            background: rgba(0,0,0,.55);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1.5px solid rgba(255,255,255,.25);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            color: #fff;
+            transition: background .15s, transform .12s;
+            z-index: 5;
+        }
+        .voice-replay-btn:active { transform: scale(.88); background: rgba(0,0,0,.78); }
+        .voice-replay-btn .material-icons-round { font-size: 20px !important; }
+        .voice-replay-btn.hidden { display: none; }
+
+        @keyframes voice-pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(255,255,255,.45); }
+            65%  { box-shadow: 0 0 0 9px rgba(255,255,255,0); }
+            100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+        }
+        .voice-replay-btn.playing { animation: voice-pulse 1.7s ease infinite; }
+
         /* ═══════════════════════════════════════════════════
            SCREEN — QR CODE UPLOAD
         ═══════════════════════════════════════════════════ */
@@ -2712,6 +2775,13 @@
                 <div class="result-image-card" id="result-main-card">
                     <img id="result-main-img"
                         src="" alt="Result" style="background:#111">
+                    <!-- 语音重播按钮（右上角，播完后显示） -->
+                    <button class="voice-replay-btn hidden" id="voice-replay-btn"
+                            onclick="replayVoice()" title="重新播报">
+                        <span class="material-icons-round" id="voice-replay-icon">volume_up</span>
+                    </button>
+                    <!-- 字幕层（图片底部渐变，逐段显示） -->
+                    <div class="voice-subtitle-bar hidden" id="voice-subtitle-bar"></div>
                 </div>
             </div>
 
@@ -3402,8 +3472,43 @@
         console.log(`[handleUploadedPhoto] style=${styleObj.name} provider=${styleObj.provider}`);
 
         const aiStartTime = Date.now(); // 记录AI开始时间
+
+        // ── 90秒超时兜底：AI未完成则强制终止，回到风格页 ──────────────
+        let aiTimeoutFired = false;
+        const aiHardTimeoutId = setTimeout(() => {
+            aiTimeoutFired = true;
+            console.warn('[AI超时] 90秒未完成，强制终止');
+            // 中止 fetch
+            if (currentAiAbortController) {
+                currentAiAbortController.abort();
+                currentAiAbortController = null;
+            }
+            // 清理语音状态，防止任何残留
+            _pendingAudioUrls = [];
+            stopVoicePlayback();
+            // 写 cancelled_at 告知后台（需要 uploads 表有此字段）
+            try {
+                if (supabaseClient && sessionId) {
+                    supabaseClient.from('uploads')
+                        .update({ cancelled_at: new Date().toISOString() })
+                        .eq('session', sessionId).then(() => {});
+                }
+            } catch(e) {}
+            // 清理 UI，回到风格页
+            if (overlay) overlay.classList.remove('show');
+            resetProcessingSteps();
+            clearProcCancelTimer();
+            resumeIdleTimer();
+            isAiProcessingLocked = false;
+            showToast('生成超时，请重新选择风格');
+            navTo('scr-style');
+        }, 90000);
+
         const aiUrl = await callAiAndWriteBack(sessionId, imageUrl, styleObj);
+        clearTimeout(aiHardTimeoutId); // AI完成（成功或失败），清除超时器
         const aiDurationSeconds = Math.round((Date.now() - aiStartTime) / 1000);
+
+        if (aiTimeoutFired) return; // 超时已处理，不再继续
 
         // AI失败或被取消
         if (!aiUrl) {
@@ -3416,8 +3521,8 @@
                 isAiProcessingLocked = false;
                 return;
             }
-            showToast('AI 生成失败，请用手机重新扫码上传');
-            navTo('scr-qrcode');
+            showToast('AI 生成失败，请重新选择风格');
+            navTo('scr-style');
             resumeIdleTimer();
             isAiProcessingLocked = false;
             return;
@@ -3458,6 +3563,8 @@
                     // 等待 Qwen 识别 + TTS 合成（在"优化细节"步骤中等待）
                     const audioUrls = await autoRunQwenWithTTS(thumbUrl || hdUrl, downloadSessionId);
                     _pendingAudioUrls = audioUrls;
+                    // 同步提取字幕文本（从DB读qwen_voice，与audioUrls一一对应）
+                    _pendingSubtitles = await extractSubtitlesFromSession(downloadSessionId);
 
                     // 推进到"输出成片"（快速冲满约0.8秒）
                     notifyDetailStepDone();
@@ -3681,6 +3788,7 @@
     // 进度页用：阻塞等待 Qwen 识别 + TTS 合成，返回 audioUrls 数组备用
     // 成功返回 [url1, url2, ...] 数组，失败返回 []（静默，不影响跳转）
     let _pendingAudioUrls = [];
+    let _pendingSubtitles = []; // 与 _pendingAudioUrls 一一对应的字幕文本
 
     async function autoRunQwenWithTTS(imageUrl, sessionId) {
         if (!supabaseClient || !imageUrl || !sessionId) return [];
@@ -3925,7 +4033,7 @@
 
         // 取消按钮已移除，无需定时器
 
-        const timeoutMs = isJimeng ? 150000 : 60000;
+        const timeoutMs = 90000; // 统一90秒，由外层兜底计时器负责
         currentAiAbortController = new AbortController();
         const timeoutId = setTimeout(() => currentAiAbortController.abort(), timeoutMs);
 
@@ -4432,70 +4540,87 @@
 
     // 这些页面在结果页/处理中不触发待机
     // ═══════════════════════════════════════════════════════
-    //  AI 声播 — 语音播报系统
-    //  流程：进入result页 → 轮询等待qwen_voice文字 → 调qwen-tts → 播放
+    //  AI 声播 — 语音播报 + 字幕系统
+    //  流程：进入result页 → 优先用预合成audioUrls → 逐段播放+逐段显字幕
+    //        兜底：轮询DB等待qwen_voice → 调qwen-tts → 播放
     // ═══════════════════════════════════════════════════════
-    let _voiceAudio        = null;  // 当前播放的 Audio 对象
-    let _voicePollTimer    = null;  // 轮询定时器
-    let _voicePlaybackDone = false; // 本次已播放过，防止重复
-    let _voiceStopped      = false; // 强制停止标志（多段序列用）
+    let _voiceAudio          = null;   // 当前播放的 Audio 对象
+    let _voicePollTimer      = null;   // 轮询定时器
+    let _voicePlaybackDone   = false;  // 本次已播放过，防止重复
+    let _voiceStopped        = false;  // 强制停止标志
+    let _voiceSubtitleEnabled = true;  // 由 display-config 控制，默认开启
 
-    // 停止播放 + 清理所有计时器（离开result页时调用）
+    // 当前缓存的音频URL和字幕（供重播使用）
+    let _cachedAudioUrls   = [];
+    let _cachedSubtitles   = [];
+
+    // ── 停止播放 + 清理 ──────────────────────────────────────
     function stopVoicePlayback() {
         _voiceStopped = true;
-        if (_voiceAudio) {
-            _voiceAudio.pause();
-            _voiceAudio = null;
-        }
-        if (_voicePollTimer) {
-            clearTimeout(_voicePollTimer);
-            _voicePollTimer = null;
-        }
+        if (_voiceAudio) { try { _voiceAudio.pause(); } catch(e) {} _voiceAudio = null; }
+        if (_voicePollTimer) { clearTimeout(_voicePollTimer); _voicePollTimer = null; }
+        setVoiceReplayBtn('idle');
+        clearSubtitles();
     }
 
-    // 进入result页时调用：优先用进度页预合成的 audioUrls 直接播，兜底才轮询
+    // ── 进入result页时调用 ───────────────────────────────────
     async function startVoicePlayback() {
         stopVoicePlayback();
         _voicePlaybackDone = false;
         _voiceStopped = false;
+        _cachedAudioUrls = [];
+        _cachedSubtitles = [];
+
+        // 应用字幕功能开关
+        applyVoiceSubtitleVisibility();
 
         const sessionId = downloadSessionId;
         if (!sessionId || !supabaseClient) return;
 
         // 优先：进度页已预合成好的 audioUrls 数组
         if (_pendingAudioUrls && _pendingAudioUrls.length > 0) {
-            const urls = _pendingAudioUrls;
+            const urls = [..._pendingAudioUrls];
             _pendingAudioUrls = [];
+            // 字幕从 _pendingSubtitles 取
+            const subs = (_pendingSubtitles && _pendingSubtitles.length > 0)
+                ? [..._pendingSubtitles] : urls.map(() => '');
+            _pendingSubtitles = [];
+            _cachedAudioUrls = urls;
+            _cachedSubtitles = subs;
             _voicePlaybackDone = true;
-            console.log('[Voice] 使用预合成音频，共', urls.length, '段，立即播报');
-            playAudioSequence(urls);
+            console.log('[Voice] 预合成音频', urls.length, '段，字幕', subs.filter(s=>s).length, '段，立即播报');
+            playAudioSequence(urls, subs, 0);
             return;
         }
 
-        // 兜底：轮询等待（Qwen失败/TTS失败时走这里）
+        // 兜底：轮询等待（Qwen/TTS预合成失败时走这里）
         const groupId = activeGroupId || '';
         const MAX_POLLS = 12;
-        const POLL_INTERVAL = 2000;
         let pollCount = 0;
-
         async function poll() {
             if (_voicePlaybackDone) return;
             if (downloadSessionId !== sessionId) return;
             pollCount++;
             try {
                 const { data } = await supabaseClient
-                    .from('generations')
-                    .select('qwen_voice')
-                    .eq('session_id', sessionId)
-                    .single();
-                const voiceText = data?.qwen_voice;
-                if (voiceText && voiceText.trim() !== '') {
-                    await playTTS(voiceText.trim(), groupId);
+                    .from('generations').select('qwen_voice')
+                    .eq('session_id', sessionId).single();
+                const voiceRaw = data?.qwen_voice;
+                if (voiceRaw && voiceRaw.trim() !== '') {
+                    // 解析多段
+                    let segs = null;
+                    try {
+                        const parsed = JSON.parse(voiceRaw);
+                        if (parsed?.segments) segs = parsed.segments.map(s => s.text || '').filter(Boolean);
+                    } catch(e) {}
+                    if (!segs) segs = [voiceRaw.trim()];
+                    _voicePlaybackDone = true;
+                    await playTTSSegments(segs, groupId, sessionId);
                     return;
                 }
             } catch(e) { console.warn('[Voice] 轮询出错:', e.message); }
             if (pollCount < MAX_POLLS) {
-                _voicePollTimer = setTimeout(poll, POLL_INTERVAL);
+                _voicePollTimer = setTimeout(poll, 2000);
             } else {
                 console.warn('[Voice] 等待超时，放弃播报');
             }
@@ -4503,70 +4628,158 @@
         poll();
     }
 
-    // 顺序播放多段音频 URL 数组
-    function playAudioSequence(urls, idx) {
-        idx = idx || 0;
+    // ── 兜底路径：多段文本 → 调TTS → 顺序播 ────────────────
+    async function playTTSSegments(segs, groupId, sessionId) {
+        // 依次合成每段TTS，顺序播放
+        const urls = [];
+        const subs = [];
+        for (const text of segs) {
+            try {
+                const res  = await fetch(SUPABASE_URL + '/functions/v1/qwen-tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+                    body: JSON.stringify({ text, groupId }),
+                });
+                const data = await res.json();
+                if (data.success && data.audioUrl) {
+                    urls.push(data.audioUrl);
+                    subs.push(text);
+                }
+            } catch(e) { console.warn('[Voice] TTS段合成失败:', e.message); }
+        }
+        if (urls.length === 0) return;
         if (_voiceStopped) return;
-        if (idx >= urls.length) return;
-        if (document.getElementById('scr-result')?.classList.contains('active') === false) return;
+        _cachedAudioUrls = urls;
+        _cachedSubtitles = subs;
+        playAudioSequence(urls, subs, 0);
+
+        // 写回TTS时间
+        if (supabaseClient && sessionId) {
+            supabaseClient.from('generations').update({
+                tts_ended_at: new Date().toISOString(),
+            }).eq('session_id', sessionId).then(() => {});
+        }
+    }
+
+    // ── 顺序播放多段音频 + 同步字幕 ─────────────────────────
+    function playAudioSequence(urls, subs, idx) {
+        if (_voiceStopped) { setVoiceReplayBtn('idle'); return; }
+        if (idx >= urls.length) {
+            setVoiceReplayBtn('done');   // 全部播完，按钮变重播
+            return;
+        }
+        if (!document.getElementById('scr-result')?.classList.contains('active')) return;
+
+        setVoiceReplayBtn('playing');
+
+        // 字幕：显示当前段
+        if (_voiceSubtitleEnabled && subs && subs[idx]) {
+            showSubtitleLine(subs[idx]);
+        }
+
         const audio = new Audio(urls[idx]);
         audio.volume = 1.0;
         if (_voiceAudio) { try { _voiceAudio.pause(); } catch(e) {} }
         _voiceAudio = audio;
-        audio.onended = () => playAudioSequence(urls, idx + 1);
-        audio.onerror = () => {
-            console.warn('[Voice] 第', idx + 1, '段播放失败，跳过');
-            playAudioSequence(urls, idx + 1);
+        audio.onended  = () => playAudioSequence(urls, subs, idx + 1);
+        audio.onerror  = () => {
+            console.warn('[Voice] 第', idx + 1, '段失败，跳过');
+            playAudioSequence(urls, subs, idx + 1);
         };
         audio.play().catch(e => {
-            console.warn('[Voice] 第', idx + 1, '段播放异常:', e.message);
-            playAudioSequence(urls, idx + 1);
+            console.warn('[Voice] play异常:', e.message);
+            playAudioSequence(urls, subs, idx + 1);
         });
-        console.log('[Voice] 播放第', idx + 1, '/', urls.length, '段');
+        console.log('[Voice] 播第', idx + 1, '/', urls.length, '段');
     }
 
-    // 调用 qwen-tts Edge Function，获取音频URL后播放
+    // ── 字幕：逐行淡入（最多保留3行，旧行淡出） ─────────────
+    function showSubtitleLine(text) {
+        const bar = document.getElementById('voice-subtitle-bar');
+        if (!bar || !_voiceSubtitleEnabled) return;
+        bar.classList.remove('hidden');
+
+        // 超过3行时，让最旧一行淡出后移除
+        const existing = bar.querySelectorAll('.voice-subtitle-line');
+        if (existing.length >= 3) {
+            const oldest = existing[0];
+            oldest.classList.add('fade-out');
+            setTimeout(() => { if (oldest.parentNode) oldest.remove(); }, 230);
+        }
+
+        const line = document.createElement('div');
+        line.className = 'voice-subtitle-line';
+        line.textContent = text;
+        bar.appendChild(line);
+        // 双帧触发动画
+        requestAnimationFrame(() => requestAnimationFrame(() => line.classList.add('show')));
+    }
+
+    function clearSubtitles() {
+        const bar = document.getElementById('voice-subtitle-bar');
+        if (!bar) return;
+        bar.innerHTML = '';
+        bar.classList.add('hidden');
+    }
+
+    // ── 重播按钮状态管理 ─────────────────────────────────────
+    function setVoiceReplayBtn(state) {
+        const btn  = document.getElementById('voice-replay-btn');
+        const icon = document.getElementById('voice-replay-icon');
+        if (!btn || !icon) return;
+        btn.classList.remove('playing', 'hidden');
+        if (state === 'idle') {
+            btn.classList.add('hidden');
+        } else if (state === 'playing') {
+            icon.textContent = 'graphic_eq';
+            btn.classList.add('playing');
+        } else if (state === 'done') {
+            icon.textContent = 'replay';
+        }
+    }
+
+    // ── 用户点击重播按钮 ─────────────────────────────────────
+    function replayVoice() {
+        if (_voiceStopped && _cachedAudioUrls.length === 0) return;
+        clearSubtitles();
+        _voiceStopped = false;
+        if (_cachedAudioUrls.length > 0) {
+            playAudioSequence([..._cachedAudioUrls], [..._cachedSubtitles], 0);
+        } else {
+            // 没有缓存，重走完整流程
+            _voicePlaybackDone = false;
+            startVoicePlayback();
+        }
+    }
+
+    // ── Admin开关：字幕+按钮可见性 ────────────────────────────
+    function applyVoiceSubtitleVisibility() {
+        // 按钮由播放逻辑控制（idle=hidden），字幕由 clearSubtitles 清除
+        // 若功能关闭，确保两者都隐藏
+        if (!_voiceSubtitleEnabled) {
+            clearSubtitles();
+            const btn = document.getElementById('voice-replay-btn');
+            if (btn) btn.classList.add('hidden');
+        }
+    }
+
+    // ── 旧版兜底（单段文本 playTTS，保留供外部可能引用） ──────
     async function playTTS(text, groupId) {
         if (_voicePlaybackDone) return;
-        const ttsStart = new Date();
         try {
-            const res = await fetch(SUPABASE_URL + '/functions/v1/qwen-tts', {
+            const res  = await fetch(SUPABASE_URL + '/functions/v1/qwen-tts', {
                 method: 'POST',
-                headers: {
-                    'Content-Type':  'application/json',
-                    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
                 body: JSON.stringify({ text, groupId }),
             });
             const data = await res.json();
-            const ttsEnd = new Date();
-
-            if (!data.success) {
-                if (!data.disabled) console.warn('[Voice] TTS 返回失败:', data.error);
-                return;
-            }
-
-            if (!data.audioUrl) return;
-
-            if (document.getElementById('scr-result')?.classList.contains('active') === false) return;
-
+            if (!data.success || !data.audioUrl) return;
+            if (!document.getElementById('scr-result')?.classList.contains('active')) return;
             _voicePlaybackDone = true;
-            _voiceAudio = new Audio(data.audioUrl);
-            _voiceAudio.volume = 1.0;
-            _voiceAudio.play().catch(e => console.warn('[Voice] 播放失败:', e.message));
-            console.log('[Voice] 开始播报，音色:', data.voice, '分组:', data.groupId);
-
-            // 写回 TTS 合成开始/结束时间
-            const curSessionId = downloadSessionId;
-            if (supabaseClient && curSessionId) {
-                supabaseClient.from('generations').update({
-                    tts_started_at: ttsStart.toISOString(),
-                    tts_ended_at:   ttsEnd.toISOString(),
-                }).eq('session_id', curSessionId).then(() => {});
-            }
-        } catch(e) {
-            console.warn('[Voice] playTTS 异常:', e.message);
-        }
+            _cachedAudioUrls = [data.audioUrl];
+            _cachedSubtitles = [text];
+            playAudioSequence([data.audioUrl], [text], 0);
+        } catch(e) { console.warn('[Voice] playTTS异常:', e.message); }
     }
 
     const NO_IDLE_SCREENS = new Set(['scr-result', 'scr-capture', 'scr-payment', 'scr-print']);
@@ -5145,9 +5358,32 @@
             if (!resp.ok) return;
             const config = await resp.json();
             showLikes = config.showLikes === true;
+            // 语音字幕功能开关（默认开启）
+            _voiceSubtitleEnabled = config.voice_subtitle_enabled !== false;
             // 如果风格已经渲染了，重新渲染一次以应用配置
             if (allStyles.length > 0) renderStyleGrid(allStyles);
         } catch(_) {}
+    }
+
+    // 从DB的 qwen_voice 字段解析字幕文本数组（与audioUrls顺序一致）
+    async function extractSubtitlesFromSession(sessionId) {
+        if (!supabaseClient || !sessionId) return [];
+        try {
+            const { data } = await supabaseClient
+                .from('generations').select('qwen_voice')
+                .eq('session_id', sessionId).single();
+            if (!data?.qwen_voice) return [];
+            let parsed = null;
+            try { parsed = JSON.parse(data.qwen_voice); } catch(e) {}
+            if (parsed?.segments && Array.isArray(parsed.segments)) {
+                return parsed.segments.map(s => (s.text || '').trim()).filter(Boolean);
+            }
+            // 兜底：旧版单段字符串
+            return [data.qwen_voice.trim()];
+        } catch(e) {
+            console.warn('[Subtitle] extractSubtitles失败:', e.message);
+            return [];
+        }
     }
 
     async function loadStylesFromSupabase() {
@@ -5460,6 +5696,8 @@
         // 离开结果页时立刻清空图片，保护上一位客户隐私
         if (prev && prev.id === 'scr-result') {
             stopVoicePlayback();
+            _cachedAudioUrls = [];
+            _cachedSubtitles = [];
             const oldMain  = document.getElementById('result-main-img');
             const oldThumb = document.querySelector('.result-thumb img');
             if (oldMain)  { oldMain.src  = ''; oldMain.style.background  = '#fff'; }
@@ -5714,15 +5952,40 @@
 
         console.log(`[startProcessing] 调用AI: sessionId=${sessionId} style=${styleObj.name} provider=${styleObj.provider}`);
         const aiStartTime = Date.now();
+
+        // ── 90秒超时兜底：AI未完成则强制终止，回到风格页 ──────────────
+        let aiTimeoutFired2 = false;
+        const aiHardTimeoutId2 = setTimeout(() => {
+            aiTimeoutFired2 = true;
+            console.warn('[AI超时-拍照] 90秒未完成，强制终止');
+            if (currentAiAbortController) {
+                currentAiAbortController.abort();
+                currentAiAbortController = null;
+            }
+            _pendingAudioUrls = [];
+            stopVoicePlayback();
+            overlay.classList.remove('show');
+            resetProcessingSteps();
+            clearProcCancelTimer();
+            resumeIdleTimer();
+            isAiProcessingLocked = false;
+            showToast('生成超时，请重新选择风格');
+            navTo('scr-style');
+        }, 90000);
+
         const aiUrl = await callAiAndWriteBack(sessionId, uploadedImageUrl, styleObj);
+        clearTimeout(aiHardTimeoutId2);
         const aiDurationSeconds = Math.round((Date.now() - aiStartTime) / 1000);
         console.log(`[startProcessing] AI返回: aiUrl=`, aiUrl, `耗时=${aiDurationSeconds}s`);
+
+        if (aiTimeoutFired2) return; // 超时已处理，不再继续
 
         if (!aiUrl) {
             overlay.classList.remove('show');
             resetProcessingSteps();
             clearProcCancelTimer();
-            showToast('AI生成失败，请重试');
+            showToast('AI生成失败，请重新选择风格');
+            navTo('scr-style');
             resumeIdleTimer();
             isAiProcessingLocked = false;
             return;
@@ -5757,6 +6020,8 @@
                 });
                 const audioUrls = await autoRunQwenWithTTS(thumbUrl || hdUrl, insertedSessionId);
                 _pendingAudioUrls = audioUrls;
+                // 同步提取字幕文本
+                _pendingSubtitles = await extractSubtitlesFromSession(insertedSessionId);
                 notifyDetailStepDone();
                 await new Promise(r => setTimeout(r, 900));
 
