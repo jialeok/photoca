@@ -4733,7 +4733,20 @@
     function playAudioSequence(urls, subs, idx) {
         if (_voiceStopped) { setVoiceReplayBtn('idle'); return; }
         if (idx >= urls.length) {
-            setVoiceReplayBtn('done');   // 全部播完，按钮变重播
+            // 最后一段字幕淡出后再显示印章
+            const bar = document.getElementById('voice-subtitle-bar');
+            if (bar && !bar.classList.contains('hidden')) {
+                bar.querySelectorAll('.voice-subtitle-line').forEach(el => {
+                    el.classList.add('fade-out');
+                });
+                setTimeout(() => {
+                    bar.innerHTML = '';
+                    bar.classList.add('hidden');
+                    setVoiceReplayBtn('done');   // 全部播完，按钮变重播（印章在这里触发）
+                }, 400);
+            } else {
+                setVoiceReplayBtn('done');
+            }
             return;
         }
         if (!document.getElementById('scr-result')?.classList.contains('active')) return;
@@ -4838,7 +4851,7 @@
                 const noise = (Math.random() * 2 - 1);
                 const thud  = Math.sin(2 * Math.PI * 120 * t) * Math.exp(-t * 28);
                 const click = Math.sin(2 * Math.PI * 800 * t) * Math.exp(-t * 80);
-                data[i] = (noise * 0.35 + thud * 0.55 + click * 0.18) * Math.exp(-t * 18);
+                data[i] = (noise * 0.6 + thud * 0.9 + click * 0.35) * Math.exp(-t * 18);
             }
             const src = ctx.createBufferSource();
             src.buffer = buf;
@@ -4849,7 +4862,7 @@
             lpf.frequency.value = 900;
 
             const gain = ctx.createGain();
-            gain.gain.setValueAtTime(0.72, ctx.currentTime);
+            gain.gain.setValueAtTime(1.8, ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
 
             src.connect(lpf);
@@ -4869,7 +4882,7 @@
                     const src2 = ctx.createBufferSource();
                     src2.buffer = buf2;
                     const g2 = ctx.createGain();
-                    g2.gain.value = 0.28;
+                    g2.gain.value = 0.7;
                     src2.connect(g2);
                     g2.connect(ctx.destination);
                     src2.start();
