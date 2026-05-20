@@ -3473,11 +3473,11 @@
 
         const aiStartTime = Date.now(); // 记录AI开始时间
 
-        // ── 90秒超时兜底：AI未完成则强制终止，回到风格页 ──────────────
+        // ── 160秒外层兜底：内层已按接口类型设超时，这里只是最后一道保险 ──
         let aiTimeoutFired = false;
         const aiHardTimeoutId = setTimeout(() => {
             aiTimeoutFired = true;
-            console.warn('[AI超时] 90秒未完成，强制终止');
+            console.warn('[AI超时] 160秒未完成，强制终止');
             // 中止 fetch
             if (currentAiAbortController) {
                 currentAiAbortController.abort();
@@ -3502,7 +3502,7 @@
             isAiProcessingLocked = false;
             showToast('生成超时，请重新选择风格');
             navTo('scr-style');
-        }, 90000);
+        }, 160000);
 
         const aiUrl = await callAiAndWriteBack(sessionId, imageUrl, styleObj);
         clearTimeout(aiHardTimeoutId); // AI完成（成功或失败），清除超时器
@@ -4033,7 +4033,7 @@
 
         // 取消按钮已移除，无需定时器
 
-        const timeoutMs = 90000; // 统一90秒，由外层兜底计时器负责
+        const timeoutMs = isJimeng ? 150000 : 60000; // jimeng最长150s，老接口60s
         currentAiAbortController = new AbortController();
         const timeoutId = setTimeout(() => currentAiAbortController.abort(), timeoutMs);
 
@@ -5953,11 +5953,11 @@
         console.log(`[startProcessing] 调用AI: sessionId=${sessionId} style=${styleObj.name} provider=${styleObj.provider}`);
         const aiStartTime = Date.now();
 
-        // ── 90秒超时兜底：AI未完成则强制终止，回到风格页 ──────────────
+        // ── 160秒外层兜底：内层已按接口类型设超时，这里只是最后一道保险 ──
         let aiTimeoutFired2 = false;
         const aiHardTimeoutId2 = setTimeout(() => {
             aiTimeoutFired2 = true;
-            console.warn('[AI超时-拍照] 90秒未完成，强制终止');
+            console.warn('[AI超时-拍照] 160秒未完成，强制终止');
             if (currentAiAbortController) {
                 currentAiAbortController.abort();
                 currentAiAbortController = null;
@@ -5971,7 +5971,7 @@
             isAiProcessingLocked = false;
             showToast('生成超时，请重新选择风格');
             navTo('scr-style');
-        }, 90000);
+        }, 160000);
 
         const aiUrl = await callAiAndWriteBack(sessionId, uploadedImageUrl, styleObj);
         clearTimeout(aiHardTimeoutId2);
