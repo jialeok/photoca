@@ -1084,6 +1084,44 @@
         }
         .voice-replay-btn.playing { animation: voice-pulse 1.7s ease infinite; }
 
+        /* ── 播完后显示的印章 ───────────────────────────────── */
+        .voice-stamp {
+            position: absolute;
+            bottom: 28px;
+            right: 18px;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3.5px solid rgba(220, 50, 50, 0.88);
+            background: rgba(200, 30, 30, 0.10);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            opacity: 0;
+            transform: scale(1.4) rotate(-18deg);
+            transition: opacity 0.45s ease, transform 0.45s cubic-bezier(.22,1.2,.36,1);
+            z-index: 6;
+        }
+        .voice-stamp.show {
+            opacity: 1;
+            transform: scale(1) rotate(-18deg);
+        }
+        .voice-stamp-text {
+            color: rgba(210, 30, 30, 0.92);
+            font-family: 'Noto Sans SC', sans-serif;
+            font-weight: 900;
+            font-size: 15px;
+            line-height: 1.35;
+            text-align: center;
+            letter-spacing: 2px;
+            /* 多字自动换行：≤4字单行，5~6字两行 */
+            max-width: 58px;
+            word-break: break-all;
+        }
+
         /* ═══════════════════════════════════════════════════
            SCREEN — QR CODE UPLOAD
         ═══════════════════════════════════════════════════ */
@@ -2782,6 +2820,10 @@
                     </button>
                     <!-- 字幕层（图片底部渐变，逐段显示） -->
                     <div class="voice-subtitle-bar hidden" id="voice-subtitle-bar"></div>
+                    <!-- 播完后印章 -->
+                    <div class="voice-stamp" id="voice-stamp">
+                        <span class="voice-stamp-text" id="voice-stamp-text"></span>
+                    </div>
                 </div>
             </div>
 
@@ -4561,6 +4603,7 @@
         if (_voicePollTimer) { clearTimeout(_voicePollTimer); _voicePollTimer = null; }
         setVoiceReplayBtn('idle');
         clearSubtitles();
+        hideVoiceStamp();
     }
 
     // ── 进入result页时调用 ───────────────────────────────────
@@ -4693,18 +4736,19 @@
         console.log('[Voice] 播第', idx + 1, '/', urls.length, '段');
     }
 
-    // ── 字幕：每段只显示当前字幕，前一段立即清除 ─────────────
+    // ── 字幕：逐行淡入（最多保留3行，旧行淡出） ─────────────
     function showSubtitleLine(text) {
         const bar = document.getElementById('voice-subtitle-bar');
         if (!bar || !_voiceSubtitleEnabled) return;
         bar.classList.remove('hidden');
 
-        // 清除所有旧字幕行，只保留当前段
+        // 超过3行时，让最旧一行淡出后移除
         const existing = bar.querySelectorAll('.voice-subtitle-line');
-        existing.forEach(el => {
-            el.classList.add('fade-out');
-            setTimeout(() => { if (el.parentNode) el.remove(); }, 230);
-        });
+        if (existing.length >= 3) {
+            const oldest = existing[0];
+            oldest.classList.add('fade-out');
+            setTimeout(() => { if (oldest.parentNode) oldest.remove(); }, 230);
+        }
 
         const line = document.createElement('div');
         line.className = 'voice-subtitle-line';
@@ -4729,12 +4773,48 @@
         btn.classList.remove('playing', 'hidden');
         if (state === 'idle') {
             btn.classList.add('hidden');
+            hideVoiceStamp();
         } else if (state === 'playing') {
             icon.textContent = 'graphic_eq';
             btn.classList.add('playing');
+            hideVoiceStamp();
         } else if (state === 'done') {
             icon.textContent = 'replay';
+            showVoiceStamp();
         }
+    }
+
+    // ── 印章：从最后一段字幕末尾提取关键词 ────────────────────
+    function getStampText() {
+        // 优先：从 _cachedSubtitles 最后一段取末尾关键词
+        const subs = _cachedSubtitles;
+        if (subs && subs.length > 0) {
+            const lastSub = subs[subs.length - 1].trim();
+            // 取最后一句"，"或"，"后的内容（如"用四个字形容那就是，声动如雷" → "声动如雷"）
+            const parts = lastSub.split(/[，,、。！!？?]/);
+            const keyword = parts[parts.length - 1].trim();
+            if (keyword.length >= 2 && keyword.length <= 8) return keyword;
+            // 兜底：直接取末尾最多6个字
+            return lastSub.slice(-6);
+        }
+        return '';
+    }
+
+    function showVoiceStamp() {
+        const stamp   = document.getElementById('voice-stamp');
+        const textEl  = document.getElementById('voice-stamp-text');
+        if (!stamp || !textEl) return;
+        const text = getStampText();
+        if (!text) return;
+        textEl.textContent = text;
+        // 字数决定字号：2字大，3~4字中，5~6字小
+        textEl.style.fontSize = text.length <= 2 ? '20px' : text.length <= 4 ? '15px' : '12px';
+        stamp.classList.add('show');
+    }
+
+    function hideVoiceStamp() {
+        const stamp = document.getElementById('voice-stamp');
+        if (stamp) stamp.classList.remove('show');
     }
 
     // ── 用户点击重播按钮 ─────────────────────────────────────
