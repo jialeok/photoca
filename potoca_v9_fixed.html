@@ -2631,7 +2631,7 @@
                 <span class="material-icons-round upload-arrow">chevron_right</span>
             </div>
 
-            <div class="upload-option highlight" onclick="navTo('scr-qrcode')">
+            <div class="upload-option highlight" onclick="navTo(_uploadMode === 'direct' ? 'scr-direct-upload' : 'scr-qrcode')">
                 <div class="upload-icon-wrap">
                     <span class="material-icons-round">smartphone</span>
                 </div>
@@ -3119,6 +3119,75 @@
             </div>
     </section>
 
+    <!-- ══════════ DIRECT UPLOAD（直接选图模式）══════════ -->
+    <section id="scr-direct-upload" class="screen">
+        <div class="topbar">
+            <button class="icon-btn" onclick="navTo('scr-upload')">
+                <span class="material-icons-round" style="font-size:20px">arrow_back</span>
+            </button>
+            <span class="topbar-title">手机上传</span>
+            <button class="text-btn" onclick="navTo('scr-home')">退出</button>
+        </div>
+        <div class="screen-body" style="display:flex;flex-direction:column;align-items:center;padding:32px 20px;gap:20px">
+
+            <!-- 主卡片 -->
+            <div class="qr-card" style="width:100%;text-align:center">
+                <div class="qr-title">选择照片上传</div>
+                <div class="qr-sub">从相册选择一张清晰的正脸照片<br>上传后自动开始 AI 生成</div>
+
+                <!-- 点击区域 -->
+                <div id="du-pick-area" onclick="duPickPhoto()" style="
+                    margin:24px auto 0;
+                    width:160px;height:160px;
+                    border-radius:28px;
+                    background:var(--surface);
+                    border:2.5px dashed rgba(91,79,255,.35);
+                    display:flex;flex-direction:column;align-items:center;justify-content:center;
+                    gap:10px;cursor:pointer;transition:background .15s;overflow:hidden;
+                    position:relative;
+                ">
+                    <span id="du-pick-icon" class="material-icons-round" style="font-size:48px!important;color:var(--accent);opacity:.7">add_photo_alternate</span>
+                    <span id="du-pick-label" style="font-size:13px;color:var(--ink-soft);font-weight:600">点击选择照片</span>
+                    <img id="du-preview-img" src="" alt="预览" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:26px">
+                </div>
+
+                <!-- 隐藏的文件选择器，只允许图片，不允许拍照 -->
+                <input type="file" id="du-file-input" accept="image/*" style="display:none" onchange="duHandleFile(this)">
+
+                <!-- 步骤说明 -->
+                <div class="qr-steps" style="margin-top:24px">
+                    <div class="qr-step"><span class="qr-step-num">1</span><span>点击上方区域选择照片</span></div>
+                    <div class="qr-step"><span class="qr-step-num">2</span><span>选择清晰的正脸照片</span></div>
+                    <div class="qr-step"><span class="qr-step-num">3</span><span>点击确认后自动开始生成</span></div>
+                </div>
+            </div>
+
+            <!-- 确认按钮（选图后才出现） -->
+            <button id="du-confirm-btn" onclick="duConfirmUpload()" style="
+                display:none;width:100%;padding:18px;border:none;border-radius:32px;
+                background:var(--accent);color:#fff;
+                font-family:'HarmonyOS Sans','Alibaba PuHuiTi 3',sans-serif;
+                font-size:17px;font-weight:700;cursor:pointer;
+                align-items:center;justify-content:center;gap:8px;
+                box-shadow:0 8px 28px var(--accent-glow);
+            ">
+                <span class="material-icons-round" style="font-size:20px!important">auto_awesome</span>
+                确认，开始 AI 生成
+            </button>
+
+            <!-- 上传进度遮罩 -->
+            <div id="du-uploading-overlay" style="
+                display:none;position:fixed;inset:0;z-index:9999;
+                background:rgba(255,255,255,.92);
+                flex-direction:column;align-items:center;justify-content:center;gap:16px;
+            ">
+                <div style="width:48px;height:48px;border-radius:50%;border:4px solid var(--accent);border-top-color:transparent;animation:spin 0.8s linear infinite"></div>
+                <div style="font-size:16px;font-weight:700;color:var(--ink)">正在上传…</div>
+                <div style="font-size:13px;color:var(--ink-soft)">请勿关闭页面</div>
+            </div>
+        </div>
+    </section>
+
     <!-- ══════════ PREVIEW (新增) ══════════ -->
     <section id="scr-preview" class="screen">
         <div class="topbar">
@@ -3326,6 +3395,7 @@
     let qrTimerInterval = null;
     let countdownInterval = null; // #16: track countdown so retake can cancel it
     let uploadSource = 'camera'; // #17: 'camera' | 'qrcode'
+    let _uploadMode = 'qrcode'; // 后台配置：'qrcode'（默认扫码）| 'direct'（直接选图）
 
     // ===== 手机扫码上传功能 - Supabase 初始化 =====
     const SUPABASE_URL = 'https://fuaamwgdbxymxbhmstxc.supabase.co';
@@ -3519,6 +3589,104 @@
         if (uploadPollInterval) {
             clearInterval(uploadPollInterval);
             uploadPollInterval = null;
+        }
+    }
+
+    // ===== 直接选图上传功能 =====
+    let _duSelectedFile = null;
+    let _duSelectedDataUrl = null;
+
+    function initDirectUploadScreen() {
+        // 每次进入页面重置状态
+        _duSelectedFile = null;
+        _duSelectedDataUrl = null;
+        const pickIcon  = document.getElementById('du-pick-icon');
+        const pickLabel = document.getElementById('du-pick-label');
+        const previewImg = document.getElementById('du-preview-img');
+        const confirmBtn = document.getElementById('du-confirm-btn');
+        const fileInput  = document.getElementById('du-file-input');
+        if (pickIcon)   { pickIcon.style.display = ''; }
+        if (pickLabel)  { pickLabel.style.display = ''; pickLabel.textContent = '点击选择照片'; }
+        if (previewImg) { previewImg.style.display = 'none'; previewImg.src = ''; }
+        if (confirmBtn) confirmBtn.style.display = 'none';
+        if (fileInput)  fileInput.value = '';
+    }
+
+    function duPickPhoto() {
+        const input = document.getElementById('du-file-input');
+        if (input) input.click();
+    }
+
+    function duHandleFile(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            showToast('请选择图片文件');
+            return;
+        }
+        _duSelectedFile = file;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            _duSelectedDataUrl = e.target.result;
+            // 显示预览
+            const pickIcon   = document.getElementById('du-pick-icon');
+            const pickLabel  = document.getElementById('du-pick-label');
+            const previewImg = document.getElementById('du-preview-img');
+            const confirmBtn = document.getElementById('du-confirm-btn');
+            if (pickIcon)   pickIcon.style.display = 'none';
+            if (pickLabel)  pickLabel.style.display = 'none';
+            if (previewImg) { previewImg.src = _duSelectedDataUrl; previewImg.style.display = 'block'; }
+            if (confirmBtn) { confirmBtn.style.display = 'flex'; }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    async function duConfirmUpload() {
+        if (!_duSelectedFile || !supabaseClient) {
+            showToast('请先选择照片');
+            return;
+        }
+        if (isAiProcessingLocked) {
+            console.warn('[duConfirmUpload] AI任务进行中，忽略重复触发');
+            return;
+        }
+
+        // 显示上传遮罩
+        const overlay = document.getElementById('du-uploading-overlay');
+        if (overlay) overlay.style.display = 'flex';
+
+        try {
+            // 上传图片到 Supabase Storage（与扫码上传走同一个bucket）
+            const sessionId = generateSessionId();
+            const ext = _duSelectedFile.name.split('.').pop() || 'jpg';
+            const filePath = 'uploads/' + sessionId + '.' + ext;
+
+            const { data: storageData, error: storageError } = await supabaseClient
+                .storage.from('user-uploads')
+                .upload(filePath, _duSelectedFile, { contentType: _duSelectedFile.type, upsert: false });
+
+            if (storageError) throw storageError;
+
+            // 获取公开 URL
+            const { data: urlData } = supabaseClient.storage.from('user-uploads').getPublicUrl(filePath);
+            const imageUrl = urlData.publicUrl;
+
+            // 写入 uploads 表（与扫码上传格式一致）
+            await supabaseClient.from('uploads').insert({
+                session: sessionId,
+                image_url: imageUrl,
+                uploaded: true,
+                upload_type: 'direct',
+            });
+
+            if (overlay) overlay.style.display = 'none';
+            showToast('上传成功，正在生成…');
+            handleUploadedPhoto(imageUrl, sessionId);
+
+        } catch(err) {
+            console.error('[duConfirmUpload] 上传失败:', err);
+            if (overlay) overlay.style.display = 'none';
+            showToast('上传失败，请重试');
         }
     }
 
@@ -5633,6 +5801,8 @@
             _voiceSubtitleEnabled = config.voice_subtitle_enabled !== false;
             // 印章开关（默认开启）
             _voiceStampEnabled = config.voice_stamp_enabled !== false;
+            // 上传模式开关（默认扫码）
+            _uploadMode = config.upload_mode === 'direct' ? 'direct' : 'qrcode';
             // 如果风格已经渲染了，重新渲染一次以应用配置
             if (allStyles.length > 0) renderStyleGrid(allStyles);
         } catch(_) {}
@@ -5963,6 +6133,7 @@
         next.classList.add('active');
         next.scrollTop = 0;
         if (id === 'scr-qrcode') { startQrTimer(); startQrUploadSession(); }
+        else if (id === 'scr-direct-upload') { initDirectUploadScreen(); }
         else { stopQrTimer(); stopQrUploadSession(); }
         // 进入结果页时触发语音播报
         if (id === 'scr-result') { startVoicePlayback(); }
