@@ -4498,17 +4498,25 @@
             return;
         }
 
-        phoneSelectedFile = file;
         phoneHideError();
 
         const reader = new FileReader();
+        // FIX Bug2: 读取成功后才赋值，避免持有失效 File 引用
         reader.onload = function(e) {
+            phoneSelectedFile = file;
             const previewImg = document.getElementById('phone-preview-img');
             const previewArea = document.getElementById('phone-preview-area');
             const fileLabel = document.getElementById('phone-file-label');
             if (previewImg) previewImg.src = e.target.result;
             if (previewArea) previewArea.classList.add('show');
             if (fileLabel) fileLabel.style.display = 'none';
+        };
+        reader.onerror = function() {
+            phoneSelectedFile = null;
+            // 重置 input，让用户可以重新选同一张图
+            const inp = document.getElementById('phone-photo-input');
+            if (inp) inp.value = '';
+            phoneShowError(t('js_file_read_error') || '文件读取失败，请重新选择照片');
         };
         reader.readAsDataURL(file);
     }
@@ -4618,33 +4626,32 @@
     }
 
     // ===== 手机扫码上传功能 - 页面加载时检测 mode=upload 参数 =====
+    // FIX Bug1: 脚本在 body 底部，DOM 已就绪，去掉 DOMContentLoaded 包装直接执行
     (function initPhoneUploadMode() {
         const urlParams = new URLSearchParams(window.location.search);
         const mode = urlParams.get('mode');
         const sessionId = urlParams.get('session');
 
         if (mode === 'upload' && sessionId) {
-            document.addEventListener('DOMContentLoaded', function() {
-                const phoneScreen = document.getElementById('scr-phone-upload');
-                if (!phoneScreen) return;
+            const phoneScreen = document.getElementById('scr-phone-upload');
+            if (!phoneScreen) return;
 
-                document.querySelectorAll('.screen').forEach(s => {
-                    s.classList.remove('active');
-                });
-                phoneScreen.classList.add('active');
-
-                const badge = document.getElementById('phone-session-badge');
-                const display = document.getElementById('phone-session-display');
-                if (badge) badge.style.display = 'flex';
-                if (display) display.textContent = t('js_connected') + sessionId.substring(0, 12) + '...';
-
-                // 微信 WebView 兼容：绑 change + input 双事件
-                const inp = document.getElementById('phone-photo-input');
-                if (inp) {
-                    inp.addEventListener('change', phoneHandleFileSelect);
-                    inp.addEventListener('input', phoneHandleFileSelect);
-                }
+            document.querySelectorAll('.screen').forEach(s => {
+                s.classList.remove('active');
             });
+            phoneScreen.classList.add('active');
+
+            const badge = document.getElementById('phone-session-badge');
+            const display = document.getElementById('phone-session-display');
+            if (badge) badge.style.display = 'flex';
+            if (display) display.textContent = t('js_connected') + sessionId.substring(0, 12) + '...';
+
+            // 微信 WebView 兼容：绑 change + input 双事件
+            const inp = document.getElementById('phone-photo-input');
+            if (inp) {
+                inp.addEventListener('change', phoneHandleFileSelect);
+                inp.addEventListener('input', phoneHandleFileSelect);
+            }
         }
     })();
 
