@@ -3902,7 +3902,10 @@
                     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
                     body: JSON.stringify(body),
                 });
-                const data = await res.json();
+                _debugLog('HTTP状态: ' + res.status);
+                const rawText = await res.text();
+                _debugLog('返回内容: ' + rawText.slice(0, 200));
+                const data = JSON.parse(rawText);
                 const qwenEnd = new Date();
 
                 if (data.success) {
@@ -4024,10 +4027,12 @@
                     if (attempt < MAX_RETRY) await new Promise(r => setTimeout(r, 3000));
                 }
             } catch(e) {
+                _debugLog('💥 异常: ' + e.message);
                 console.warn(`[autoRunQwenWithTTS] 第${attempt}次异常:`, e.message);
                 if (attempt < MAX_RETRY) await new Promise(r => setTimeout(r, 3000));
             }
         }
+        _debugLog('⚠️ 所有重试失败，返回空数组');
         return [];
     }
 
