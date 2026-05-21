@@ -3668,15 +3668,30 @@
         if (overlay) overlay.style.display = 'flex';
 
         try {
-            const sessionId = generateSessionId();
-            const fileExt = _duSelectedFile.name.split('.').pop().toLowerCase() || 'jpg';
-            const fileName = sessionId + '_' + Date.now() + '.' + fileExt;
-            const filePath = 'uploads/' + fileName;
+            // ── 压缩图片（与拍照路径一致，最大宽度 800px，quality 0.92）──
+            const compressedBlob = await new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = function() {
+                    const MAX_W = 800;
+                    const srcW = img.width, srcH = img.height;
+                    const w = srcW > MAX_W ? MAX_W : srcW;
+                    const h = srcW > MAX_W ? Math.round(srcH * MAX_W / srcW) : srcH;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('压缩失败')), 'image/jpeg', 0.92);
+                };
+                img.onerror = () => reject(new Error('图片读取失败'));
+                img.src = URL.createObjectURL(_duSelectedFile);
+            });
 
-            // 上传原图到 photos bucket（与扫码/拍照上传完全一致）
+            const sessionId = generateSessionId();
+            const filePath = 'uploads/' + sessionId + '_' + Date.now() + '.jpg';
+
+            // 上传压缩后图片到 photos bucket（与扫码/拍照一致）
             const { error: storageError } = await supabaseClient.storage
                 .from('photos')
-                .upload(filePath, _duSelectedFile, { cacheControl: '3600', upsert: false });
+                .upload(filePath, compressedBlob, { contentType: 'image/jpeg', cacheControl: '3600', upsert: false });
             if (storageError) throw storageError;
 
             const { data: urlData } = supabaseClient.storage.from('photos').getPublicUrl(filePath);
