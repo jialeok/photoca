@@ -3885,6 +3885,7 @@
 
     async function autoRunQwenWithTTS(imageUrl, sessionId) {
         if (!supabaseClient || !imageUrl || !sessionId) return [];
+        _debugLog('🚀 开始调用 qwen-vision...');
         const MAX_RETRY = 2;
         for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
             try {
@@ -3905,6 +3906,17 @@
                 const qwenEnd = new Date();
 
                 if (data.success) {
+                    // ── 调试面板：显示在页面上（手机可见）──
+                    _debugLog('✅ VL返回成功');
+                    _debugLog('字段: ' + Object.keys(data).filter(k => !['success','style','broadcastSegments','generateVoice','voiceEnabled','voiceConfig'].includes(k)).join(', '));
+                    _debugLog('broadcastSegments数量: ' + (data.broadcastSegments ? data.broadcastSegments.length : 0));
+                    if (data.broadcastSegments) {
+                        data.broadcastSegments.forEach((s,i) => _debugLog(`段落${i+1}: type=${s.type} field=${s.field||''} prefix=${s.prefix||''} text=${(s.text||'').slice(0,20)}`));
+                    }
+                    // 打印自定义字段值
+                    ['comback','fightback','cristic','fight','peace'].forEach(k => {
+                        if (data[k] !== undefined) _debugLog(`${k}="${String(data[k]).slice(0,40)}"`);
+                    });
                     // 多段并发 TTS 合成
                     // 优先用 TS 返回的 broadcastSegments（TS 自己从 DB 读取，最准确）
                     // 备用：本地 activePrompt.broadcast_segments
@@ -3945,8 +3957,8 @@
 
                     if (segments) {
                         // 调试：打印 VL 返回的所有字段
-                        console.log('[TTS] VL返回字段:', Object.keys(data).filter(k => !['success','style','broadcastSegments','generateVoice','voiceEnabled','voiceConfig'].includes(k)));
-                        console.log('[TTS] 段落配置:', segments.map(s => ({ type: s.type, field: s.field, prefix: s.prefix })));
+                        _debugLog('[TTS] VL返回字段:'); _debugLog_noop(, Object.keys(data).filter(k => !['success','style','broadcastSegments','generateVoice','voiceEnabled','voiceConfig'].includes(k)));
+                        _debugLog('[TTS] 段落配置:'); _debugLog_noop(, segments.map(s => ({ type: s.type, field: s.field, prefix: s.prefix })));
 
                         // 构建每段播报文本（用于 TTS 合成）
                         const segTexts = segments.map(seg => {
@@ -3956,16 +3968,16 @@
                             } else if (seg.type === 'vl_field') {
                                 const raw = data[seg.field];
                                 text = raw != null ? String(raw) : '';
-                                console.log(`[TTS] vl_field "${seg.field}" =`, raw, '→', text);
+                                _debugLog(`[TTS] vl_field "${seg.field}" = ${raw==null?'null':String(raw).slice(0,30)} → "${text.slice(0,30)}"`);
                             } else if (seg.type === 'mixed') {
                                 const raw = data[seg.field];
                                 const fieldText = raw != null ? String(raw) : '';
                                 text = (seg.prefix || '') + fieldText;
-                                console.log(`[TTS] mixed "${seg.field}" prefix="${seg.prefix}" raw=`, raw, '→', text);
+                                _debugLog(`[TTS] mixed "${seg.field}" prefix="${seg.prefix}" raw=${raw==null?'null':String(raw).slice(0,20)} → "${text.slice(0,30)}"`);
                             }
                             return { text: text.trim(), tts_prompt_id: seg.tts_prompt_id || '' };
                         }).filter(s => s.text !== '');
-                        console.log('[TTS] 最终播报段落:', segTexts.map(s => ({ text: s.text.slice(0,30), tts_prompt_id: s.tts_prompt_id })));
+                        _debugLog('[TTS] 最终段落数: ' + segTexts.length + ' | ' + segTexts.map(s=>s.text.slice(0,15)).join(' / '));
 
                         if (segTexts.length === 0) return [];
 
@@ -6538,5 +6550,38 @@
     window.addEventListener('resize', fitScreen);
     screen.orientation && screen.orientation.addEventListener('change', fitScreen);
 </script>
+
+    <!-- ══ 调试面板（排查完后删除）══ -->
+    <div id="debug-panel" style="display:none;position:fixed;bottom:80px;left:0;right:0;z-index:99999;background:rgba(0,0,0,0.88);color:#0f0;font-family:monospace;font-size:11px;padding:10px;max-height:50vh;overflow-y:auto;border-top:2px solid #0f0">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="color:#ff0;font-weight:bold">🔍 调试日志</span>
+            <button onclick="document.getElementById('debug-panel').style.display='none'" style="background:#333;color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:11px">关闭</button>
+        </div>
+        <div id="debug-log-body"></div>
+    </div>
+    <button id="debug-toggle-btn" onclick="document.getElementById('debug-panel').style.display='block'" style="display:none;position:fixed;bottom:85px;right:16px;z-index:99998;background:#000;color:#0f0;border:1px solid #0f0;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace">DEBUG</button>
+
+    <script>
+    // ── 调试工具 ──
+    window._debugLines = [];
+    window._debugLog = function(msg) {
+        window._debugLines.push(msg);
+        const body = document.getElementById('debug-log-body');
+        if (body) {
+            const line = document.createElement('div');
+            line.style.cssText = 'border-bottom:1px solid #333;padding:2px 0;word-break:break-all';
+            line.textContent = msg;
+            body.appendChild(line);
+            body.scrollTop = body.scrollHeight;
+        }
+        // 自动显示调试按钮
+        const btn = document.getElementById('debug-toggle-btn');
+        if (btn) btn.style.display = 'block';
+        // 有内容时自动展开面板
+        const panel = document.getElementById('debug-panel');
+        if (panel && window._debugLines.length === 1) panel.style.display = 'block';
+    };
+    window._debugLog_noop = function() {}; // 占位符，吸收多余参数
+    </script>
 </body>
 </html>
