@@ -4,21 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Lumina AI Studio · 上传照片</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <!-- 字体：全部使用国内CDN，无需翻墙 -->
+    <!-- 阿里巴巴普惠体 3.0（替代 Noto Sans SC） -->
+    <link rel="stylesheet" href="https://puhuiti.oss-cn-hangzhou.aliyuncs.com/AlibabaPuHuiTi-3/AlibabaPuHuiTi-3.css">
+    <!-- HarmonyOS Sans（替代 Sora） -->
+    <link rel="stylesheet" href="https://sf1-cdn-tos.toutiaostatic.com/obj/eden-cn/jlduhbuvnulog/harmonyos_sans/harmonyos_sans.css">
+    <!-- Material Icons Round：npmmirror 国内镜像 -->
+    <style>
+        @font-face {
+            font-family: 'Material Icons Round';
+            font-style: normal;
+            font-weight: 400;
+            font-display: block;
+            src: url(https://registry.npmmirror.com/material-icons/1.13.12/files/iconfont/material-icons-round.woff2) format('woff2'),
+                 url(https://registry.npmmirror.com/material-icons/1.13.12/files/iconfont/material-icons-round.woff) format('woff');
+        }
+        .material-icons-round {
+            font-family: 'Material Icons Round';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --ink:#0e0e12; --ink-soft:#6b6b80; --accent:#5b4fff; --accent-glow:rgba(91,79,255,0.35); --surface:#f4f4f8; --white:#ffffff; --danger:#ff4d6d; --success:#00c48c; --r-xl:24px; --r-2xl:32px; }
         * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
-        html,body { min-height:100%; background:var(--surface); font-family:'Noto Sans SC',sans-serif; color:var(--ink); }
+        html,body { min-height:100%; background:var(--surface); font-family:'Alibaba PuHuiTi 3','PingFang SC','Microsoft YaHei',sans-serif; color:var(--ink); }
         .page { max-width:480px; margin:0 auto; min-height:100dvh; display:flex; flex-direction:column; background:var(--white); }
         .topbar { flex-shrink:0; display:flex; align-items:center; justify-content:center; padding:18px 20px; background:var(--white); border-bottom:1px solid rgba(0,0,0,.06); }
-        .topbar-logo { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:var(--ink); }
+        .topbar-logo { font-family:'HarmonyOS Sans',sans-serif; font-size:16px; font-weight:800; color:var(--ink); }
         .topbar-logo span { color:var(--accent); }
         .body { flex:1; padding:24px 20px 40px; display:flex; flex-direction:column; gap:20px; }
         .hero-icon { width:80px; height:80px; border-radius:24px; background:linear-gradient(135deg,var(--accent),#8b5cf6); display:flex; align-items:center; justify-content:center; margin:0 auto; box-shadow:0 12px 32px var(--accent-glow); }
         .hero-icon .material-icons-round { font-size:40px !important; color:#fff; }
-        .page-title { font-family:'Sora',sans-serif; font-size:24px; font-weight:800; text-align:center; color:var(--ink); }
+        .page-title { font-family:'HarmonyOS Sans',sans-serif; font-size:24px; font-weight:800; text-align:center; color:var(--ink); }
         .page-sub { font-size:14px; color:var(--ink-soft); text-align:center; line-height:1.6; }
         .session-badge { display:flex; align-items:center; gap:6px; background:rgba(0,196,140,.08); border:1px solid rgba(0,196,140,.2); border-radius:20px; padding:8px 16px; font-size:12px; font-weight:600; color:var(--success); width:fit-content; margin:0 auto; }
         .session-badge .material-icons-round { font-size:14px !important; }
@@ -33,10 +61,10 @@
         .preview-area.show { display:flex; }
         .preview-img-wrap { width:100%; max-width:280px; border-radius:var(--r-xl); overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.12); margin:0 auto; }
         .preview-img-wrap img { width:100%; aspect-ratio:3/4; object-fit:cover; display:block; }
-        .btn-primary { width:100%; padding:18px; border:none; border-radius:var(--r-2xl); background:var(--accent); color:#fff; font-family:'Sora',sans-serif; font-size:17px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 8px 28px var(--accent-glow); transition:transform .12s,opacity .12s; }
+        .btn-primary { width:100%; padding:18px; border:none; border-radius:var(--r-2xl); background:var(--accent); color:#fff; font-family:'HarmonyOS Sans',sans-serif; font-size:17px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 8px 28px var(--accent-glow); transition:transform .12s,opacity .12s; }
         .btn-primary:active { transform:scale(.97); }
         .btn-primary:disabled { opacity:.5; cursor:not-allowed; transform:none; }
-        .btn-ghost { width:100%; padding:16px; border:1.5px solid rgba(91,79,255,.3); border-radius:var(--r-2xl); background:transparent; color:var(--accent); font-family:'Sora',sans-serif; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; }
+        .btn-ghost { width:100%; padding:16px; border:1.5px solid rgba(91,79,255,.3); border-radius:var(--r-2xl); background:transparent; color:var(--accent); font-family:'HarmonyOS Sans',sans-serif; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; }
         .btn-ghost:active { background:rgba(91,79,255,.06); }
         .error-msg { background:rgba(255,77,109,.08); border:1px solid rgba(255,77,109,.2); border-radius:14px; padding:14px 16px; font-size:13px; color:var(--danger); text-align:center; display:none; line-height:1.6; }
         .error-msg.show { display:block; }
@@ -50,14 +78,14 @@
         .uploading-overlay.show { display:flex; }
         .uploading-spin { width:60px; height:60px; border:3px solid rgba(255,255,255,.1); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; }
         @keyframes spin { to { transform:rotate(360deg); } }
-        .uploading-text { font-family:'Sora',sans-serif; font-size:18px; font-weight:700; color:#fff; }
+        .uploading-text { font-family:'HarmonyOS Sans',sans-serif; font-size:18px; font-weight:700; color:#fff; }
         .uploading-step { font-size:13px; color:rgba(255,255,255,.5); text-align:center; padding:0 20px; }
         .success-card { display:none; flex-direction:column; align-items:center; gap:16px; padding:20px 0; }
         .success-card.show { display:flex; }
         .success-icon { width:88px; height:88px; border-radius:50%; background:rgba(0,196,140,.1); display:flex; align-items:center; justify-content:center; animation:popIn .5s ease-out; }
         @keyframes popIn { 0%{transform:scale(0);opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
         .success-icon .material-icons-round { font-size:48px !important; color:var(--success); }
-        .success-title { font-family:'Sora',sans-serif; font-size:24px; font-weight:800; color:var(--ink); }
+        .success-title { font-family:'HarmonyOS Sans',sans-serif; font-size:24px; font-weight:800; color:var(--ink); }
         .success-sub { font-size:14px; color:var(--ink-soft); text-align:center; line-height:1.6; }
         .success-note { background:rgba(0,196,140,.06); border:1px solid rgba(0,196,140,.15); border-radius:14px; padding:14px 18px; font-size:13px; color:var(--success); text-align:center; width:100%; font-weight:600; }
 
@@ -81,13 +109,13 @@
         .btn-download {
             width:100%; padding:18px; border:none; border-radius:var(--r-2xl);
             background:linear-gradient(135deg,var(--accent),#8b5cf6);
-            color:#fff; font-family:'Sora',sans-serif; font-size:17px; font-weight:700;
+            color:#fff; font-family:'HarmonyOS Sans',sans-serif; font-size:17px; font-weight:700;
             cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
             box-shadow:0 8px 28px var(--accent-glow); transition:transform .12s;
             text-decoration:none;
         }
         .btn-download:active { transform:scale(.97); }
-        .btn-retry { width:100%; padding:16px; border:1.5px solid rgba(91,79,255,.3); border-radius:var(--r-2xl); background:transparent; color:var(--accent); font-family:'Sora',sans-serif; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; }
+        .btn-retry { width:100%; padding:16px; border:1.5px solid rgba(91,79,255,.3); border-radius:var(--r-2xl); background:transparent; color:var(--accent); font-family:'HarmonyOS Sans',sans-serif; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; }
         .btn-retry:active { background:rgba(91,79,255,.06); }
     </style>
 </head>
@@ -111,6 +139,9 @@
                 <div class="page-title">上传照片</div>
                 <div class="page-sub" id="page-sub">从手机相册选择一张清晰的正脸照片<br>上传至大屏 AI 拍照机</div>
                 <div id="session-badge-wrap"></div>
+                <div style="background:rgba(255,152,0,.08);border:1px solid rgba(255,152,0,.25);border-radius:14px;padding:12px 16px;font-size:12px;color:#b35c00;line-height:1.6;text-align:center;">
+                    📷 请上传原始照片，避免带水印、滤镜或截图<br>上传前请自行检查，有水印可重新选一张
+                </div>
                 <div id="file-pick-area">
                     <label class="file-label" for="photo-input">
                         <span class="material-icons-round">add_photo_alternate</span>
