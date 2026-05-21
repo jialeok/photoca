@@ -3411,9 +3411,13 @@
         try {
             if (window.supabase) {
                 supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                window._debugLog && window._debugLog('[Supabase] 初始化成功 ✅');
                 return true;
+            } else {
+                window._debugLog && window._debugLog('[Supabase] window.supabase 尚未加载');
             }
         } catch (e) {
+            window._debugLog && window._debugLog('[Supabase] 初始化异常: ' + e.message);
             console.warn('Supabase 初始化失败:', e.message);
         }
         return false;
@@ -3422,6 +3426,7 @@
     // 等待 Supabase SDK defer脚本加载完毕后再初始化
     function waitForSupabaseAndLoad(retries) {
         if (retries <= 0) {
+            window._debugLog && window._debugLog('[Supabase] ❌ SDK 加载超时，已重试20次');
             console.error('Supabase SDK 加载超时');
             const errorEl = document.getElementById('style-grid-error');
             const loading = document.getElementById('style-grid-loading');
@@ -3429,6 +3434,7 @@
             if (errorEl) errorEl.style.display = 'block';
             return;
         }
+        window._debugLog && window._debugLog('[Supabase] 等待SDK，剩余重试=' + retries);
         if (initSupabase()) {
             loadStylesFromSupabase();
             loadHomeConfig();
@@ -3619,33 +3625,46 @@
         if (input) input.click();
     }
 
+    let _duCachedBase64 = null; // FIX: 缓存 base64，避免上传时二次读取失败
+
     function duHandleFile(input) {
         const file = input.files && input.files[0];
-        if (!file) return;
-        if (!file.type.startsWith('image/')) { showToast('请选择图片文件'); return; }
-        _duSelectedFile = file;
-        // 立刻重置 value：下次选同一张图片时 change 事件仍能触发
-        input.value = '';
+        window._debugLog && window._debugLog('[duHandleFile] 触发，file=' + (file ? file.name + ' size=' + file.size + ' type=' + (file.type||'(empty)') : 'null'));
+        if (!file) { window._debugLog && window._debugLog('[duHandleFile] 无文件，退出'); return; }
+        if (file.type && !file.type.startsWith('image/')) {
+            window._debugLog && window._debugLog('[duHandleFile] 文件类型非图片: ' + file.type);
+            showToast('请选择图片文件'); return;
+        }
+
+        // 重置旧缓存
+        _duSelectedFile = null;
+        _duCachedBase64 = null;
 
         const reader = new FileReader();
         reader.onload = function(e) {
+            window._debugLog && window._debugLog('[duHandleFile] FileReader onload OK，base64长度=' + (e.target.result ? e.target.result.length : 0));
+            _duCachedBase64 = e.target.result; // 立刻缓存 base64
+            _duSelectedFile = file;            // 读取成功后才赋值
+
+            // 重置 input value，让用户可再次选同一张图
+            input.value = '';
+
             const img = new Image();
             img.onload = function() {
+                window._debugLog && window._debugLog('[duHandleFile] Image decoded，尺寸=' + img.width + 'x' + img.height);
                 // 裁剪成 3:4 居中预览（仅影响预览显示，上传原图）
                 const targetRatio = 3 / 4;
                 let sx = 0, sy = 0, sw = img.width, sh = img.height;
                 const srcRatio = img.width / img.height;
                 if (srcRatio > targetRatio) {
-                    // 原图更宽，裁两侧
                     sw = Math.round(img.height * targetRatio);
                     sx = Math.round((img.width - sw) / 2);
                 } else if (srcRatio < targetRatio) {
-                    // 原图更高，裁上下
                     sh = Math.round(img.width / targetRatio);
                     sy = Math.round((img.height - sh) / 2);
                 }
                 const canvas = document.createElement('canvas');
-                canvas.width = 300; canvas.height = 400; // 3:4 输出
+                canvas.width = 300; canvas.height = 400;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 300, 400);
                 const croppedUrl = canvas.toDataURL('image/jpeg', 0.9);
@@ -3658,15 +3677,33 @@
                 if (pickLabel)  pickLabel.style.display = 'none';
                 if (previewImg) { previewImg.src = croppedUrl; previewImg.style.display = 'block'; }
                 if (confirmBtn) confirmBtn.style.display = 'flex';
+                window._debugLog && window._debugLog('[duHandleFile] 预览渲染完成，等待用户确认');
+            };
+            img.onerror = function() {
+                window._debugLog && window._debugLog('[duHandleFile] Image 解码失败');
+                _duSelectedFile = null; _duCachedBase64 = null;
+                showToast('图片解码失败，请重新选择');
             };
             img.src = e.target.result;
         };
+        reader.onerror = function(ev) {
+            window._debugLog && window._debugLog('[duHandleFile] FileReader onerror: ' + (ev.target && ev.target.error ? ev.target.error.message : '未知'));
+            _duSelectedFile = null; _duCachedBase64 = null;
+            input.value = '';
+            showToast('文件读取失败，请重新选择照片');
+        };
+        window._debugLog && window._debugLog('[duHandleFile] 开始 readAsDataURL...');
         reader.readAsDataURL(file);
     }
 
     async function duConfirmUpload() {
-        if (!_duSelectedFile || !supabaseClient) { showToast('请先选择照片'); return; }
+        window._debugLog && window._debugLog('[duConfirmUpload] 触发，_duSelectedFile=' + (_duSelectedFile ? _duSelectedFile.name : 'null') + ' _duCachedBase64=' + (_duCachedBase64 ? '有(长度' + _duCachedBase64.length + ')' : 'null') + ' supabase=' + (supabaseClient ? 'OK' : 'null'));
+        if (!_duSelectedFile || !supabaseClient) {
+            window._debugLog && window._debugLog('[duConfirmUpload] 前置检查失败：file=' + !!_duSelectedFile + ' supabase=' + !!supabaseClient);
+            showToast('请先选择照片'); return;
+        }
         if (isAiProcessingLocked) {
+            window._debugLog && window._debugLog('[duConfirmUpload] AI任务进行中，忽略');
             console.warn('[duConfirmUpload] AI任务进行中，忽略重复触发');
             return;
         }
@@ -3675,19 +3712,20 @@
         if (overlay) overlay.style.display = 'flex';
 
         try {
-            // ── 检查文件对象是否还有效（切页或等待过久可能失效）──
-            if (!_duSelectedFile || _duSelectedFile.size === 0) {
-                showToast('照片已失效，请重新选择');
-                if (overlay) overlay.style.display = 'none';
-                return;
+            // FIX: 优先使用选图时已缓存的 base64，避免 Android WebView 里二次 FileReader 失败
+            const base64Source = _duCachedBase64 || null;
+            if (!base64Source) {
+                window._debugLog && window._debugLog('[duConfirmUpload] 无 base64 缓存，尝试直接读 File...');
+            } else {
+                window._debugLog && window._debugLog('[duConfirmUpload] 使用缓存 base64，跳过二次 FileReader');
             }
 
-            // ── 压缩图片（用 FileReader 读取，避免 createObjectURL 在某些环境被提前回收）──
+            // ── 压缩图片：优先用缓存 base64，否则退回二次 FileReader ──
             const compressedBlob = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = function(e) {
+                const compressFromBase64 = (b64) => {
                     const img = new Image();
                     img.onload = function() {
+                        window._debugLog && window._debugLog('[duConfirmUpload] 压缩 Image decoded，尺寸=' + img.width + 'x' + img.height);
                         const MAX_W = 800;
                         const srcW = img.width, srcH = img.height;
                         const w = srcW > MAX_W ? MAX_W : srcW;
@@ -3695,26 +3733,52 @@
                         const canvas = document.createElement('canvas');
                         canvas.width = w; canvas.height = h;
                         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('压缩失败')), 'image/jpeg', 0.92);
+                        canvas.toBlob(blob => {
+                            if (blob) {
+                                window._debugLog && window._debugLog('[duConfirmUpload] 压缩完成，blob size=' + blob.size);
+                                resolve(blob);
+                            } else {
+                                window._debugLog && window._debugLog('[duConfirmUpload] canvas.toBlob 返回 null');
+                                reject(new Error('压缩失败'));
+                            }
+                        }, 'image/jpeg', 0.92);
                     };
-                    img.onerror = () => reject(new Error('图片解码失败，请重新选择'));
-                    img.src = e.target.result;
+                    img.onerror = () => { window._debugLog && window._debugLog('[duConfirmUpload] 压缩 Image onerror'); reject(new Error('图片解码失败，请重新选择')); };
+                    img.src = b64;
                 };
-                reader.onerror = () => reject(new Error('文件读取失败，请重新选择照片'));
-                reader.readAsDataURL(_duSelectedFile);
+
+                if (base64Source) {
+                    compressFromBase64(base64Source);
+                } else {
+                    // 退回方案：二次 FileReader（部分 Android 可能失败）
+                    if (!_duSelectedFile || _duSelectedFile.size === 0) {
+                        window._debugLog && window._debugLog('[duConfirmUpload] File 已失效 size=0');
+                        return reject(new Error('照片已失效，请重新选择'));
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (e) => { window._debugLog && window._debugLog('[duConfirmUpload] 退回 FileReader onload OK'); compressFromBase64(e.target.result); };
+                    reader.onerror = () => { window._debugLog && window._debugLog('[duConfirmUpload] 退回 FileReader onerror'); reject(new Error('文件读取失败，请重新选择照片')); };
+                    reader.readAsDataURL(_duSelectedFile);
+                }
             });
 
             const sessionId = generateSessionId();
             const filePath = 'uploads/' + sessionId + '_' + Date.now() + '.jpg';
+            window._debugLog && window._debugLog('[duConfirmUpload] 开始上传 Supabase，path=' + filePath);
 
             // 上传压缩后图片到 photos bucket（upsert:true 同名覆盖，不占用额外存储）
             const { error: storageError } = await supabaseClient.storage
                 .from('photos')
                 .upload(filePath, compressedBlob, { contentType: 'image/jpeg', cacheControl: '3600', upsert: true });
-            if (storageError) throw storageError;
+            if (storageError) {
+                window._debugLog && window._debugLog('[duConfirmUpload] Supabase storage 错误: ' + JSON.stringify(storageError));
+                throw storageError;
+            }
+            window._debugLog && window._debugLog('[duConfirmUpload] storage 上传成功');
 
             const { data: urlData } = supabaseClient.storage.from('photos').getPublicUrl(filePath);
             const imageUrl = urlData.publicUrl;
+            window._debugLog && window._debugLog('[duConfirmUpload] publicUrl=' + imageUrl);
 
             // 写入 uploads 表（与扫码上传格式一致）
             const { error: insertError } = await supabaseClient.from('uploads').insert({
@@ -3722,7 +3786,11 @@
                 image_url: imageUrl,
                 uploaded: true,
             });
-            if (insertError) throw insertError;
+            if (insertError) {
+                window._debugLog && window._debugLog('[duConfirmUpload] DB insert 错误: ' + JSON.stringify(insertError));
+                throw insertError;
+            }
+            window._debugLog && window._debugLog('[duConfirmUpload] DB insert 成功，进入 AI 流程');
 
             if (overlay) overlay.style.display = 'none';
             showToast('上传成功，正在生成…');
@@ -3730,6 +3798,7 @@
 
         } catch(err) {
             console.error('[duConfirmUpload] 上传失败:', err);
+            window._debugLog && window._debugLog('[duConfirmUpload] ❌ catch: ' + (err && err.message ? err.message : JSON.stringify(err)));
             if (overlay) overlay.style.display = 'none';
             const msg = err?.message || err?.error_description || JSON.stringify(err) || '未知错误';
             showToast('上传失败：' + msg);
@@ -4498,25 +4567,17 @@
             return;
         }
 
+        phoneSelectedFile = file;
         phoneHideError();
 
         const reader = new FileReader();
-        // FIX Bug2: 读取成功后才赋值，避免持有失效 File 引用
         reader.onload = function(e) {
-            phoneSelectedFile = file;
             const previewImg = document.getElementById('phone-preview-img');
             const previewArea = document.getElementById('phone-preview-area');
             const fileLabel = document.getElementById('phone-file-label');
             if (previewImg) previewImg.src = e.target.result;
             if (previewArea) previewArea.classList.add('show');
             if (fileLabel) fileLabel.style.display = 'none';
-        };
-        reader.onerror = function() {
-            phoneSelectedFile = null;
-            // 重置 input，让用户可以重新选同一张图
-            const inp = document.getElementById('phone-photo-input');
-            if (inp) inp.value = '';
-            phoneShowError(t('js_file_read_error') || '文件读取失败，请重新选择照片');
         };
         reader.readAsDataURL(file);
     }
@@ -4626,32 +4687,33 @@
     }
 
     // ===== 手机扫码上传功能 - 页面加载时检测 mode=upload 参数 =====
-    // FIX Bug1: 脚本在 body 底部，DOM 已就绪，去掉 DOMContentLoaded 包装直接执行
     (function initPhoneUploadMode() {
         const urlParams = new URLSearchParams(window.location.search);
         const mode = urlParams.get('mode');
         const sessionId = urlParams.get('session');
 
         if (mode === 'upload' && sessionId) {
-            const phoneScreen = document.getElementById('scr-phone-upload');
-            if (!phoneScreen) return;
+            document.addEventListener('DOMContentLoaded', function() {
+                const phoneScreen = document.getElementById('scr-phone-upload');
+                if (!phoneScreen) return;
 
-            document.querySelectorAll('.screen').forEach(s => {
-                s.classList.remove('active');
+                document.querySelectorAll('.screen').forEach(s => {
+                    s.classList.remove('active');
+                });
+                phoneScreen.classList.add('active');
+
+                const badge = document.getElementById('phone-session-badge');
+                const display = document.getElementById('phone-session-display');
+                if (badge) badge.style.display = 'flex';
+                if (display) display.textContent = t('js_connected') + sessionId.substring(0, 12) + '...';
+
+                // 微信 WebView 兼容：绑 change + input 双事件
+                const inp = document.getElementById('phone-photo-input');
+                if (inp) {
+                    inp.addEventListener('change', phoneHandleFileSelect);
+                    inp.addEventListener('input', phoneHandleFileSelect);
+                }
             });
-            phoneScreen.classList.add('active');
-
-            const badge = document.getElementById('phone-session-badge');
-            const display = document.getElementById('phone-session-display');
-            if (badge) badge.style.display = 'flex';
-            if (display) display.textContent = t('js_connected') + sessionId.substring(0, 12) + '...';
-
-            // 微信 WebView 兼容：绑 change + input 双事件
-            const inp = document.getElementById('phone-photo-input');
-            if (inp) {
-                inp.addEventListener('change', phoneHandleFileSelect);
-                inp.addEventListener('input', phoneHandleFileSelect);
-            }
         }
     })();
 
@@ -6808,7 +6870,7 @@
 </script>
 
     <!-- ══ 调试面板（排查完后删除）══ -->
-    <div id="debug-panel" style="display:none;position:fixed;bottom:80px;left:0;right:0;z-index:99999;background:rgba(0,0,0,0.88);color:#0f0;font-family:monospace;font-size:11px;padding:10px;max-height:50vh;overflow-y:auto;border-top:2px solid #0f0">
+    <div id="debug-panel" style="display:block;position:fixed;bottom:80px;left:0;right:0;z-index:99999;background:rgba(0,0,0,0.88);color:#0f0;font-family:monospace;font-size:11px;padding:10px;max-height:40vh;overflow-y:auto;border-top:2px solid #0f0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
             <span style="color:#ff0;font-weight:bold">🔍 调试日志</span>
             <button onclick="document.getElementById('debug-panel').style.display='none'" style="background:#333;color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:11px">关闭</button>
