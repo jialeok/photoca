@@ -4954,6 +4954,9 @@
         setVoiceReplayBtn('idle');
         clearSubtitles();
         hideVoiceStamp();
+        // 清掉 autoplay 兜底提示
+        const hint = document.getElementById('voice-play-hint');
+        if (hint) hint.remove();
     }
 
     // ── 进入result页时调用 ───────────────────────────────────
@@ -5118,20 +5121,50 @@
             showSubtitleLine(subs[idx]);
         }
 
+        window._debugLog && window._debugLog('[Voice] 播第' + (idx+1) + '/' + urls.length + '段: ' + urls[idx].slice(-40));
+
         const audio = new Audio(urls[idx]);
         audio.volume = 1.0;
         if (_voiceAudio) { try { _voiceAudio.pause(); } catch(e) {} }
         _voiceAudio = audio;
         audio.onended  = () => playAudioSequence(urls, subs, idx + 1);
-        audio.onerror  = () => {
+        audio.onerror  = (e) => {
+            window._debugLog && window._debugLog('[Voice] 第' + (idx+1) + '段 onerror: ' + (audio.error ? audio.error.message : '未知'));
             console.warn('[Voice] 第', idx + 1, '段失败，跳过');
             playAudioSequence(urls, subs, idx + 1);
         };
-        audio.play().catch(e => {
+        audio.play().then(() => {
+            window._debugLog && window._debugLog('[Voice] 第' + (idx+1) + '段 play() 成功');
+        }).catch(e => {
+            window._debugLog && window._debugLog('[Voice] 第' + (idx+1) + '段 play() 被拦截: ' + e.message + ' — 显示手动播放提示');
             console.warn('[Voice] play异常:', e.message);
-            playAudioSequence(urls, subs, idx + 1);
+            // Android/iOS autoplay 被拦截时，显示一个可点击的播放提示
+            _showVoicePlayHint(urls, subs, idx);
         });
         console.log('[Voice] 播第', idx + 1, '/', urls.length, '段');
+    }
+
+    // ── Autoplay 被拦截时的用户手势播放兜底 ─────────────────
+    function _showVoicePlayHint(urls, subs, idx) {
+        // 如果已有提示，不重复显示
+        if (document.getElementById('voice-play-hint')) return;
+        const hint = document.createElement('div');
+        hint.id = 'voice-play-hint';
+        hint.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);' +
+            'background:rgba(91,79,255,0.95);color:#fff;border-radius:24px;padding:12px 24px;' +
+            'font-size:15px;font-weight:700;cursor:pointer;z-index:9999;box-shadow:0 4px 20px rgba(91,79,255,.4);' +
+            'display:flex;align-items:center;gap:8px;white-space:nowrap;';
+        hint.innerHTML = '<span style="font-size:20px">🔊</span> 点击播放语音';
+        hint.onclick = function() {
+            hint.remove();
+            // 用户手势触发，此时 autoplay 策略允许播放
+            playAudioSequence(urls, subs, idx);
+        };
+        // 挂到 result 页
+        const resultScreen = document.getElementById('scr-result');
+        if (resultScreen) resultScreen.appendChild(hint);
+        else document.body.appendChild(hint);
+        window._debugLog && window._debugLog('[Voice] 已显示手动播放提示按钮');
     }
 
     // ── 字幕：每段只显示当前段，旧段立即淡出清除 ────────────
@@ -6845,7 +6878,34 @@
     <div id="debug-panel" style="display:block;position:fixed;bottom:80px;left:0;right:0;z-index:99999;background:rgba(0,0,0,0.88);color:#0f0;font-family:monospace;font-size:11px;padding:10px;max-height:40vh;overflow-y:auto;border-top:2px solid #0f0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
             <span style="color:#ff0;font-weight:bold">🔍 调试日志</span>
-            <button onclick="document.getElementById('debug-panel').style.display='none'" style="background:#333;color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:11px">关闭</button>
+            <div style="display:flex;gap:6px">
+                <button id="debug-copy-btn" onclick="
+                    const lines = window._debugLines || [];
+                    const text = lines.join('\n');
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(text).then(() => {
+                            this.textContent = '✅ 已复制';
+                            setTimeout(() => this.textContent = '📋 复制全部', 1500);
+                        }).catch(() => {
+                            const ta = document.createElement('textarea');
+                            ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+                            document.body.appendChild(ta); ta.select();
+                            document.execCommand('copy'); ta.remove();
+                            this.textContent = '✅ 已复制';
+                            setTimeout(() => this.textContent = '📋 复制全部', 1500);
+                        });
+                    } else {
+                        const ta = document.createElement('textarea');
+                        ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+                        document.body.appendChild(ta); ta.select();
+                        document.execCommand('copy'); ta.remove();
+                        this.textContent = '✅ 已复制';
+                        setTimeout(() => this.textContent = '📋 复制全部', 1500);
+                    }
+                " style="background:#5b4fff;color:#fff;border:none;border-radius:4px;padding:2px 10px;font-size:11px;cursor:pointer">📋 复制全部</button>
+                <button onclick="document.getElementById('debug-log-body').innerHTML='';window._debugLines=[];" style="background:#333;color:#aaa;border:none;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer">清空</button>
+                <button onclick="document.getElementById('debug-panel').style.display='none'" style="background:#333;color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:11px">关闭</button>
+            </div>
         </div>
         <div id="debug-log-body"></div>
     </div>
