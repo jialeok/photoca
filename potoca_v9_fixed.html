@@ -4281,6 +4281,7 @@
                         });
 
                         const audioUrls = (await Promise.all(audioPromises)).filter(url => !!url);
+                        _debugLog('[TTS] 并发合成完成，有效audioUrls数量: ' + audioUrls.length + (audioUrls.length===0?' ❌ 全部失败，不会播音！':''));
                         return audioUrls;
 
                     } else {
@@ -4316,15 +4317,27 @@
             // 段落有独立音色或指令时，用 previewMode:true 绕过服务端全局启用配置，
             // 确保各段落使用各自配置的音色，而不是统一被 enabled=true 那条记录覆盖
             if (voice || instructions) body.previewMode = true;
+            _debugLog('[TTS→] 开始合成，文本长度=' + text.length + ' voice=' + (voice||'默认') + ' groupId=' + (groupId||'无'));
             const res = await fetch(SUPABASE_URL + '/functions/v1/qwen-tts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
                 body: JSON.stringify(body),
             });
-            const data = await res.json();
+            _debugLog('[TTS←] HTTP状态: ' + res.status);
+            let data;
+            let rawText = '';
+            try {
+                rawText = await res.text();
+                _debugLog('[TTS←] 原始返回: ' + rawText.slice(0, 200));
+                data = JSON.parse(rawText);
+            } catch(pe) {
+                _debugLog('[TTS←] ❌ JSON解析失败: ' + pe.message + ' raw=' + rawText.slice(0, 100));
+                return null;
+            }
             const ttsEnd = new Date();
 
             if (data.success && data.audioUrl) {
+                _debugLog('[TTS←] ✅ 合成成功，audioUrl=' + String(data.audioUrl).slice(-50));
                 // 写回 TTS 时间（仅首段，避免多次写入覆盖）
                 if (supabaseClient && sessionId) {
                     supabaseClient.from('generations').update({
@@ -4334,8 +4347,10 @@
                 }
                 return data.audioUrl;
             }
+            _debugLog('[TTS←] ❌ 失败: success=' + data.success + ' audioUrl=' + (data.audioUrl||'无') + ' error=' + (data.error||data.message||'未知'));
             return null;
         } catch(e) {
+            _debugLog('[TTS←] 💥 网络异常: ' + e.message);
             console.warn('[synthesizeTTS] 异常:', e.message);
             return null;
         }
