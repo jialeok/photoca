@@ -5340,6 +5340,7 @@
             upload_camera_desc: '现场拍摄，即时生成',
             upload_phone: '手机上传',
             upload_phone_desc: '扫码上传手机相册照片',
+            upload_phone_desc_direct: '直接上传手机相册照片',
             upload_tips_title: '拍照小贴士，效果更出众',
             upload_tip_light: '光线充足',
             upload_tip_light_desc: '正面自然光最佳，避免逆光',
@@ -5519,6 +5520,7 @@
             upload_camera_desc: 'Take a photo on the spot',
             upload_phone: 'Phone Upload',
             upload_phone_desc: 'Scan QR to upload from phone',
+            upload_phone_desc_direct: 'Upload directly from phone album',
             upload_tips_title: 'Photo Tips for Best Results',
             upload_tip_light: 'Good Lighting',
             upload_tip_light_desc: 'Natural front light is best, avoid backlight',
@@ -5718,6 +5720,14 @@
 
         // Update dynamic content that depends on state
         updateDynamicI18n();
+
+        // 上传模式描述：direct 模式覆盖 i18n 默认的"扫码"文案
+        const phoneDescEl = document.querySelector('[data-i18n="upload_phone_desc"]');
+        if (phoneDescEl) {
+            phoneDescEl.textContent = _uploadMode === 'direct'
+                ? strings.upload_phone_desc_direct
+                : strings.upload_phone_desc;
+        }
     }
 
     function updateDynamicI18n() {
@@ -5834,6 +5844,8 @@
             _voiceStampEnabled = config.voice_stamp_enabled !== false;
             // 上传模式开关（默认扫码）
             _uploadMode = config.upload_mode === 'direct' ? 'direct' : 'qrcode';
+            // 重新应用语言，确保"手机上传"描述文字随模式刷新
+            applyLanguage();
             // 如果风格已经渲染了，重新渲染一次以应用配置
             if (allStyles.length > 0) renderStyleGrid(allStyles);
         } catch(_) {}
