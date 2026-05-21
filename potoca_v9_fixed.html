@@ -3160,6 +3160,11 @@
                     <div class="qr-step"><span class="qr-step-num">2</span><span>选择清晰的正脸照片</span></div>
                     <div class="qr-step"><span class="qr-step-num">3</span><span>点击确认后自动开始生成</span></div>
                 </div>
+
+                <!-- 水印提示 -->
+                <div style="margin-top:16px;background:rgba(255,152,0,.08);border:1px solid rgba(255,152,0,.25);border-radius:14px;padding:10px 14px;font-size:11px;color:#b35c00;line-height:1.6;text-align:center;">
+                    📷 请上传原始照片，避免带水印、滤镜或截图<br>有水印请重新选一张
+                </div>
             </div>
 
             <!-- 确认按钮（选图后才出现） -->
@@ -5829,11 +5834,6 @@
             _voiceStampEnabled = config.voice_stamp_enabled !== false;
             // 上传模式开关（默认扫码）
             _uploadMode = config.upload_mode === 'direct' ? 'direct' : 'qrcode';
-            // 根据模式更新"手机上传"按钮的描述文字
-            const phoneDescEl = document.querySelector('[data-i18n="upload_phone_desc"]');
-            if (phoneDescEl) {
-                phoneDescEl.textContent = _uploadMode === 'direct' ? '直接上传手机相册照片' : '扫码上传手机相册照片';
-            }
             // 如果风格已经渲染了，重新渲染一次以应用配置
             if (allStyles.length > 0) renderStyleGrid(allStyles);
         } catch(_) {}
