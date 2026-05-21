@@ -3717,7 +3717,8 @@
         } catch(err) {
             console.error('[duConfirmUpload] 上传失败:', err);
             if (overlay) overlay.style.display = 'none';
-            showToast('上传失败，请重试');
+            const msg = err?.message || err?.error_description || JSON.stringify(err) || '未知错误';
+            showToast('上传失败：' + msg);
         }
     }
 
