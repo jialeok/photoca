@@ -5829,6 +5829,11 @@
             _voiceStampEnabled = config.voice_stamp_enabled !== false;
             // 上传模式开关（默认扫码）
             _uploadMode = config.upload_mode === 'direct' ? 'direct' : 'qrcode';
+            // 根据模式更新"手机上传"按钮的描述文字
+            const phoneDescEl = document.querySelector('[data-i18n="upload_phone_desc"]');
+            if (phoneDescEl) {
+                phoneDescEl.textContent = _uploadMode === 'direct' ? '直接上传手机相册照片' : '扫码上传手机相册照片';
+            }
             // 如果风格已经渲染了，重新渲染一次以应用配置
             if (allStyles.length > 0) renderStyleGrid(allStyles);
         } catch(_) {}
