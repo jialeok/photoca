@@ -3624,6 +3624,8 @@
         if (!file) return;
         if (!file.type.startsWith('image/')) { showToast('请选择图片文件'); return; }
         _duSelectedFile = file;
+        // 立刻重置 value：下次选同一张图片时 change 事件仍能触发
+        input.value = '';
 
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -3731,6 +3733,21 @@
             if (overlay) overlay.style.display = 'none';
             const msg = err?.message || err?.error_description || JSON.stringify(err) || '未知错误';
             showToast('上传失败：' + msg);
+
+            // ── 失败后完整重置：清空失效文件引用 + file input + UI
+            // 原因：File 对象在 FileReader 读取失败后已失效；file input 不重置则
+            // 用户再次点选同一张图片时 change 事件不会触发（浏览器认为文件未变）
+            _duSelectedFile = null;
+            const fileInput  = document.getElementById('du-file-input');
+            const pickIcon   = document.getElementById('du-pick-icon');
+            const pickLabel  = document.getElementById('du-pick-label');
+            const previewImg = document.getElementById('du-preview-img');
+            const confirmBtn = document.getElementById('du-confirm-btn');
+            if (fileInput)  fileInput.value = '';
+            if (pickIcon)   pickIcon.style.display = '';
+            if (pickLabel)  { pickLabel.style.display = ''; pickLabel.textContent = '请重新选择照片'; }
+            if (previewImg) { previewImg.style.display = 'none'; previewImg.src = ''; }
+            if (confirmBtn) confirmBtn.style.display = 'none';
         }
     }
 
