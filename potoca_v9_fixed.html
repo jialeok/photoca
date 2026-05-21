@@ -3957,8 +3957,8 @@
 
                     if (segments) {
                         // 调试：打印 VL 返回的所有字段
-                        _debugLog('[TTS] VL返回字段:'); _debugLog_noop(, Object.keys(data).filter(k => !['success','style','broadcastSegments','generateVoice','voiceEnabled','voiceConfig'].includes(k)));
-                        _debugLog('[TTS] 段落配置:'); _debugLog_noop(, segments.map(s => ({ type: s.type, field: s.field, prefix: s.prefix })));
+                        // [VL字段已在上方 data.success 块里打印]
+                        // [段落配置已在上方打印]
 
                         // 构建每段播报文本（用于 TTS 合成）
                         const segTexts = segments.map(seg => {
