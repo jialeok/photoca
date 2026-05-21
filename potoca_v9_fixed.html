@@ -3605,9 +3605,11 @@
 
     // ===== 直接选图上传功能 =====
     let _duSelectedFile = null;
+    let _duObjectURL    = null; // createObjectURL 产生的预览URL（同步，无权限问题）
 
     function initDirectUploadScreen() {
         _duSelectedFile = null;
+        if (_duObjectURL) { URL.revokeObjectURL(_duObjectURL); _duObjectURL = null; }
         const pickIcon   = document.getElementById('du-pick-icon');
         const pickLabel  = document.getElementById('du-pick-label');
         const previewImg = document.getElementById('du-preview-img');
@@ -3625,7 +3627,7 @@
         if (input) input.click();
     }
 
-    let _duCachedBase64 = null; // FIX: 缓存 base64，避免上传时二次读取失败
+    let _duCachedBase64 = null;
 
     function duHandleFile(input) {
         const file = input.files && input.files[0];
@@ -3636,75 +3638,52 @@
             showToast('请选择图片文件'); return;
         }
 
-        // 重置旧缓存
-        _duSelectedFile = null;
+        // ── 关键修复：用 createObjectURL 同步拿到 URL ──────────
+        // Android WebView 的 Content URI 权限在 change 事件回调结束后即撤销，
+        // 异步的 FileReader 会报 permission error。
+        // createObjectURL 是同步的，在事件回调内立即执行，不受该限制。
+        if (_duObjectURL) { URL.revokeObjectURL(_duObjectURL); }
+        _duObjectURL    = URL.createObjectURL(file);
+        _duSelectedFile = file;
         _duCachedBase64 = null;
 
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            window._debugLog && window._debugLog('[duHandleFile] FileReader onload OK，base64长度=' + (e.target.result ? e.target.result.length : 0));
-            _duCachedBase64 = e.target.result; // 立刻缓存 base64
-            _duSelectedFile = file;            // 读取成功后才赋值
+        window._debugLog && window._debugLog('[duHandleFile] createObjectURL 成功: ' + _duObjectURL.substring(0, 60));
 
-            // 重置 input value，让用户可再次选同一张图
-            input.value = '';
+        // 预览图直接用 objectURL，无需 canvas 裁剪（省掉整条 FileReader 链路）
+        const pickIcon   = document.getElementById('du-pick-icon');
+        const pickLabel  = document.getElementById('du-pick-label');
+        const previewImg = document.getElementById('du-preview-img');
+        const confirmBtn = document.getElementById('du-confirm-btn');
 
-            const img = new Image();
-            img.onload = function() {
-                window._debugLog && window._debugLog('[duHandleFile] Image decoded，尺寸=' + img.width + 'x' + img.height);
-                // 裁剪成 3:4 居中预览（仅影响预览显示，上传原图）
-                const targetRatio = 3 / 4;
-                let sx = 0, sy = 0, sw = img.width, sh = img.height;
-                const srcRatio = img.width / img.height;
-                if (srcRatio > targetRatio) {
-                    sw = Math.round(img.height * targetRatio);
-                    sx = Math.round((img.width - sw) / 2);
-                } else if (srcRatio < targetRatio) {
-                    sh = Math.round(img.width / targetRatio);
-                    sy = Math.round((img.height - sh) / 2);
-                }
-                const canvas = document.createElement('canvas');
-                canvas.width = 300; canvas.height = 400;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 300, 400);
-                const croppedUrl = canvas.toDataURL('image/jpeg', 0.9);
-
-                const pickIcon   = document.getElementById('du-pick-icon');
-                const pickLabel  = document.getElementById('du-pick-label');
-                const previewImg = document.getElementById('du-preview-img');
-                const confirmBtn = document.getElementById('du-confirm-btn');
+        if (previewImg) {
+            previewImg.onload = function() {
+                window._debugLog && window._debugLog('[duHandleFile] 预览图加载完成，等待用户确认');
                 if (pickIcon)   pickIcon.style.display = 'none';
                 if (pickLabel)  pickLabel.style.display = 'none';
-                if (previewImg) { previewImg.src = croppedUrl; previewImg.style.display = 'block'; }
                 if (confirmBtn) confirmBtn.style.display = 'flex';
-                window._debugLog && window._debugLog('[duHandleFile] 预览渲染完成，等待用户确认');
             };
-            img.onerror = function() {
-                window._debugLog && window._debugLog('[duHandleFile] Image 解码失败');
-                _duSelectedFile = null; _duCachedBase64 = null;
-                showToast('图片解码失败，请重新选择');
+            previewImg.onerror = function() {
+                window._debugLog && window._debugLog('[duHandleFile] 预览图加载失败');
+                _duSelectedFile = null;
+                URL.revokeObjectURL(_duObjectURL); _duObjectURL = null;
+                showToast('图片读取失败，请重新选择');
             };
-            img.src = e.target.result;
-        };
-        reader.onerror = function(ev) {
-            window._debugLog && window._debugLog('[duHandleFile] FileReader onerror: ' + (ev.target && ev.target.error ? ev.target.error.message : '未知'));
-            _duSelectedFile = null; _duCachedBase64 = null;
-            input.value = '';
-            showToast('文件读取失败，请重新选择照片');
-        };
-        window._debugLog && window._debugLog('[duHandleFile] 开始 readAsDataURL...');
-        reader.readAsDataURL(file);
+            previewImg.src = _duObjectURL;
+            previewImg.style.display = 'block';
+        }
+
+        // ── input.value 不再清空（清空会触发某些 Android 撤销 URI 权限）──
+        // 改为在上传成功/失败后再清，见 duConfirmUpload
     }
 
     async function duConfirmUpload() {
-        window._debugLog && window._debugLog('[duConfirmUpload] 触发，_duSelectedFile=' + (_duSelectedFile ? _duSelectedFile.name : 'null') + ' _duCachedBase64=' + (_duCachedBase64 ? '有(长度' + _duCachedBase64.length + ')' : 'null') + ' supabase=' + (supabaseClient ? 'OK' : 'null'));
+        window._debugLog && window._debugLog('[duConfirmUpload] 触发，_duSelectedFile=' + (_duSelectedFile ? _duSelectedFile.name + ' size=' + _duSelectedFile.size : 'null') + ' supabase=' + (supabaseClient ? 'OK' : 'null'));
         if (!_duSelectedFile || !supabaseClient) {
             window._debugLog && window._debugLog('[duConfirmUpload] 前置检查失败：file=' + !!_duSelectedFile + ' supabase=' + !!supabaseClient);
             showToast('请先选择照片'); return;
         }
         if (isAiProcessingLocked) {
             window._debugLog && window._debugLog('[duConfirmUpload] AI任务进行中，忽略');
-            console.warn('[duConfirmUpload] AI任务进行中，忽略重复触发');
             return;
         }
 
@@ -3712,61 +3691,49 @@
         if (overlay) overlay.style.display = 'flex';
 
         try {
-            // FIX: 优先使用选图时已缓存的 base64，避免 Android WebView 里二次 FileReader 失败
-            const base64Source = _duCachedBase64 || null;
-            if (!base64Source) {
-                window._debugLog && window._debugLog('[duConfirmUpload] 无 base64 缓存，尝试直接读 File...');
-            } else {
-                window._debugLog && window._debugLog('[duConfirmUpload] 使用缓存 base64，跳过二次 FileReader');
-            }
+            // ── 直接用 File 对象压缩：通过 objectURL 加载 Image，无需 FileReader ──
+            // File 对象本身在内存里一直有效，只有 Content URI 的读取权限是一次性的，
+            // 而我们已经在 duHandleFile 里用 createObjectURL 拿到了 Blob URL，
+            // 所以这里用 _duObjectURL 来做压缩源，完全绕开权限问题。
+            window._debugLog && window._debugLog('[duConfirmUpload] 使用 objectURL 压缩，URL=' + (_duObjectURL ? _duObjectURL.substring(0,60) : 'null'));
 
-            // ── 压缩图片：优先用缓存 base64，否则退回二次 FileReader ──
             const compressedBlob = await new Promise((resolve, reject) => {
-                const compressFromBase64 = (b64) => {
-                    const img = new Image();
-                    img.onload = function() {
-                        window._debugLog && window._debugLog('[duConfirmUpload] 压缩 Image decoded，尺寸=' + img.width + 'x' + img.height);
-                        const MAX_W = 800;
-                        const srcW = img.width, srcH = img.height;
-                        const w = srcW > MAX_W ? MAX_W : srcW;
-                        const h = srcW > MAX_W ? Math.round(srcH * MAX_W / srcW) : srcH;
-                        const canvas = document.createElement('canvas');
-                        canvas.width = w; canvas.height = h;
-                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                        canvas.toBlob(blob => {
-                            if (blob) {
-                                window._debugLog && window._debugLog('[duConfirmUpload] 压缩完成，blob size=' + blob.size);
-                                resolve(blob);
-                            } else {
-                                window._debugLog && window._debugLog('[duConfirmUpload] canvas.toBlob 返回 null');
-                                reject(new Error('压缩失败'));
-                            }
-                        }, 'image/jpeg', 0.92);
-                    };
-                    img.onerror = () => { window._debugLog && window._debugLog('[duConfirmUpload] 压缩 Image onerror'); reject(new Error('图片解码失败，请重新选择')); };
-                    img.src = b64;
-                };
-
-                if (base64Source) {
-                    compressFromBase64(base64Source);
-                } else {
-                    // 退回方案：二次 FileReader（部分 Android 可能失败）
-                    if (!_duSelectedFile || _duSelectedFile.size === 0) {
-                        window._debugLog && window._debugLog('[duConfirmUpload] File 已失效 size=0');
-                        return reject(new Error('照片已失效，请重新选择'));
-                    }
-                    const reader = new FileReader();
-                    reader.onload = (e) => { window._debugLog && window._debugLog('[duConfirmUpload] 退回 FileReader onload OK'); compressFromBase64(e.target.result); };
-                    reader.onerror = () => { window._debugLog && window._debugLog('[duConfirmUpload] 退回 FileReader onerror'); reject(new Error('文件读取失败，请重新选择照片')); };
-                    reader.readAsDataURL(_duSelectedFile);
+                if (!_duObjectURL) {
+                    window._debugLog && window._debugLog('[duConfirmUpload] objectURL 为空，直接上传原始 File');
+                    resolve(_duSelectedFile);
+                    return;
                 }
+                const img = new Image();
+                img.onload = function() {
+                    window._debugLog && window._debugLog('[duConfirmUpload] 压缩 Image 解码成功，尺寸=' + img.width + 'x' + img.height);
+                    const MAX_W = 800;
+                    const srcW = img.width, srcH = img.height;
+                    const w = srcW > MAX_W ? MAX_W : srcW;
+                    const h = srcW > MAX_W ? Math.round(srcH * MAX_W / srcW) : srcH;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    canvas.toBlob(blob => {
+                        if (blob) {
+                            window._debugLog && window._debugLog('[duConfirmUpload] 压缩完成，blob size=' + blob.size);
+                            resolve(blob);
+                        } else {
+                            window._debugLog && window._debugLog('[duConfirmUpload] canvas.toBlob 返回 null，上传原始 File');
+                            resolve(_duSelectedFile);
+                        }
+                    }, 'image/jpeg', 0.92);
+                };
+                img.onerror = () => {
+                    window._debugLog && window._debugLog('[duConfirmUpload] 压缩 Image 加载失败，上传原始 File');
+                    resolve(_duSelectedFile); // 降级：直接上传原图
+                };
+                img.src = _duObjectURL;
             });
 
             const sessionId = generateSessionId();
             const filePath = 'uploads/' + sessionId + '_' + Date.now() + '.jpg';
             window._debugLog && window._debugLog('[duConfirmUpload] 开始上传 Supabase，path=' + filePath);
 
-            // 上传压缩后图片到 photos bucket（upsert:true 同名覆盖，不占用额外存储）
             const { error: storageError } = await supabaseClient.storage
                 .from('photos')
                 .upload(filePath, compressedBlob, { contentType: 'image/jpeg', cacheControl: '3600', upsert: true });
@@ -3780,7 +3747,6 @@
             const imageUrl = urlData.publicUrl;
             window._debugLog && window._debugLog('[duConfirmUpload] publicUrl=' + imageUrl);
 
-            // 写入 uploads 表（与扫码上传格式一致）
             const { error: insertError } = await supabaseClient.from('uploads').insert({
                 session: sessionId,
                 image_url: imageUrl,
@@ -3791,6 +3757,12 @@
                 throw insertError;
             }
             window._debugLog && window._debugLog('[duConfirmUpload] DB insert 成功，进入 AI 流程');
+
+            // 上传成功后释放资源
+            if (_duObjectURL) { URL.revokeObjectURL(_duObjectURL); _duObjectURL = null; }
+            _duSelectedFile = null;
+            const fileInput = document.getElementById('du-file-input');
+            if (fileInput) fileInput.value = ''; // 上传完成后再清，此时权限已不需要
 
             if (overlay) overlay.style.display = 'none';
             showToast('上传成功，正在生成…');
@@ -3803,9 +3775,8 @@
             const msg = err?.message || err?.error_description || JSON.stringify(err) || '未知错误';
             showToast('上传失败：' + msg);
 
-            // ── 失败后完整重置：清空失效文件引用 + file input + UI
-            // 原因：File 对象在 FileReader 读取失败后已失效；file input 不重置则
-            // 用户再次点选同一张图片时 change 事件不会触发（浏览器认为文件未变）
+            // 失败后重置 UI，让用户重新选图
+            if (_duObjectURL) { URL.revokeObjectURL(_duObjectURL); _duObjectURL = null; }
             _duSelectedFile = null;
             const fileInput  = document.getElementById('du-file-input');
             const pickIcon   = document.getElementById('du-pick-icon');
@@ -4556,6 +4527,7 @@
 
     // ===== 手机扫码上传功能 - 手机端文件选择处理 =====
     let phoneSelectedFile = null;
+    let _phoneObjectURL   = null;
 
     function phoneHandleFileSelect(event) {
         const file = event.target.files[0];
@@ -4567,19 +4539,18 @@
             return;
         }
 
+        // 同样用 createObjectURL 同步拿预览，避免 Android 权限问题
+        if (_phoneObjectURL) { URL.revokeObjectURL(_phoneObjectURL); }
+        _phoneObjectURL   = URL.createObjectURL(file);
         phoneSelectedFile = file;
         phoneHideError();
 
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const previewImg = document.getElementById('phone-preview-img');
-            const previewArea = document.getElementById('phone-preview-area');
-            const fileLabel = document.getElementById('phone-file-label');
-            if (previewImg) previewImg.src = e.target.result;
-            if (previewArea) previewArea.classList.add('show');
-            if (fileLabel) fileLabel.style.display = 'none';
-        };
-        reader.readAsDataURL(file);
+        const previewImg  = document.getElementById('phone-preview-img');
+        const previewArea = document.getElementById('phone-preview-area');
+        const fileLabel   = document.getElementById('phone-file-label');
+        if (previewImg)  previewImg.src = _phoneObjectURL;
+        if (previewArea) previewArea.classList.add('show');
+        if (fileLabel)   fileLabel.style.display = 'none';
     }
 
     // ===== 手机扫码上传功能 - 手机端上传照片到 Supabase =====
@@ -4661,6 +4632,7 @@
     // ===== 手机扫码上传功能 - 手机端重新选择照片 =====
     function phoneResetSelection() {
         phoneSelectedFile = null;
+        if (_phoneObjectURL) { URL.revokeObjectURL(_phoneObjectURL); _phoneObjectURL = null; }
         const previewArea = document.getElementById('phone-preview-area');
         const fileLabel = document.getElementById('phone-file-label');
         const photoInput = document.getElementById('phone-photo-input');
