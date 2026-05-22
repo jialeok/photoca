@@ -4282,7 +4282,6 @@
 
                         const audioUrls = (await Promise.all(audioPromises)).filter(url => !!url);
                         return audioUrls;
-                        window._debugLog && window._debugLog("[TTS] 并发完成，有效数=" + audioUrls.length + (audioUrls.length===0?" ❌全部失败":""));
 
                     } else {
                         // 兜底：旧版单段逻辑（无 broadcast_segments 时）
@@ -5405,6 +5404,7 @@
     // Reset idle timer on any user interaction
     document.addEventListener('click',      resetIdleTimer, true);
     document.addEventListener('touchstart', resetIdleTimer, { capture: true, passive: true });
+    // 首次用户手势解锁音频自动播放（待机屏/选风格等任意点击即触发）
     let _audioUnlocked = false;
     function _unlockAudio() {
         if (_audioUnlocked) return; _audioUnlocked = true;
@@ -5964,13 +5964,13 @@
             _voiceStampEnabled = config.voice_stamp_enabled !== false;
             // 上传模式开关（默认扫码）
             _uploadMode = config.upload_mode === 'direct' ? 'direct' : 'qrcode';
-            // Debug 面板开关（默认关闭）
-            const _dbgEnabled = config.debug_panel_enabled === true;
-            const _dbgPanel = document.getElementById('debug-panel');
+            // Debug 面板开关（默认关闭，config 加载完才确定，期间 _debugLog 完全静默）
+            const _dbgOn  = config.debug_panel_enabled === true;
+            window._debugEnabled = _dbgOn;
             const _dbgBtn   = document.getElementById('debug-toggle-btn');
-            if (_dbgPanel) _dbgPanel.style.display = _dbgEnabled ? 'block' : 'none';
-            if (_dbgBtn)   _dbgBtn.style.display   = _dbgEnabled ? 'block' : 'none';
-            if (!_dbgEnabled) window._debugLog = function(){};
+            const _dbgPanel = document.getElementById('debug-panel');
+            if (_dbgBtn)   _dbgBtn.style.display   = _dbgOn ? 'block' : 'none';
+            if (_dbgPanel) _dbgPanel.style.display  = _dbgOn ? 'block' : 'none';
             // 重新应用语言，确保"手机上传"描述文字随模式刷新
             applyLanguage();
             // 如果风格已经渲染了，重新渲染一次以应用配置
@@ -6937,7 +6937,9 @@
     <script>
     // ── 调试工具 ──
     window._debugLines = [];
+    window._debugEnabled = false; // 由 loadDisplayConfig 根据后台配置设置，默认关闭
     window._debugLog = function(msg) {
+        if (!window._debugEnabled) return; // 未启用时完全 noop，不操作任何 DOM
         window._debugLines.push(msg);
         const body = document.getElementById('debug-log-body');
         if (body) {
@@ -6947,14 +6949,13 @@
             body.appendChild(line);
             body.scrollTop = body.scrollHeight;
         }
-        // 自动显示调试按钮
+        // 自动显示调试按钮和面板
         const btn = document.getElementById('debug-toggle-btn');
         if (btn) btn.style.display = 'block';
-        // 有内容时自动展开面板
         const panel = document.getElementById('debug-panel');
         if (panel && window._debugLines.length === 1) panel.style.display = 'block';
     };
-    window._debugLog_noop = function() {}; // 占位符，吸收多余参数
+    window._debugLog_noop = function() {};
     </script>
 </body>
 </html>
