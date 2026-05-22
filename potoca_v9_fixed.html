@@ -4281,7 +4281,6 @@
                         });
 
                         const audioUrls = (await Promise.all(audioPromises)).filter(url => !!url);
-                        _debugLog('[TTS] 并发合成完成，有效audioUrls数量: ' + audioUrls.length + (audioUrls.length===0?' ❌ 全部失败，不会播音！':''));
                         return audioUrls;
 
                     } else {
@@ -4317,27 +4316,15 @@
             // 段落有独立音色或指令时，用 previewMode:true 绕过服务端全局启用配置，
             // 确保各段落使用各自配置的音色，而不是统一被 enabled=true 那条记录覆盖
             if (voice || instructions) body.previewMode = true;
-            _debugLog('[TTS→] 开始合成，文本长度=' + text.length + ' voice=' + (voice||'默认') + ' groupId=' + (groupId||'无'));
             const res = await fetch(SUPABASE_URL + '/functions/v1/qwen-tts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
                 body: JSON.stringify(body),
             });
-            _debugLog('[TTS←] HTTP状态: ' + res.status);
-            let data;
-            let rawText = '';
-            try {
-                rawText = await res.text();
-                _debugLog('[TTS←] 原始返回: ' + rawText.slice(0, 200));
-                data = JSON.parse(rawText);
-            } catch(pe) {
-                _debugLog('[TTS←] ❌ JSON解析失败: ' + pe.message + ' raw=' + rawText.slice(0, 100));
-                return null;
-            }
+            const data = await res.json();
             const ttsEnd = new Date();
 
             if (data.success && data.audioUrl) {
-                _debugLog('[TTS←] ✅ 合成成功，audioUrl=' + String(data.audioUrl).slice(-50));
                 // 写回 TTS 时间（仅首段，避免多次写入覆盖）
                 if (supabaseClient && sessionId) {
                     supabaseClient.from('generations').update({
@@ -4347,10 +4334,8 @@
                 }
                 return data.audioUrl;
             }
-            _debugLog('[TTS←] ❌ 失败: success=' + data.success + ' audioUrl=' + (data.audioUrl||'无') + ' error=' + (data.error||data.message||'未知'));
             return null;
         } catch(e) {
-            _debugLog('[TTS←] 💥 网络异常: ' + e.message);
             console.warn('[synthesizeTTS] 异常:', e.message);
             return null;
         }
@@ -5963,6 +5948,16 @@
             _voiceStampEnabled = config.voice_stamp_enabled !== false;
             // 上传模式开关（默认扫码）
             _uploadMode = config.upload_mode === 'direct' ? 'direct' : 'qrcode';
+            // Debug 面板开关（默认关闭）
+            const debugEnabled = config.debug_panel_enabled === true;
+            const debugPanel = document.getElementById('debug-panel');
+            const debugBtn   = document.getElementById('debug-toggle-btn');
+            if (debugPanel) debugPanel.style.display = debugEnabled ? 'block' : 'none';
+            if (debugBtn)   debugBtn.style.display   = debugEnabled ? 'block' : 'none';
+            // 覆盖 _debugLog：关闭时变 noop，避免浪费性能
+            if (!debugEnabled) {
+                window._debugLog = window._debugLog_noop || function() {};
+            }
             // 重新应用语言，确保"手机上传"描述文字随模式刷新
             applyLanguage();
             // 如果风格已经渲染了，重新渲染一次以应用配置
@@ -6890,7 +6885,7 @@
 </script>
 
     <!-- ══ 调试面板（排查完后删除）══ -->
-    <div id="debug-panel" style="display:block;position:fixed;bottom:80px;left:0;right:0;z-index:99999;background:rgba(0,0,0,0.88);color:#0f0;font-family:monospace;font-size:11px;padding:10px;max-height:40vh;overflow-y:auto;border-top:2px solid #0f0">
+    <div id="debug-panel" style="display:none;position:fixed;bottom:80px;left:0;right:0;z-index:99999;background:rgba(0,0,0,0.88);color:#0f0;font-family:monospace;font-size:11px;padding:10px;max-height:40vh;overflow-y:auto;border-top:2px solid #0f0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
             <span style="color:#ff0;font-weight:bold">🔍 调试日志</span>
             <div style="display:flex;gap:6px">
@@ -6939,14 +6934,14 @@
             body.appendChild(line);
             body.scrollTop = body.scrollHeight;
         }
-        // 自动显示调试按钮
+        // 仅当 debug 按钮已显示时才自动展开面板（由后台配置控制）
         const btn = document.getElementById('debug-toggle-btn');
-        if (btn) btn.style.display = 'block';
-        // 有内容时自动展开面板
-        const panel = document.getElementById('debug-panel');
-        if (panel && window._debugLines.length === 1) panel.style.display = 'block';
+        if (btn && btn.style.display !== 'none') {
+            const panel = document.getElementById('debug-panel');
+            if (panel && window._debugLines.length === 1) panel.style.display = 'block';
+        }
     };
-    window._debugLog_noop = function() {}; // 占位符，吸收多余参数
+    window._debugLog_noop = function() {};
     </script>
 </body>
 </html>
