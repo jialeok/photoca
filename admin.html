@@ -4,9 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lumina CMS · 后台管理</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <!-- 字体：全部使用国内CDN，无需翻墙 -->
+    <!-- 阿里巴巴普惠体 3.0（替代 Noto Sans SC） -->
+    <link rel="stylesheet" href="https://puhuiti.oss-cn-hangzhou.aliyuncs.com/AlibabaPuHuiTi-3/AlibabaPuHuiTi-3.css">
+    <!-- HarmonyOS Sans（替代 Sora） -->
+    <link rel="stylesheet" href="https://sf1-cdn-tos.toutiaostatic.com/obj/eden-cn/jlduhbuvnulog/harmonyos_sans/harmonyos_sans.css">
+    <!-- Material Icons Round：npmmirror 国内镜像 -->
+    <style>
+        @font-face {
+            font-family: 'Material Icons Round';
+            font-style: normal;
+            font-weight: 400;
+            font-display: block;
+            src: url(https://registry.npmmirror.com/material-icons/1.13.12/files/iconfont/material-icons-round.woff2) format('woff2'),
+                 url(https://registry.npmmirror.com/material-icons/1.13.12/files/iconfont/material-icons-round.woff) format('woff');
+        }
+        .material-icons-round {
+            font-family: 'Material Icons Round';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
@@ -37,7 +64,7 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         code { word-break: break-all; white-space: normal; }
-        html, body { min-height: 100%; background: var(--surface); font-family: 'Noto Sans SC', sans-serif; color: var(--ink); overflow-x: hidden; }
+        html, body { min-height: 100%; background: var(--surface); font-family: 'Alibaba PuHuiTi 3', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: var(--ink); overflow-x: hidden; }
 
         /* ── Top Bar ── */
         .topbar {
@@ -55,7 +82,7 @@
             border-radius: 9px; display: flex; align-items: center; justify-content: center;
         }
         .topbar-logo-icon .material-icons-round { font-size: 17px !important; color: #fff; }
-        .topbar-logo-name { font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 800; color: var(--ink); }
+        .topbar-logo-name { font-family: 'HarmonyOS Sans', sans-serif; font-size: 15px; font-weight: 800; color: var(--ink); }
         .topbar-badge {
             font-size: 10px; font-weight: 700; background: var(--accent-light);
             color: var(--accent); padding: 2px 7px; border-radius: 20px;
@@ -71,6 +98,7 @@
         .status-dot.connecting { background: var(--warning); animation: pulse 1s infinite; }
         .status-dot.error { background: var(--danger); }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
         /* ── Layout ── */
         .layout { display: flex; padding-top: 56px; min-height: 100vh; }
@@ -111,6 +139,7 @@
             margin-left: var(--sidebar-w);
             flex: 1; padding: 28px 28px 80px;
             display: none;
+            min-width: 0; overflow-x: hidden; box-sizing: border-box;
         }
         .main.active { display: block; }
 
@@ -119,7 +148,7 @@
             display: flex; align-items: flex-start; justify-content: space-between;
             margin-bottom: 24px; gap: 16px; flex-wrap: wrap;
         }
-        .section-title { font-family: 'Sora', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -.4px; }
+        .section-title { font-family: 'HarmonyOS Sans', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -.4px; }
         .section-sub { font-size: 12px; color: var(--ink-soft); margin-top: 3px; }
 
         /* ── Card ── */
@@ -134,7 +163,7 @@
         }
         .card-title {
             display: flex; align-items: center; gap: 8px;
-            font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700;
+            font-family: 'HarmonyOS Sans', sans-serif; font-size: 14px; font-weight: 700;
         }
         .card-title .material-icons-round { font-size: 17px !important; color: var(--accent); }
         .card-body { padding: 22px; }
@@ -158,14 +187,14 @@
         .stat-icon.red    { background: var(--danger-light); color: var(--danger); }
         .stat-icon.amber  { background: rgba(245,158,11,.1); color: var(--warning); }
         .stat-icon .material-icons-round { font-size: 20px !important; }
-        .stat-val { font-family: 'Sora', sans-serif; font-size: 22px; font-weight: 800; line-height: 1; margin-bottom: 3px; }
+        .stat-val { font-family: 'HarmonyOS Sans', sans-serif; font-size: 22px; font-weight: 800; line-height: 1; margin-bottom: 3px; }
         .stat-label { font-size: 11px; color: var(--ink-soft); font-weight: 500; }
 
         /* ── Buttons ── */
         .btn-primary {
             padding: 10px 20px; border: none; border-radius: var(--r-sm);
             background: var(--accent); color: #fff;
-            font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700;
+            font-family: 'HarmonyOS Sans', sans-serif; font-size: 13px; font-weight: 700;
             cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
             box-shadow: 0 4px 14px var(--accent-glow);
             transition: transform .12s, box-shadow .12s, opacity .12s;
@@ -177,7 +206,7 @@
         .btn-ghost {
             padding: 9px 16px; border: 1.5px solid var(--border);
             border-radius: var(--r-sm); background: transparent;
-            color: var(--ink-soft); font-family: 'Noto Sans SC', sans-serif;
+            color: var(--ink-soft); font-family: 'Alibaba PuHuiTi 3', 'PingFang SC', 'Microsoft YaHei', sans-serif;
             font-size: 13px; font-weight: 600; cursor: pointer;
             display: inline-flex; align-items: center; gap: 6px;
             transition: background .15s, border-color .15s;
@@ -201,7 +230,7 @@
         .form-input {
             padding: 10px 13px; border: 1.5px solid #e2e2ec;
             border-radius: var(--r-sm); font-size: 13px;
-            font-family: 'Noto Sans SC', sans-serif; color: var(--ink);
+            font-family: 'Alibaba PuHuiTi 3', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: var(--ink);
             background: var(--surface); outline: none;
             transition: border-color .15s, box-shadow .15s;
         }
@@ -246,7 +275,7 @@
             margin: 0 auto 12px; box-shadow: 0 6px 18px var(--accent-glow);
         }
         .upload-zone-icon .material-icons-round { font-size: 26px !important; color: #fff; }
-        .upload-zone h3 { font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 700; margin-bottom: 5px; }
+        .upload-zone h3 { font-family: 'HarmonyOS Sans', sans-serif; font-size: 15px; font-weight: 700; margin-bottom: 5px; }
         .upload-zone p { font-size: 12px; color: var(--ink-soft); line-height: 1.6; }
 
         .upload-preview { margin-top: 18px; display: none; }
@@ -280,7 +309,7 @@
         .style-item-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; background: var(--surface2); }
         .style-item-body { padding: 12px; }
         .style-item-name {
-            font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700;
+            font-family: 'HarmonyOS Sans', sans-serif; font-size: 13px; font-weight: 700;
             margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             text-align: center;
         }
@@ -295,7 +324,7 @@
             border-radius: var(--r-sm); background: var(--white); color: var(--ink);
             font-size: 11px; font-weight: 600; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 4px;
-            transition: background .15s; font-family: 'Noto Sans SC', sans-serif;
+            transition: background .15s; font-family: 'Alibaba PuHuiTi 3', 'PingFang SC', 'Microsoft YaHei', sans-serif;
         }
         .edit-btn:hover { background: var(--surface2); }
         .edit-btn .material-icons-round { font-size: 13px !important; }
@@ -311,7 +340,7 @@
             position: absolute; top: 8px; left: 8px;
             background: rgba(14,14,18,.65); color: #fff;
             font-size: 10px; font-weight: 700; border-radius: 7px;
-            padding: 2px 7px; font-family: 'Sora', sans-serif;
+            padding: 2px 7px; font-family: 'HarmonyOS Sans', sans-serif;
         }
 
         /* ── API风格类型芯片 ── */
@@ -323,7 +352,7 @@
         }
         .api-style-chip:hover { background: rgba(91,79,255,.15); border-color: var(--accent); transform: translateY(-1px); }
         .api-chip-key {
-            font-family: 'Sora', monospace; font-size: 10px; font-weight: 700;
+            font-family: 'HarmonyOS Sans', monospace; font-size: 10px; font-weight: 700;
             color: var(--accent); letter-spacing: .5px;
         }
         .api-chip-name {
@@ -421,7 +450,7 @@
         .search-bar .material-icons-round { font-size: 16px !important; color: var(--ink-soft); }
         .search-bar input {
             border: none; background: transparent; font-size: 13px;
-            font-family: 'Noto Sans SC', sans-serif; color: var(--ink); outline: none; width: 150px;
+            font-family: 'Alibaba PuHuiTi 3', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: var(--ink); outline: none; width: 150px;
         }
         .count-badge {
             background: var(--accent-light); color: var(--accent);
@@ -539,7 +568,7 @@
             display:flex;align-items:center;justify-content:space-between;
             border-bottom:1px solid rgba(0,0,0,.06);
         }
-        .mock-topbar-title { font-family:'Sora',sans-serif;font-size:11px;font-weight:700; }
+        .mock-topbar-title { font-family:'HarmonyOS Sans',sans-serif;font-size:11px;font-weight:700; }
         .mock-filter-nav {
             background:#fff;padding:8px 10px;
             border-bottom:1px solid rgba(0,0,0,.06);
@@ -608,7 +637,7 @@
             display: flex; align-items: center; justify-content: space-between;
             margin-bottom: 22px;
         }
-        .modal-title { font-family: 'Sora', sans-serif; font-size: 17px; font-weight: 800; }
+        .modal-title { font-family: 'HarmonyOS Sans', sans-serif; font-size: 17px; font-weight: 800; }
         .modal-close {
             width: 34px; height: 34px; border-radius: 50%; border: none;
             background: var(--surface); color: var(--ink-soft);
@@ -683,7 +712,7 @@
             display: flex; flex-direction: column; align-items: center; gap: 3px;
             padding: 4px 8px; border: none; background: transparent;
             color: var(--ink-soft); font-size: 10px; font-weight: 600;
-            font-family: 'Noto Sans SC', sans-serif; cursor: pointer;
+            font-family: 'Alibaba PuHuiTi 3', 'PingFang SC', 'Microsoft YaHei', sans-serif; cursor: pointer;
             border-radius: 12px; transition: color .15s;
             -webkit-tap-highlight-color: transparent;
             white-space: nowrap; flex-shrink: 0; min-width: 0;
@@ -789,7 +818,7 @@
             display: flex; align-items: center; justify-content: space-between;
         }
         .cropper-modal-title {
-            font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 800;
+            font-family: 'HarmonyOS Sans', sans-serif; font-size: 15px; font-weight: 800;
             display: flex; align-items: center; gap: 8px;
         }
         .cropper-modal-title .material-icons-round { font-size: 17px !important; color: var(--accent); }
@@ -837,7 +866,7 @@
             padding: 6px 7px 8px;
         }
         .gen-card-style {
-            font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700;
+            font-family: 'HarmonyOS Sans', sans-serif; font-size: 10px; font-weight: 700;
             color: var(--ink); white-space: nowrap; overflow: hidden;
             text-overflow: ellipsis; margin-bottom: 3px;
         }
@@ -893,9 +922,90 @@
             padding: 14px 18px 18px;
             display: flex; flex-direction: column; gap: 5px;
         }
-        .gen-lightbox-style { font-family:'Sora',sans-serif; font-size:15px; font-weight:800; }
+        .gen-lightbox-style { font-family:'HarmonyOS Sans',sans-serif; font-size:15px; font-weight:800; }
         .gen-lightbox-time { font-size:11px; color:var(--ink-soft); font-weight:500; }
-        .gen-lightbox-actions { display:flex; gap:8px; margin-top:10px; }
+        .gen-lightbox-actions {
+            display: flex; gap: 8px; margin-top: 12px;
+            flex-wrap: nowrap; align-items: stretch;
+        }
+        .gen-lightbox-actions .btn-primary,
+        .gen-lightbox-actions .btn-ghost {
+            flex: 1; min-width: 0; white-space: nowrap;
+            padding: 10px 8px; font-size: 12px; gap: 4px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .gen-lightbox-actions .btn-primary .material-icons-round,
+        .gen-lightbox-actions .btn-ghost  .material-icons-round { font-size: 16px !important; }
+
+        /* ── AI智夸独立弹窗 ── */
+        .qwen-drawer {
+            position: fixed; inset: 0; z-index: 3000;
+            display: flex; align-items: flex-end; justify-content: center;
+            background: rgba(14,14,18,.6); backdrop-filter: blur(8px);
+            opacity: 0; pointer-events: none; transition: opacity .22s;
+        }
+        .qwen-drawer.show { opacity: 1; pointer-events: all; }
+        .qwen-drawer-inner {
+            background: var(--white); border-radius: 28px 28px 0 0;
+            width: 100%; max-width: 520px;
+            padding: 0 0 env(safe-area-inset-bottom);
+            box-shadow: 0 -8px 40px rgba(0,0,0,.18);
+            transform: translateY(100%); transition: transform .28s cubic-bezier(.4,0,.2,1);
+            max-height: 80vh; display: flex; flex-direction: column;
+        }
+        .qwen-drawer.show .qwen-drawer-inner { transform: translateY(0); }
+        .qwen-drawer-handle {
+            width: 40px; height: 4px; background: #d0d0da;
+            border-radius: 2px; margin: 14px auto 0;
+            flex-shrink: 0;
+        }
+        .qwen-drawer-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 20px 10px; flex-shrink: 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .qwen-drawer-title {
+            display: flex; align-items: center; gap: 7px;
+            font-family: 'HarmonyOS Sans', sans-serif; font-size: 15px; font-weight: 800; color: var(--ink);
+        }
+        .qwen-drawer-title .material-icons-round { font-size: 18px !important; color: var(--accent); }
+        .qwen-drawer-close {
+            width: 32px; height: 32px; border-radius: 50%; border: none;
+            background: var(--surface); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .qwen-drawer-close .material-icons-round { font-size: 16px !important; color: var(--ink-soft); }
+        .qwen-drawer-body {
+            flex: 1; overflow-y: auto; padding: 16px 20px 24px;
+            display: grid; gap: 14px;
+        }
+        .qwen-row { display: flex; gap: 12px; align-items: flex-start; }
+        .qwen-label {
+            font-weight: 700; color: var(--accent); font-size: 12px;
+            min-width: 44px; flex-shrink: 0; padding-top: 2px;
+        }
+        .qwen-val { font-size: 13px; color: var(--ink); line-height: 1.7; }
+        .qwen-score-badge {
+            display: inline-flex; align-items: center;
+            background: var(--accent); color: #fff;
+            border-radius: 8px; padding: 3px 12px;
+            font-family: 'HarmonyOS Sans', sans-serif; font-size: 18px; font-weight: 800;
+        }
+        .qwen-score-badge-sub { font-size: 12px; opacity: .75; margin-left: 2px; }
+        .qwen-empty {
+            text-align: center; padding: 40px 0;
+            color: var(--ink-soft); font-size: 13px;
+        }
+        .qwen-regen-btn {
+            margin: 0 20px 16px;
+            width: calc(100% - 40px);
+            padding: 12px; border: 1.5px solid rgba(91,79,255,.3);
+            border-radius: 16px; background: transparent;
+            color: var(--accent); font-family: 'HarmonyOS Sans', sans-serif;
+            font-size: 13px; font-weight: 700; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .qwen-regen-btn:active { background: var(--accent-light); }
 
         /* ── FAB 悬浮新增按钮 ── */
         .fab-add {
@@ -942,6 +1052,95 @@
         .fab-back:hover { transform: scale(1.08); box-shadow: 0 10px 32px var(--accent-glow); }
         .fab-back:active { transform: scale(.94); }
         .fab-back .material-icons-round { font-size: 28px !important; }
+        /* ── 智夸 Modal 新增分区 ── */
+        .zk-section {
+            padding: 16px 0 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .zk-section-label {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 12px; font-weight: 800; color: var(--accent);
+            letter-spacing: .4px; text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+        .zk-section-label .material-icons-round { font-size: 15px !important; }
+        .zk-field-row {
+            display: flex; align-items: center; gap: 6px;
+            width: 100%; box-sizing: border-box; overflow: hidden;
+            background: var(--surface);
+            border-radius: var(--r-sm); cursor: pointer;
+            border: 1.5px solid transparent; transition: border-color .15s;
+        }
+        .zk-field-row label { flex: 1; min-width: 0; }
+        .zk-field-row button { flex-shrink: 0; }
+        .zk-field-row:has(input:checked) { border-color: rgba(91,79,255,.25); background: var(--accent-light); }
+        .zk-field-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); flex-shrink: 0; }
+        .zk-field-name { font-size: 12px; font-weight: 600; color: var(--ink); flex: 1; }
+        .zk-field-name code { font-size: 10px; font-weight: 700; background: rgba(91,79,255,.12); color: var(--accent); padding: 1px 5px; border-radius: 4px; font-family: 'HarmonyOS Sans', monospace; margin-left: 4px; }
+        .zk-field-example { font-size: 10px; color: var(--ink-soft); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
+        /* ── @ 联想菜单 ── */
+        .zk-at-menu {
+            position:absolute; left:0; right:0; top:calc(100% + 2px);
+            background:var(--white); border:1px solid var(--border);
+            border-radius:10px; box-shadow:var(--shadow-md);
+            z-index:999; overflow:hidden; max-height:180px; overflow-y:auto;
+        }
+        .zk-at-item {
+            display:flex; align-items:center; gap:8px;
+            padding:8px 12px; cursor:pointer; font-size:12px;
+            transition:background .1s;
+        }
+        .zk-at-item:hover, .zk-at-item.active { background:var(--accent-light); }
+        .zk-at-item-key { font-weight:700; color:var(--accent); font-size:11px; font-family:'HarmonyOS Sans',monospace; }
+        .zk-at-item-label { color:var(--ink-soft); }
+        /* prompt 折叠区 */
+        .zk-prompt-chip {
+            display:inline-flex; align-items:center; gap:3px;
+            background:var(--accent-light); color:var(--accent);
+            border-radius:5px; padding:0 5px; font-size:11px; font-weight:600;
+        }
+        /* ── 播报段落卡片 ── */
+        .zk-seg-card {
+            background: var(--surface); border-radius: var(--r-sm);
+            border: 1.5px solid var(--border); padding: 12px 14px;
+            display: flex; flex-direction: column; gap: 10px;
+            position: relative;
+        }
+        .zk-seg-header {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 8px;
+        }
+        .zk-seg-num {
+            font-family: 'HarmonyOS Sans', sans-serif; font-size: 11px; font-weight: 800;
+            color: var(--accent); background: var(--accent-light);
+            padding: 2px 8px; border-radius: 10px;
+        }
+        .zk-seg-type-tabs {
+            display: flex; gap: 4px; flex: 1;
+        }
+        .zk-seg-tab {
+            padding: 4px 10px; font-size: 11px; font-weight: 700;
+            border: 1.5px solid var(--border); border-radius: 8px;
+            background: var(--white); color: var(--ink-soft);
+            cursor: pointer; transition: all .15s; font-family: 'Alibaba PuHuiTi 3', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        .zk-seg-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .zk-seg-body { display: flex; flex-direction: column; gap: 8px; }
+        .zk-seg-row { display: flex; align-items: center; gap: 8px; }
+        .zk-seg-row-label { font-size: 11px; font-weight: 700; color: var(--ink-soft); min-width: 30px; }
+        .zk-seg-row select, .zk-seg-row input { flex: 1; }
+        .zk-seg-del {
+            width: 26px; height: 26px; border: none; border-radius: 50%;
+            background: var(--danger-light); color: var(--danger);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; flex-shrink: 0; transition: background .15s;
+        }
+        .zk-seg-del:hover { background: rgba(255,77,109,.22); }
+        .zk-seg-del .material-icons-round { font-size: 13px !important; }
+
         /* ── 智夸 Prompt Card ── */
         .zk-card {
             background: var(--white); border-radius: var(--r-md);
@@ -952,7 +1151,7 @@
         .zk-card:hover { box-shadow: var(--shadow-md); }
         .zk-card.enabled-card { border-color: rgba(91,79,255,.35); background: linear-gradient(135deg,rgba(91,79,255,.04),var(--white)); }
         .zk-card-header { display:flex; align-items:center; gap:10px; }
-        .zk-card-name { font-family:'Sora',sans-serif; font-size:14px; font-weight:700; flex:1; }
+        .zk-card-name { font-family:'HarmonyOS Sans',sans-serif; font-size:14px; font-weight:700; flex:1; }
         .zk-enabled-badge {
             font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px;
             background:var(--accent-light); color:var(--accent);
@@ -962,8 +1161,10 @@
             background:var(--surface); border-radius:var(--r-sm); padding:10px 12px;
             max-height:90px; overflow-y:auto; word-break:break-word; white-space:pre-wrap;
         }
-        .zk-card-footer { display:flex; align-items:center; gap:8px; }
-        .zk-card-footer .toggle-row { flex:1; padding:8px 10px; }
+        .zk-card-footer { display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0; }
+        .zk-card-footer .toggle-row { flex:1; min-width:0; padding:8px 10px; }
+        .zk-card { min-width:0; box-sizing:border-box; width:100%; }
+        .zk-card-prompt { word-break:break-all; }
     </style>
 </head>
 <body>
@@ -1027,6 +1228,16 @@
     <button class="nav-item" data-page="zhi-kua" onclick="navTo('zhi-kua',this)">
         <span class="material-icons-round">auto_awesome</span>
         智夸配置
+    </button>
+    <button class="nav-item" data-page="vl-fields" onclick="navTo('vl-fields',this)">
+        <span class="material-icons-round">tune</span>
+        VL 字段管理
+    </button>
+
+    <div class="sidebar-section-label">AI 声播</div>
+    <button class="nav-item" data-page="ai-voice" onclick="navTo('ai-voice',this)">
+        <span class="material-icons-round">record_voice_over</span>
+        声播配置
     </button>
 
     <div class="sidebar-section-label">数据</div>
@@ -1128,6 +1339,46 @@
                 </div>
                 <label class="toggle-switch">
                     <input type="checkbox" id="toggle-show-likes" onchange="saveDisplayConfig()">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-label">
+                    语音播报字幕 &amp; 重播按钮
+                    <small>开启后结果页图片底部显示逐段字幕，右上角出现重播按钮，客户可点击重听</small>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-voice-subtitle" onchange="saveDisplayConfig()">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-label">
+                    播完印章
+                    <small>开启后语音全部播完时，图片右下角盖上红色做旧印章，文字取最后一句关键词</small>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-voice-stamp" onchange="saveDisplayConfig()">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-label">
+                    直接上传模式
+                    <small>开启后客户点「手机上传」时，直接在大屏选择相册照片上传；关闭则显示扫码页（默认）</small>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-direct-upload" onchange="saveDisplayConfig()">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-label">
+                    前台 Debug 调试面板
+                    <small>开启后前台右下角显示绿色 DEBUG 按钮，可查看运行日志；正式运营时建议关闭</small>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-debug-panel" onchange="saveDisplayConfig()">
                     <span class="toggle-slider"></span>
                 </label>
             </div>
@@ -1921,6 +2172,91 @@
     </div>
 </main>
 <!-- ══════════════════════════════════════
+     PAGE: TTS 声播配置
+══════════════════════════════════════ -->
+<main class="main" id="page-ai-voice" style="align-content:flex-start;padding-bottom:max(100px, calc(80px + env(safe-area-inset-bottom)))">
+    <div class="section-header">
+        <div>
+            <div class="section-title">🔊 声播配置</div>
+            <div class="section-sub">启用的配置将在生成结果页自动播报；全部关闭则不播报</div>
+        </div>
+        <button class="btn-primary" onclick="openTtsModal()">
+            <span class="material-icons-round">add</span>新增配置
+        </button>
+    </div>
+
+    <!-- 配置列表 -->
+    <div id="tts-list" style="display:flex;flex-direction:column;gap:12px;min-height:60px"></div>
+
+    <!-- 试听区 -->
+    <div class="card" style="margin-top:24px;margin-bottom:8px">
+        <div style="padding:18px 22px">
+            <div style="font-weight:700;font-size:15px;margin-bottom:4px">🎧 在线试听</div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-bottom:14px">使用当前启用配置的指令，选择任意音色即时试听效果</div>
+            <textarea id="tts-test-text" rows="3"
+                placeholder="输入试听文字，例如：哇！你今天真的太美了，这张 AI 照片简直绝了！"
+                style="width:100%;padding:12px 14px;border:1.5px solid rgba(0,0,0,.1);border-radius:12px;font-size:13px;font-family:inherit;resize:vertical;line-height:1.6;outline:none;transition:border-color .2s"
+                onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='rgba(0,0,0,.1)'"></textarea>
+
+            <!-- 当前启用指令展示 -->
+            <div id="tts-active-instructions-wrap" style="margin-top:12px;display:none">
+                <div style="font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase">当前启用的指令</div>
+                <div id="tts-active-instructions-text"
+                    style="padding:10px 14px;background:var(--surface);border-radius:10px;font-size:12px;color:var(--ink);line-height:1.6;border:1px solid var(--border)"></div>
+                <div style="font-size:11px;color:var(--ink-soft);margin-top:4px">来自启用配置，仅展示，不可在此修改</div>
+            </div>
+            <div id="tts-no-active-instructions" style="margin-top:12px;font-size:12px;color:var(--ink-soft);font-style:italic;display:none">
+                当前无启用配置指令（使用模型默认风格）
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+                <select id="tts-test-voice" class="input-field" style="width:100%;padding:10px 14px;font-size:14px">
+                    <optgroup label="👩 女声">
+                        <option value="Cherry">Cherry · 芊悦 — 阳光积极、亲切自然</option>
+                        <option value="Serena">Serena · 苏瑶 — 温柔小姐姐</option>
+                        <option value="Chelsie">Chelsie · 千雪 — 二次元虚拟女友</option>
+                        <option value="Momo">Momo · 茉兔 — 撒娇搞怪</option>
+                        <option value="Vivian">Vivian · 十三 — 拽拽可爱小暴躁</option>
+                        <option value="Maia">Maia · 四月 — 知性与温柔</option>
+                        <option value="Bella">Bella · 萌宝 — 甜美小萝莉</option>
+                        <option value="Mia">Mia · 乖小妹 — 温顺乖巧</option>
+                        <option value="Bellona">Bellona · 燕铮莺 — 声音洪亮热血</option>
+                        <option value="Bunny">Bunny · 萌小姬 — 萌属性爆棚</option>
+                        <option value="Elias">Elias · 墨讲师 — 严谨知识讲解</option>
+                        <option value="Nini">Nini · 邻家妹妹 — 软糯甜蜜</option>
+                        <option value="Seren">Seren · 小婉 — 温和舒缓助眠</option>
+                        <option value="Stella">Stella · 少女阿月 — 迷糊少女</option>
+                        <option value="Jada">Jada · 佳达 — 成熟知性女声</option>
+                        <option value="Sunny">Sunny · 晴晴 — 活泼开朗元气</option>
+                    </optgroup>
+                    <optgroup label="👨 男声">
+                        <option value="Ethan">Ethan · 晨煦 — 阳光温暖朝气</option>
+                        <option value="Moon">Moon · 月白 — 率性帅气</option>
+                        <option value="Kai">Kai · 凯 — 耳朵的一场SPA</option>
+                        <option value="Nofish">Nofish · 不吃鱼 — 设计师男声</option>
+                        <option value="Eldric Sage">Eldric Sage · 沧明子 — 沉稳睿智老者</option>
+                        <option value="Mochi">Mochi · 沙小弥 — 聪明伶俐小大人</option>
+                        <option value="Vincent">Vincent · 田叔 — 沙哑烟嗓江湖气</option>
+                        <option value="Neil">Neil · 阿闻 — 专业新闻主持人</option>
+                        <option value="Arthur">Arthur · 徐大爷 — 质朴乡土嗓音</option>
+                        <option value="Pip">Pip · 顽屁小孩 — 调皮童真</option>
+                        <option value="Dylan">Dylan · 迪伦 — 年轻有活力男声</option>
+                    </optgroup>
+                </select>
+                <div style="display:flex;gap:10px">
+                    <button class="btn-primary" onclick="ttsPreviewPlay()" id="tts-preview-btn" style="display:flex;align-items:center;justify-content:center;gap:6px;flex:1">
+                        <span class="material-icons-round" style="font-size:16px!important">play_arrow</span>播放
+                    </button>
+                    <button class="btn-ghost" onclick="ttsPreviewStop()" id="tts-stop-btn" style="display:none;align-items:center;justify-content:center;gap:6px;flex:1">
+                        <span class="material-icons-round" style="font-size:16px!important">stop</span>停止
+                    </button>
+                </div>
+            </div>
+            <div id="tts-preview-status" style="margin-top:10px;font-size:12px;color:var(--ink-soft);min-height:18px"></div>
+        </div>
+    </div>
+</main>
+<!-- ══════════════════════════════════════
      PAGE: GENERATIONS（生成记录）
 ══════════════════════════════════════ -->
 <main class="main" id="page-generations">
@@ -1959,43 +2295,423 @@
     <div class="section-header">
         <div>
             <div class="section-title">✨ 智夸配置</div>
-            <div class="section-sub">管理 Qwen Vision 读图 Prompt，启用的 Prompt 将用于生成记录的 AI 点评</div>
+            <div class="section-sub">启用的 Prompt 将覆盖默认风格；全部关闭则按用户选择的风格自动点评</div>
         </div>
         <button class="btn-primary" onclick="openZhiKuaModal()">
-            <span class="material-icons-round">add</span>新增 Prompt
+            <span class="material-icons-round">add</span>新增模板
         </button>
     </div>
 
-    <div id="zk-list" style="display:flex;flex-direction:column;gap:12px;min-height:120px"></div>
+    <!-- 自定义 Prompt 列表 -->
+    <div id="zk-list" style="display:flex;flex-direction:column;gap:12px;min-height:60px"></div>
+
+    <!-- 全局提示词编辑区 -->
+    <div style="margin-top:28px">
+        <div style="font-size:13px;font-weight:700;color:var(--ink-soft);letter-spacing:.5px;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+            <span class="material-icons-round" style="font-size:16px!important">tune</span>
+            全局系统提示词
+            <span style="font-size:11px;font-weight:500;color:var(--ink-soft);background:var(--surface2);padding:2px 8px;border-radius:20px;margin-left:4px">所有模板共用的基础规则</span>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="material-icons-round">edit_note</span>
+                    编辑全局提示词
+                </div>
+                <button class="btn-primary btn-sm" id="global-prompt-save-btn" onclick="saveGlobalPrompt()">
+                    <span class="material-icons-round" style="font-size:15px!important">save</span>保存
+                </button>
+            </div>
+            <div class="card-body" style="padding:16px 20px">
+                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:10px;display:flex;align-items:flex-start;gap:6px;background:var(--accent-light);border-radius:10px;padding:10px 12px">
+                    <span class="material-icons-round" style="font-size:15px!important;color:var(--accent);flex-shrink:0;margin-top:1px">info</span>
+                    <span>此提示词会拼接在所有模板的 prompt <b>前面</b>，作为全局规范。适合写输出格式禁令、语言风格基线等通用规则。留空则不生效。</span>
+                </div>
+                <textarea id="global-prompt-textarea"
+                    style="width:100%;min-height:200px;font-size:13px;line-height:1.7;font-family:'Alibaba PuHuiTi 3','PingFang SC',monospace;border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;resize:vertical;outline:none;color:var(--ink);background:var(--surface);transition:border-color .15s"
+                    onfocus="this.style.borderColor='var(--accent)'"
+                    onblur="this.style.borderColor='var(--border)'"
+                    placeholder="例如：
+【输出规范 — 必须严格遵守】
+每个字段的值只输出自然语言内容本身，严禁出现以下任何形式：
+1. 任何字段的英文 key 名称（如 comback、fightback 等）
+2. &quot;某某说：&quot; 之类的角色名前缀
+3. 任何字段名作为句子开头、冒号分隔等形式
+直接写内容即可，不要加任何前缀或标注。"></textarea>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+                    <span style="font-size:11px;color:var(--ink-soft)" id="global-prompt-status"></span>
+                    <span style="font-size:11px;color:var(--ink-soft)" id="global-prompt-charcount">0 字</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+
+<!-- ══════════════════════════════════════
+     PAGE: VL 字段管理
+══════════════════════════════════════ -->
+<main class="main" id="page-vl-fields" style="align-content:flex-start">
+    <div class="section-header">
+        <div>
+            <div class="section-title">🔧 VL 字段管理</div>
+            <div class="section-sub">管理智夸输出字段；key 不可修改，避免数据错乱</div>
+        </div>
+        <button class="btn-primary" onclick="openVlFieldModal()">
+            <span class="material-icons-round">add</span>新增字段
+        </button>
+    </div>
+    <div id="vl-fields-list" style="display:flex;flex-direction:column;gap:12px;min-height:60px"></div>
 </main>
 
 </div><!-- /.layout -->
 
-<!-- ══ 智夸 Modal ══ -->
-<div class="modal-overlay" id="zk-modal">
+<!-- ══ VL 字段 Modal ══ -->
+<div class="modal-overlay" id="vl-field-modal">
     <div class="modal-card">
         <div class="modal-header">
-            <span class="modal-title" id="zk-modal-title">新增 Prompt</span>
-            <button class="modal-close" onclick="closeZhiKuaModal()"><span class="material-icons-round">close</span></button>
+            <span class="modal-title" id="vl-field-modal-title">新增字段</span>
+            <button class="modal-close" onclick="closeVlFieldModal()"><span class="material-icons-round">close</span></button>
         </div>
         <div class="modal-form">
             <div class="form-group">
-                <label class="form-label">名称 *</label>
-                <input class="form-input" id="zk-name" type="text" placeholder="例如：默认夸夸 Prompt">
+                <label class="form-label">字段 Key *<small style="font-weight:400;margin-left:6px;color:var(--ink-soft)">（唯一标识，仅字母/数字/下划线，新增后不可更改）</small></label>
+                <input class="form-input" id="vl-field-key" type="text" placeholder="例如：fourWords">
             </div>
             <div class="form-group">
-                <label class="form-label">Prompt 内容 *</label>
-                <textarea class="form-input" id="zk-prompt" rows="8" placeholder="输入发给 Qwen 的 Prompt，可用 {imageUrl} 指代图片…" style="resize:vertical;line-height:1.6"></textarea>
+                <label class="form-label">展示名称 *</label>
+                <input class="form-input" id="vl-field-label" type="text" placeholder="例如：四字点评">
             </div>
+            <div class="form-group">
+                <label class="form-label">字段描述 *<small style="font-weight:400;margin-left:6px;color:var(--ink-soft)">（发给模型的说明，指导 AI 如何生成此字段）</small></label>
+                <textarea class="form-input" id="vl-field-description" rows="4"
+                    placeholder="例如：生成4个字的精华点评，押韵优先，突出风格亮点"
+                    style="resize:vertical;line-height:1.6"></textarea>
+                <!-- @引用快捷栏 -->
+                <div id="vl-at-ref-bar" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+                    <span style="font-size:11px;color:var(--ink-soft);font-weight:600;flex-shrink:0">引用字段：</span>
+                    <!-- 动态按钮由 JS 注入 -->
+                    <span id="vl-at-ref-btns" style="display:contents"></span>
+                    <button type="button"
+                        onclick="vlInsertAtAll()"
+                        style="font-size:11px;padding:3px 9px;border-radius:6px;border:1px dashed var(--accent);
+                               background:var(--accent-light);color:var(--accent);cursor:pointer;font-weight:700;flex-shrink:0">
+                        @全部
+                    </button>
+                </div>
+                <div style="font-size:11px;color:var(--ink-soft);margin-top:5px;line-height:1.5">
+                    点击字段按钮可在描述中插入引用，AI 会参考该字段已生成的内容。
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">排序权重</label>
+                <input class="form-input" id="vl-field-sort" type="number" placeholder="0" value="0" min="0">
+            </div>
+            <div class="form-group">
+                <div class="toggle-row" style="padding:10px 0">
+                    <div class="toggle-label">启用<small>出现在智夸勾选列表中</small></div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="vl-field-enabled" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-ghost" onclick="closeVlFieldModal()">取消</button>
+            <button class="btn-primary" id="vl-field-save-btn" onclick="saveVlField()">
+                <span class="material-icons-round">save</span>保存
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ 声播 Modal ══ -->
+<div class="modal-overlay" id="tts-modal">
+    <div class="modal-card">
+        <div class="modal-header">
+            <span class="modal-title" id="tts-modal-title">新增声播配置</span>
+            <button class="modal-close" onclick="closeTtsModal()"><span class="material-icons-round">close</span></button>
+        </div>
+        <div class="modal-form">
+            <!-- 名称 -->
+            <div class="form-group">
+                <label class="form-label">配置名称 *</label>
+                <input class="form-input" id="tts-name" type="text" placeholder="例如：温柔女声 · 惊喜感">
+            </div>
+
+            <!-- 音色选择 -->
+            <div class="form-group">
+                <label class="form-label">音色 *</label>
+                <select class="form-input" id="tts-voice">
+                    <optgroup label="👩 女声">
+                        <option value="Cherry">Cherry · 芊悦 — 阳光积极、亲切自然</option>
+                        <option value="Serena">Serena · 苏瑶 — 温柔小姐姐</option>
+                        <option value="Chelsie">Chelsie · 千雪 — 二次元虚拟女友</option>
+                        <option value="Momo">Momo · 茉兔 — 撒娇搞怪</option>
+                        <option value="Vivian">Vivian · 十三 — 拽拽可爱小暴躁</option>
+                        <option value="Maia">Maia · 四月 — 知性与温柔</option>
+                        <option value="Bella">Bella · 萌宝 — 甜美小萝莉</option>
+                        <option value="Mia">Mia · 乖小妹 — 温顺乖巧</option>
+                        <option value="Bellona">Bellona · 燕铮莺 — 声音洪亮热血</option>
+                        <option value="Bunny">Bunny · 萌小姬 — 萌属性爆棚</option>
+                        <option value="Elias">Elias · 墨讲师 — 严谨知识讲解</option>
+                        <option value="Nini">Nini · 邻家妹妹 — 软糯甜蜜</option>
+                        <option value="Seren">Seren · 小婉 — 温和舒缓助眠</option>
+                        <option value="Stella">Stella · 少女阿月 — 迷糊少女</option>
+                        <option value="Jada">Jada · 佳达 — 成熟知性女声</option>
+                        <option value="Sunny">Sunny · 晴晴 — 活泼开朗元气</option>
+                    </optgroup>
+                    <optgroup label="👨 男声">
+                        <option value="Ethan">Ethan · 晨煦 — 阳光温暖朝气</option>
+                        <option value="Moon">Moon · 月白 — 率性帅气</option>
+                        <option value="Kai">Kai · 凯 — 耳朵的一场SPA</option>
+                        <option value="Nofish">Nofish · 不吃鱼 — 设计师男声</option>
+                        <option value="Eldric Sage">Eldric Sage · 沧明子 — 沉稳睿智老者</option>
+                        <option value="Mochi">Mochi · 沙小弥 — 聪明伶俐小大人</option>
+                        <option value="Vincent">Vincent · 田叔 — 沙哑烟嗓江湖气</option>
+                        <option value="Neil">Neil · 阿闻 — 专业新闻主持人</option>
+                        <option value="Arthur">Arthur · 徐大爷 — 质朴乡土嗓音</option>
+                        <option value="Pip">Pip · 顽屁小孩 — 调皮童真</option>
+                        <option value="Dylan">Dylan · 迪伦 — 年轻有活力男声</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            <!-- ② 语音风格区 -->
+            <div class="form-group">
+                <label class="form-label" style="margin-bottom:12px">语音风格（快速配置）</label>
+
+                <!-- 语速 -->
+                <div style="margin-bottom:12px">
+                    <div style="font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase">语速</div>
+                    <div class="tts-tag-group" id="tts-speed-group" style="display:flex;flex-wrap:wrap;gap:6px">
+                        <button type="button" class="tts-tag" data-group="speed" data-val="缓慢" onclick="selectTtsTag(this)">缓慢</button>
+                        <button type="button" class="tts-tag" data-group="speed" data-val="偏慢" onclick="selectTtsTag(this)">偏慢</button>
+                        <button type="button" class="tts-tag" data-group="speed" data-val="中速" onclick="selectTtsTag(this)">中速</button>
+                        <button type="button" class="tts-tag" data-group="speed" data-val="偏快" onclick="selectTtsTag(this)">偏快</button>
+                        <button type="button" class="tts-tag" data-group="speed" data-val="快速" onclick="selectTtsTag(this)">快速</button>
+                    </div>
+                </div>
+
+                <!-- 情感 -->
+                <div style="margin-bottom:12px">
+                    <div style="font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase">情感</div>
+                    <div class="tts-tag-group" id="tts-emotion-group" style="display:flex;flex-wrap:wrap;gap:6px">
+                        <button type="button" class="tts-tag" data-group="emotion" data-val="开朗" onclick="selectTtsTag(this)">开朗</button>
+                        <button type="button" class="tts-tag" data-group="emotion" data-val="沉稳" onclick="selectTtsTag(this)">沉稳</button>
+                        <button type="button" class="tts-tag" data-group="emotion" data-val="温柔" onclick="selectTtsTag(this)">温柔</button>
+                        <button type="button" class="tts-tag" data-group="emotion" data-val="严肃" onclick="selectTtsTag(this)">严肃</button>
+                        <button type="button" class="tts-tag" data-group="emotion" data-val="活泼" onclick="selectTtsTag(this)">活泼</button>
+                        <button type="button" class="tts-tag" data-group="emotion" data-val="冷静" onclick="selectTtsTag(this)">冷静</button>
+                        <button type="button" class="tts-tag" data-group="emotion" data-val="治愈" onclick="selectTtsTag(this)">治愈</button>
+                    </div>
+                </div>
+
+                <!-- 音调 -->
+                <div style="margin-bottom:12px">
+                    <div style="font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase">音调</div>
+                    <div class="tts-tag-group" id="tts-tone-group" style="display:flex;flex-wrap:wrap;gap:6px">
+                        <button type="button" class="tts-tag" data-group="tone" data-val="偏低" onclick="selectTtsTag(this)">偏低</button>
+                        <button type="button" class="tts-tag" data-group="tone" data-val="中音" onclick="selectTtsTag(this)">中音</button>
+                        <button type="button" class="tts-tag" data-group="tone" data-val="偏高" onclick="selectTtsTag(this)">偏高</button>
+                    </div>
+                </div>
+
+                <!-- 声音特点（多选） -->
+                <div style="margin-bottom:12px">
+                    <div style="font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase">声音特点 <span style="font-weight:400;text-transform:none;font-size:10px">（可多选）</span></div>
+                    <div class="tts-tag-group" id="tts-traits-group" style="display:flex;flex-wrap:wrap;gap:6px">
+                        <button type="button" class="tts-tag tts-tag-multi" data-group="traits" data-val="有磁性" onclick="toggleTtsTraitTag(this)">有磁性</button>
+                        <button type="button" class="tts-tag tts-tag-multi" data-group="traits" data-val="清脆" onclick="toggleTtsTraitTag(this)">清脆</button>
+                        <button type="button" class="tts-tag tts-tag-multi" data-group="traits" data-val="沙哑" onclick="toggleTtsTraitTag(this)">沙哑</button>
+                        <button type="button" class="tts-tag tts-tag-multi" data-group="traits" data-val="圆润" onclick="toggleTtsTraitTag(this)">圆润</button>
+                        <button type="button" class="tts-tag tts-tag-multi" data-group="traits" data-val="甜美" onclick="toggleTtsTraitTag(this)">甜美</button>
+                        <button type="button" class="tts-tag tts-tag-multi" data-group="traits" data-val="浑厚" onclick="toggleTtsTraitTag(this)">浑厚</button>
+                        <button type="button" class="tts-tag tts-tag-multi" data-group="traits" data-val="有力" onclick="toggleTtsTraitTag(this)">有力</button>
+                    </div>
+                </div>
+
+                <!-- 用途场景（单选） -->
+                <div>
+                    <div style="font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase">用途场景</div>
+                    <div class="tts-tag-group" id="tts-scene-group" style="display:flex;flex-wrap:wrap;gap:6px">
+                        <button type="button" class="tts-tag" data-group="scene" data-val="广告配音" onclick="selectTtsTag(this)">广告配音</button>
+                        <button type="button" class="tts-tag" data-group="scene" data-val="有声书" onclick="selectTtsTag(this)">有声书</button>
+                        <button type="button" class="tts-tag" data-group="scene" data-val="纪录片解说" onclick="selectTtsTag(this)">纪录片解说</button>
+                        <button type="button" class="tts-tag" data-group="scene" data-val="新闻播报" onclick="selectTtsTag(this)">新闻播报</button>
+                        <button type="button" class="tts-tag" data-group="scene" data-val="语音助手" onclick="selectTtsTag(this)">语音助手</button>
+                        <button type="button" class="tts-tag" data-group="scene" data-val="动画角色" onclick="selectTtsTag(this)">动画角色</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ③ 指令预览区 -->
+            <div class="form-group">
+                <label class="form-label" style="margin-bottom:4px">指令预览（自动生成，可直接编辑）</label>
+                <textarea class="form-input" id="tts-instructions" rows="4"
+                    placeholder="选择上方标签自动填入，也可直接手写。&#10;例如：语速偏快，情感活泼，音调偏高，声音清脆、甜美，适合广告配音。"
+                    style="resize:vertical;line-height:1.6;font-family:inherit"
+                    oninput="ttsInstructionsManualEdit()"></textarea>
+                <div style="font-size:11px;color:var(--ink-soft);margin-top:4px">选择上方标签自动填入 · 也可直接手写 · 最多 1600 字符</div>
+            </div>
+
+            <!-- 智能优化 + 语言 -->
+            <div class="form-group">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                    <input type="checkbox" id="tts-optimize" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0">
+                    <label for="tts-optimize" style="font-size:13px;cursor:pointer;line-height:1.4">
+                        <strong>智能优化指令</strong>
+                        <span style="display:block;font-size:11px;color:var(--ink-soft);font-weight:400;margin-top:2px">让 AI 自动增强指令表达，提升语音自然度（推荐开启）</span>
+                    </label>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span style="font-size:12px;color:var(--ink-soft);flex-shrink:0">合成语言：</span>
+                    <select id="tts-language" class="form-input" style="padding:7px 10px;font-size:12px">
+                        <option value="Chinese">中文</option>
+                        <option value="Auto">自动识别</option>
+                        <option value="English">English</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 启用开关 -->
             <div class="form-group">
                 <div class="toggle-row">
-                    <div class="toggle-label">立即启用<small>同时只能有一个 Prompt 处于启用状态</small></div>
+                    <div class="toggle-label">立即启用<small>同时只能有一条配置处于启用状态</small></div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="tts-enabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-ghost" onclick="closeTtsModal()">取消</button>
+            <button class="btn-primary" id="tts-save-btn" onclick="saveTtsPrompt()">
+                <span class="material-icons-round">save</span>保存
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ 智夸 Modal ══ -->
+<div class="modal-overlay" id="zk-modal">
+    <div class="modal-card" style="max-width:640px">
+        <div class="modal-header">
+            <span class="modal-title" id="zk-modal-title">新增智夸模板</span>
+            <button class="modal-close" onclick="closeZhiKuaModal()"><span class="material-icons-round">close</span></button>
+        </div>
+        <div class="modal-form" style="display:flex;flex-direction:column;gap:0">
+
+            <!-- ① 基础设置 -->
+            <div class="zk-section">
+                <div class="zk-section-label"><span class="material-icons-round">tune</span>① 基础设置</div>
+                <div class="form-group">
+                    <label class="form-label">模板名称 *</label>
+                    <input class="form-input" id="zk-name" type="text" placeholder="例如：温柔自然夸夸">
+                </div>
+            </div>
+
+            <!-- ② Prompt 编辑区 -->
+            <div class="zk-section">
+                <div class="zk-section-label" style="justify-content:space-between;cursor:pointer" onclick="zkTogglePromptSection()">
+                    <span style="display:flex;align-items:center;gap:6px">
+                        <span class="material-icons-round">edit_note</span>② 系统框架提示词
+                    </span>
+                    <span style="display:flex;align-items:center;gap:6px">
+                        <span id="zk-prompt-preview" style="font-size:11px;color:var(--ink-soft);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:400"></span>
+                        <span class="material-icons-round" id="zk-prompt-chevron" style="font-size:16px!important;color:var(--ink-soft);transition:transform .2s">expand_more</span>
+                    </span>
+                </div>
+                <div id="zk-prompt-body" style="display:none;margin-top:8px">
+                    <div style="display:flex;gap:6px;margin-bottom:6px;justify-content:flex-end">
+                        <button type="button" class="btn-ghost btn-sm" onclick="zkInsertDefaultPrompt()" style="font-size:11px;padding:4px 10px;gap:4px">
+                            <span class="material-icons-round" style="font-size:13px!important">auto_awesome</span>插入默认框架
+                        </button>
+                        <button type="button" class="btn-ghost btn-sm" onclick="zkClearPrompt()" style="font-size:11px;padding:4px 10px;gap:4px;color:var(--danger)">
+                            <span class="material-icons-round" style="font-size:13px!important">delete_outline</span>清空
+                        </button>
+                    </div>
+                    <textarea class="form-input" id="zk-prompt" rows="6" placeholder="可选：写背景补充说明，如「这是用户自拍，拍摄于生活场景」；或点击「插入默认框架」获取系统引导语。" style="resize:vertical;line-height:1.6;font-size:13px" oninput="zkUpdatePromptPreview()"></textarea>
+                    <div class="hint-box" style="margin-top:6px">
+                        <span class="material-icons-round">info</span>
+                        <div>无需写 JSON 格式，系统自动追加。字段间引用关系由字段描述里的 @字段 语法控制。</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ③ 输出字段配置 -->
+            <div class="zk-section">
+                <div class="zk-section-label" style="justify-content:space-between">
+                    <span style="display:flex;align-items:center;gap:6px"><span class="material-icons-round">checklist</span>③ 输出字段配置</span>
+                    <button type="button" class="btn-ghost btn-sm" onclick="zkToggleAddFieldForm()" id="zk-add-field-btn" style="font-size:11px;padding:5px 10px">
+                        <span class="material-icons-round" style="font-size:13px!important">add</span>新增字段
+                    </button>
+                </div>
+                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:10px">VL 需要识别并输出哪些内容：</div>
+
+                <!-- 内联新增表单（默认隐藏） -->
+                <div id="zk-add-field-form" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px">
+                    <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:10px;display:flex;align-items:center;gap:5px">
+                        <span class="material-icons-round" style="font-size:14px!important">add_circle</span>新增输出字段
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:8px">
+                        <div>
+                            <div style="font-size:11px;color:var(--ink-soft);margin-bottom:3px">字段 Key <span style="color:#b91c1c">*</span> <span style="opacity:.5;font-size:10px">字母/数字/下划线，不可重复</span></div>
+                            <input id="zk-new-field-key" type="text" placeholder="如：photoStyle" style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;background:var(--bg);color:var(--ink)">
+                        </div>
+                        <div>
+                            <div style="font-size:11px;color:var(--ink-soft);margin-bottom:3px">展示名称 <span style="color:#b91c1c">*</span></div>
+                            <input id="zk-new-field-label" type="text" placeholder="如：照片风格" style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;background:var(--bg);color:var(--ink)">
+                        </div>
+                        <div style="position:relative">
+                            <div style="font-size:11px;color:var(--ink-soft);margin-bottom:3px">字段描述（VL 提示词）<span style="color:#b91c1c">*</span> <span style="opacity:.5;font-size:10px">输入 @ 可引用其他字段</span></div>
+                            <textarea id="zk-new-field-desc" rows="3" placeholder="如：用一个词描述照片风格，如：清新、复古&#10;引用其他字段：输入 @ 后从弹出列表选择" style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;background:var(--bg);color:var(--ink);resize:vertical;line-height:1.5" oninput="zkHandleDescInput(this,'zk-new-field-desc')" onkeydown="zkHandleDescKeydown(event,'zk-new-field-desc')"></textarea>
+                            <div id="zk-new-field-desc-menu" class="zk-at-menu" style="display:none"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:10px">
+                        <button type="button" class="btn-ghost btn-sm" onclick="zkToggleAddFieldForm()" style="flex:1">取消</button>
+                        <button type="button" class="btn-primary btn-sm" onclick="zkSaveNewField()" id="zk-new-field-save-btn" style="flex:2">
+                            <span class="material-icons-round" style="font-size:14px!important">save</span>保存字段
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:8px" id="zk-output-fields">
+                    <!-- 动态渲染，由 zkRenderOutputFields() 填充 -->
+                    <div style="text-align:center;padding:12px;color:var(--ink-soft);font-size:12px">
+                        <span class="material-icons-round" style="font-size:18px!important;opacity:.4;display:block;margin-bottom:4px">hourglass_top</span>
+                        加载字段中…
+                    </div>
+                </div>
+            </div>
+
+            <!-- ④ 播报段落配置 -->
+            <div class="zk-section">
+                <div class="zk-section-label" style="justify-content:space-between">
+                    <span style="display:flex;align-items:center;gap:6px"><span class="material-icons-round">campaign</span>④ 播报段落配置</span>
+                    <button type="button" class="btn-ghost btn-sm" onclick="zkAddSegment()" id="zk-add-seg-btn" style="font-size:11px;padding:5px 10px">
+                        <span class="material-icons-round" style="font-size:13px!important">add</span>新增段落
+                    </button>
+                </div>
+                <div id="zk-segments" style="display:flex;flex-direction:column;gap:10px"></div>
+                <div style="font-size:11px;color:var(--ink-soft);margin-top:8px;text-align:center">最多 6 段</div>
+            </div>
+
+            <!-- ⑤ 启用开关 -->
+            <div class="zk-section" style="padding-bottom:0;border-bottom:none">
+                <div class="zk-section-label"><span class="material-icons-round">toggle_on</span>⑤ 启用</div>
+                <div class="toggle-row">
+                    <div class="toggle-label">立即启用<small>同时只能有一个模板处于启用状态</small></div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="zk-enabled">
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
             </div>
+
         </div>
         <div class="modal-footer">
             <button class="btn-ghost" onclick="closeZhiKuaModal()">取消</button>
@@ -2019,6 +2735,9 @@
         </button>
         <button class="bnav-item" id="bnav-zk" onclick="navMobile('zhi-kua',this)">
             <span class="material-icons-round">auto_awesome</span>智夸
+        </button>
+        <button class="bnav-item" id="bnav-tts" onclick="navMobile('ai-voice',this)">
+            <span class="material-icons-round">record_voice_over</span>声播
         </button>
         <button class="bnav-item" id="bnav-3" onclick="navMobile('generations',this)">
             <span class="material-icons-round">photo_library</span>查看
@@ -2150,25 +2869,42 @@
             <div class="gen-lightbox-style" id="gen-lb-style"></div>
             <div class="gen-lightbox-time" id="gen-lb-time"></div>
             <div class="gen-lb-tags" id="gen-lb-tags"></div>
-            <!-- AI 智夸结果展示区 -->
-            <div id="gen-lb-qwen-result" style="display:none;margin-top:10px;padding:12px;background:linear-gradient(135deg,rgba(91,79,255,.06),rgba(91,79,255,.02));border:1px solid rgba(91,79,255,.15);border-radius:12px">
-                <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-family:'Sora',sans-serif;font-size:12px;font-weight:700;color:var(--accent)">
-                    <span class="material-icons-round" style="font-size:14px!important">auto_awesome</span>AI 智夸
-                </div>
-                <div id="gen-lb-qwen-content" style="display:grid;gap:7px;font-size:12px"></div>
-            </div>
             <div class="gen-lightbox-actions">
-                <button class="btn-primary" style="flex:1" onclick="downloadGenPhoto()">
-                    <span class="material-icons-round">download</span>下载原图
+                <button class="btn-primary" onclick="downloadGenPhoto()">
+                    <span class="material-icons-round">download</span>下载
                 </button>
-                <button class="btn-ghost" id="gen-lb-qwen-btn" onclick="runQwenOnLightbox()" title="AI 智夸点评">
-                    <span class="material-icons-round">auto_awesome</span>
+                <button class="btn-ghost" id="gen-lb-qwen-btn" onclick="openQwenDrawer()" title="AI 智夸点评">
+                    <span class="material-icons-round">auto_awesome</span><span>点评</span>
+                </button>
+                <button class="btn-danger" onclick="deleteGenPhoto()" title="删除这条记录">
+                    <span class="material-icons-round">delete</span>删除
                 </button>
                 <button class="btn-ghost" onclick="closeGenLightbox()">
                     <span class="material-icons-round">close</span>关闭
                 </button>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- ══ AI智夸独立抽屉 ══ -->
+<div class="qwen-drawer" id="qwen-drawer" onclick="if(event.target===this)closeQwenDrawer()">
+    <div class="qwen-drawer-inner">
+        <div class="qwen-drawer-handle"></div>
+        <div class="qwen-drawer-head">
+            <div class="qwen-drawer-title">
+                <span class="material-icons-round">auto_awesome</span>AI 智夸
+            </div>
+            <button class="qwen-drawer-close" onclick="closeQwenDrawer()">
+                <span class="material-icons-round">close</span>
+            </button>
+        </div>
+        <div class="qwen-drawer-body" id="qwen-drawer-body">
+            <div class="qwen-empty">暂无点评数据</div>
+        </div>
+        <button class="qwen-regen-btn" id="qwen-regen-btn" onclick="runQwenOnLightbox()">
+            <span class="material-icons-round" style="font-size:16px!important">refresh</span>重新识别
+        </button>
     </div>
 </div>
 
@@ -2661,6 +3397,7 @@
                 .order('created_at', { ascending: false });
             if (error) throw error;
             allStylesData = data || [];
+            window.__allStylesCache = allStylesData; // expose for tag group conflict detection
             refreshAllViews();
         } catch(err) {
             showToast('加载失败: ' + err.message, 'error');
@@ -3122,13 +3859,26 @@
             if (category && provider === 'jimeng') {
                 const existTag = (window.__jimengTags || []).find(t => t.name === category);
                 if (!existTag) {
+                    // 全新标签，直接新增
                     const { error: tagErr } = await sbClient.from('jimeng_tags')
                         .insert({ name: category, sort: 100, group_id: tagGroupId || null });
-                    if (tagErr) console.warn('[auto add tag]', tagErr.message); // 不阻断主流程
+                    if (tagErr) console.warn('[auto add tag]', tagErr.message);
                     else showToast(`标签「${category}」已自动新增`, 'success');
                 } else if (tagGroupId && existTag.group_id !== tagGroupId) {
-                    // 已有标签但选了不同分组 → 更新分组
-                    await sbClient.from('jimeng_tags').update({ group_id: tagGroupId }).eq('id', existTag.id);
+                    // ⚠️ 同名标签全局共享，修改分组会影响所有使用该标签的风格
+                    const affected = (allStylesData || []).filter(s => s.category === category);
+                    if (affected.length > 0) {
+                        const confirmMove = confirm(
+                            `⚠️ 标签「${category}」已存在，还被 ${affected.length} 个风格使用。\n\n` +
+                            `是否把该标签移到当前选择的分组？\n（会影响所有使用此标签的风格）\n\n` +
+                            `• 确定：统一移动\n• 取消：保留原分组（建议改用不同标签名区分）`
+                        );
+                        if (confirmMove) {
+                            await sbClient.from('jimeng_tags').update({ group_id: tagGroupId }).eq('id', existTag.id);
+                        }
+                    } else {
+                        await sbClient.from('jimeng_tags').update({ group_id: tagGroupId }).eq('id', existTag.id);
+                    }
                 }
             }
 
@@ -3302,13 +4052,29 @@
             if (category && provider === 'jimeng') {
                 const existingTag = (window.__jimengTags || []).find(t => t.name === category);
                 if (!existingTag) {
+                    // 全新标签，直接新增
                     const { error: tagErr } = await sbClient.from('jimeng_tags')
                         .insert({ name: category, sort: 100, group_id: groupId || null });
                     if (tagErr) console.warn('[saveEditStyle] 自动新增标签失败:', tagErr.message);
                     else showToast(`标签「${category}」已自动新增`, 'success');
                 } else if (groupId && existingTag.group_id !== groupId) {
-                    // 已有标签但选了不同分组 → 更新分组
-                    await sbClient.from('jimeng_tags').update({ group_id: groupId }).eq('id', existingTag.id);
+                    // ⚠️ 同名标签在系统中全局共享，修改分组会影响所有使用该标签的风格
+                    const affected = (window.__allStylesCache || allStylesData || []).filter(s => s.category === category && s.id !== editingStyleId);
+                    if (affected.length > 0) {
+                        const confirmMove = confirm(
+                            `⚠️ 注意：标签「${category}」还被另外 ${affected.length} 个风格使用。\n\n` +
+                            `修改该标签的分组会影响所有使用此标签的风格。\n\n` +
+                            `• 确定：统一移动（共影响 ${affected.length + 1} 个风格）\n` +
+                            `• 取消：本次不改分组（建议改用不同标签名，如「${category}-男」）`
+                        );
+                        if (confirmMove) {
+                            await sbClient.from('jimeng_tags').update({ group_id: groupId }).eq('id', existingTag.id);
+                            showToast(`标签「${category}」分组已更新（影响 ${affected.length + 1} 个风格）`, 'success');
+                        }
+                    } else {
+                        // 只有当前风格使用该标签，安全更新
+                        await sbClient.from('jimeng_tags').update({ group_id: groupId }).eq('id', existingTag.id);
+                    }
                 }
             }
 
@@ -3493,13 +4259,24 @@
        前台显示控制 — 保存/加载
     ────────────────────────────────────────────── */
     async function saveDisplayConfig() {
-        const showLikes = document.getElementById('toggle-show-likes').checked;
-        const statusEl  = document.getElementById('display-config-status');
-        statusEl.textContent = '保存中…';
-        statusEl.style.color = 'var(--ink-soft)';
+        const showLikes       = document.getElementById('toggle-show-likes').checked;
+        const voiceSubtitle   = document.getElementById('toggle-voice-subtitle')?.checked !== false;
+        const voiceStamp      = document.getElementById('toggle-voice-stamp')?.checked !== false;
+        const directUpload    = document.getElementById('toggle-direct-upload')?.checked === true;
+        const debugPanel      = document.getElementById('toggle-debug-panel')?.checked === true;
+        const statusEl        = document.getElementById('display-config-status');
+        statusEl.textContent  = '保存中…';
+        statusEl.style.color  = 'var(--ink-soft)';
         try {
-            const config   = { showLikes, updatedAt: new Date().toISOString() };
-            const blob     = new Blob([JSON.stringify(config)], { type: 'application/json' });
+            const config = {
+                showLikes,
+                voice_subtitle_enabled: voiceSubtitle,
+                voice_stamp_enabled: voiceStamp,
+                upload_mode: directUpload ? 'direct' : 'qrcode',
+                debug_panel_enabled: debugPanel,
+                updatedAt: new Date().toISOString(),
+            };
+            const blob = new Blob([JSON.stringify(config)], { type: 'application/json' });
             await uploadWithFallback(blob, 'home-config/display-config.json', 'application/json', true);
             statusEl.textContent = '✅ 已保存，前台刷新后生效';
             statusEl.style.color = 'var(--success)';
@@ -3519,6 +4296,14 @@
             const config = await resp.json();
             const toggle = document.getElementById('toggle-show-likes');
             if (toggle) toggle.checked = config.showLikes !== false;
+            const toggleVoice = document.getElementById('toggle-voice-subtitle');
+            if (toggleVoice) toggleVoice.checked = config.voice_subtitle_enabled !== false;
+            const toggleStamp = document.getElementById('toggle-voice-stamp');
+            if (toggleStamp) toggleStamp.checked = config.voice_stamp_enabled !== false;
+            const toggleDirect = document.getElementById('toggle-direct-upload');
+            if (toggleDirect) toggleDirect.checked = config.upload_mode === 'direct';
+            const toggleDebug = document.getElementById('toggle-debug-panel');
+            if (toggleDebug) toggleDebug.checked = config.debug_panel_enabled === true;
         } catch(_) {}
     }
     async function loadHomeConfig() {
@@ -3827,13 +4612,6 @@ async function loadGenerations() {
     if (gridEl)  { gridEl.style.display  = 'none';  gridEl.innerHTML = ''; }
     if (countEl) { countEl.style.display = 'none';  }
 
-    // 等待 sbClient 初始化，最多 4 秒
-    let waited = 0;
-    while (!sbClient && waited < 4000) {
-        await new Promise(r => setTimeout(r, 100));
-        waited += 100;
-    }
-
     if (!sbClient) {
         if (loadEl) loadEl.innerHTML = `
             <span class="material-icons-round" style="font-size:38px;display:block;margin-bottom:10px;color:var(--danger)">wifi_off</span>
@@ -3844,7 +4622,7 @@ async function loadGenerations() {
     try {
         const { data, error } = await sbClient
             .from('generations')
-            .select('id, created_at, style_name, thumb_url, hd_url, session_id, upload_type, downloaded_at, printed_at, ai_duration_seconds')
+            .select('id, created_at, style_name, thumb_url, hd_url, session_id, upload_type, downloaded_at, printed_at, ai_duration_seconds, qwen_score, qwen_comment, qwen_praise, qwen_voice, qwen_started_at, qwen_ended_at, tts_started_at, tts_ended_at')
             .order('created_at', { ascending: false })
             .limit(200);
 
@@ -3865,10 +4643,14 @@ async function loadGenerations() {
         if (gridEl) {
             gridEl.style.display = 'grid';
             gridEl.innerHTML = data.map(row => {
-                // 缩略图加 width 参数让 Supabase Transform 返回小图（加载快）
+                // 缩略图：仅对 Supabase Storage 链接拼接 width=240 Transform 参数
+                // 外部 CDN 链接（如即梦返回的图片）直接使用原 URL，避免 Transform 报错
                 const rawThumb = row.thumb_url || '';
+                const isSupabaseStorageUrl = rawThumb.includes('/storage/v1/object/public/');
                 const thumb = rawThumb
-                    ? (rawThumb + (rawThumb.includes('?') ? '&' : '?') + 'width=240')
+                    ? (isSupabaseStorageUrl
+                        ? (rawThumb + (rawThumb.includes('?') ? '&' : '?') + 'width=240')
+                        : rawThumb)
                     : '';
                 const fallback = `https://picsum.photos/seed/${row.id}/240/320`;
 
@@ -3882,16 +4664,26 @@ async function loadGenerations() {
                 const styleName = row.style_name || '未知风格';
                 const hdUrl     = row.hd_url || row.thumb_url || '';
 
-                return `<div class="gen-card" onclick="openGenLightbox(
-                    '${(row.thumb_url||'').replace(/'/g,"\\'")}',
-                    '${hdUrl.replace(/'/g,"\\'")}',
-                    '${styleName.replace(/'/g,"\\'")}',
-                    '${row.created_at || ''}',
-                    '${(row.upload_type||'').replace(/'/g,"\\'")}',
-                    '${row.downloaded_at || ''}',
-                    '${row.printed_at || ''}',
-                    ${row.ai_duration_seconds || 0}
-                )">
+                return `<div class="gen-card"
+                    data-thumb="${(row.thumb_url||'').replace(/"/g,'&quot;')}"
+                    data-hd="${hdUrl.replace(/"/g,'&quot;')}"
+                    data-style="${styleName.replace(/"/g,'&quot;')}"
+                    data-created="${row.created_at||''}"
+                    data-upload="${row.upload_type||''}"
+                    data-downloaded="${row.downloaded_at||''}"
+                    data-printed="${row.printed_at||''}"
+                    data-duration="${row.ai_duration_seconds||0}"
+                    data-session="${(row.session_id||'').replace(/"/g,'&quot;')}"
+                    data-rowid="${row.id||''}"
+                    data-qscore="${row.qwen_score != null ? row.qwen_score : ''}"
+                    data-qcomment="${(row.qwen_comment||'').replace(/"/g,'&quot;')}"
+                    data-qpraise="${(row.qwen_praise||'').replace(/"/g,'&quot;')}"
+                    data-qvoice="${(row.qwen_voice||'').replace(/"/g,'&quot;')}"
+                    data-qstarted="${(row.qwen_started_at||'').replace(/"/g,'&quot;')}"
+                    data-qended="${(row.qwen_ended_at||'').replace(/"/g,'&quot;')}"
+                    data-ttsstarted="${(row.tts_started_at||'').replace(/"/g,'&quot;')}"
+                    data-ttsended="${(row.tts_ended_at||'').replace(/"/g,'&quot;')}"
+                    onclick="openGenLightboxFromEl(this)">
                     <img class="gen-card-thumb"
                          src="${thumb || fallback}"
                          onerror="this.src='${fallback}'"
@@ -3915,6 +4707,8 @@ async function loadGenerations() {
                 </div>`;
             }).join('');
         }
+
+        // 自动补跑已移除：宁缺毋假，没有真实时间就显示空，不用当前时间伪造历史数据
     } catch(e) {
         const debugEl = document.getElementById("gen-debug");
         if (debugEl) { debugEl.style.display="block"; debugEl.textContent = "错误详情：" + e.message + " | code: " + (e.code||"") + " | details: " + (e.details||"") + " | hint: " + (e.hint||""); }
@@ -3923,7 +4717,28 @@ async function loadGenerations() {
 }
 
 /* ── Lightbox ── */
-function openGenLightbox(thumbUrl, hdUrl, styleName, createdAt, uploadType, downloadedAt, printedAt, aiDuration) {
+// ── 从 data-* 属性读参数，彻底避免引号地狱 ──
+function openGenLightboxFromEl(el) {
+    const d = el.dataset;
+    const qScore = d.qscore !== '' ? Number(d.qscore) : null;
+    openGenLightbox(
+        d.thumb, d.hd, d.style, d.created,
+        d.upload, d.downloaded, d.printed,
+        Number(d.duration) || 0,
+        d.session,
+        qScore,
+        d.qcomment    || null,
+        d.qpraise     || null,
+        d.qvoice      || null,
+        d.qstarted    || null,
+        d.qended      || null,
+        d.rowid       || '',
+        d.ttsstarted  || null,
+        d.ttsended    || null
+    );
+}
+
+function openGenLightbox(thumbUrl, hdUrl, styleName, createdAt, uploadType, downloadedAt, printedAt, aiDuration, sessionId, qwenScore, qwenComment, qwenPraise, qwenVoice, qwenStartedAt, qwenEndedAt, rowId, ttsStartedAt, ttsEndedAt) {
     const lb = document.getElementById('gen-lightbox');
     if (!lb) return;
 
@@ -3973,14 +4788,30 @@ function openGenLightbox(thumbUrl, hdUrl, styleName, createdAt, uploadType, down
         tagsEl.innerHTML = tagsHtml;
     }
 
-    // 保存 hdUrl 供下载按钮使用
-    lb.dataset.hdUrl = hdUrl || thumbUrl;
+    // 保存 hdUrl + sessionId 供下载和 Qwen 按钮使用
+    lb.dataset.hdUrl         = hdUrl || thumbUrl;
+    lb.dataset.sessionId     = sessionId || '';
+    lb.dataset.rowId         = rowId || '';
+    lb.dataset.createdAt     = createdAt  || '';
+    lb.dataset.aiDuration    = aiDuration != null ? aiDuration : '';
+    lb.dataset.qwenStartedAt = qwenStartedAt || '';
+    lb.dataset.qwenEndedAt   = qwenEndedAt   || '';
+    lb.dataset.ttsStartedAt  = ttsStartedAt  || '';
+    lb.dataset.ttsEndedAt    = ttsEndedAt    || '';
 
-    // 重置 AI 点评区
-    const qwenResult = document.getElementById('gen-lb-qwen-result');
-    if (qwenResult) qwenResult.style.display = 'none';
-    const qwenBtn = document.getElementById('gen-lb-qwen-btn');
-    if (qwenBtn) { qwenBtn.disabled = false; qwenBtn.innerHTML = '<span class="material-icons-round">auto_awesome</span>'; }
+    // 把 qwen 数据存到 dataset 供 drawer 使用
+    lb.dataset.qwenScore   = qwenScore   != null ? qwenScore : '';
+    lb.dataset.qwenComment = qwenComment || '';
+    lb.dataset.qwenPraise  = qwenPraise  || '';
+    lb.dataset.qwenVoice   = qwenVoice   || '';
+
+    // 按钮状态：有结果→"查看点评"，无结果→"生成点评"
+    const _qBtn = document.getElementById('gen-lb-qwen-btn');
+    if (qwenScore != null || qwenComment) {
+        if (_qBtn) { _qBtn.innerHTML = '<span class="material-icons-round">auto_awesome</span><span>查看点评</span>'; }
+    } else {
+        if (_qBtn) { _qBtn.innerHTML = '<span class="material-icons-round">auto_awesome</span><span>生成点评</span>'; }
+    }
 
     lb.classList.add('show');
 }
@@ -3988,6 +4819,232 @@ function openGenLightbox(thumbUrl, hdUrl, styleName, createdAt, uploadType, down
 function closeGenLightbox() {
     const lb = document.getElementById('gen-lightbox');
     if (lb) lb.classList.remove('show');
+    closeQwenDrawer();
+}
+
+async function deleteGenPhoto() {
+    const lb = document.getElementById('gen-lightbox');
+    if (!lb) return;
+    const rowId = lb.dataset.rowId;
+    if (!rowId) { showToast('无法获取记录 ID', 'error'); return; }
+
+    if (!confirm('确定删除这条记录和图片文件吗？\n此操作不可恢复。')) return;
+
+    // 从 URL 提取 Supabase Storage 路径
+    function extractStoragePath(url) {
+        if (!url) return null;
+        // 只处理本 Supabase Storage 的链接，外部 CDN 跳过
+        const marker = '/storage/v1/object/public/';
+        const idx = url.indexOf(marker);
+        if (idx === -1) return null;
+        // marker 之后是 bucket/path，去掉 query string
+        const full = url.slice(idx + marker.length).split('?')[0];
+        // full = "bucketName/path/to/file.jpg"
+        const slashIdx = full.indexOf('/');
+        if (slashIdx === -1) return null;
+        return { bucket: full.slice(0, slashIdx), path: full.slice(slashIdx + 1) };
+    }
+
+    // 收集要删除的文件（去重，跳过外部链接）
+    const toDelete = {};  // bucket -> [paths]
+    const card = document.querySelector(`.gen-card[data-rowid="${rowId}"]`);
+    const thumbUrl = card ? card.dataset.thumb : lb.dataset.hdUrl;
+    const hdUrl    = lb.dataset.hdUrl;
+
+    for (const url of [thumbUrl, hdUrl]) {
+        const r = extractStoragePath(url);
+        if (!r) continue;
+        if (!toDelete[r.bucket]) toDelete[r.bucket] = [];
+        if (!toDelete[r.bucket].includes(r.path)) toDelete[r.bucket].push(r.path);
+    }
+
+    // 删存储文件（失败不阻断，继续删数据库记录）
+    for (const [bucket, paths] of Object.entries(toDelete)) {
+        const { error: stErr } = await sbClient.storage.from(bucket).remove(paths);
+        if (stErr) console.warn('[deleteGenPhoto] 文件删除失败:', stErr.message);
+    }
+
+    // 删数据库记录
+    const { error } = await sbClient.from('generations').delete().eq('id', rowId);
+    if (error) { showToast('删除失败：' + error.message, 'error'); return; }
+
+    // 从 DOM 移除卡片
+    if (card) card.remove();
+
+    closeGenLightbox();
+    showToast('已删除', 'success');
+}
+
+/* ── AI智夸抽屉 ── */
+function buildQwenDrawerHTML(score, comment, praise, voice, qwenStartedAt, qwenEndedAt, ttsStartedAt, ttsEndedAt, segments, vlData) {
+    if (!score && !comment && !praise && !voice && (!segments || segments.length === 0)) {
+        return '<div class="qwen-empty"><span class="material-icons-round" style="font-size:36px;display:block;margin-bottom:8px;color:#d0d0da">auto_awesome</span>暂无点评，点击下方按钮生成</div>';
+    }
+    let html = '';
+
+    // ── 播报段落区域 ────────────────────────────────────────────
+    // 优先级1：当前刚生成，内存里有 segments + vlData（实时生成路径）
+    // 优先级2：qwen_voice 是 JSON 格式（新格式存储路径，从列表打开历史记录）
+    // 优先级3：兜底旧版单段字符串
+    let renderedSegments = false;
+
+    if (segments && segments.length > 0 && vlData) {
+        // 实时生成路径：segments 来自 activePrompt，vlData 是 AI 返回
+        segments.forEach((seg, idx) => {
+            let text = '';
+            let typeLabel = '';
+            if (seg.type === 'fixed') {
+                text = seg.text || '';
+                typeLabel = '固定文案';
+            } else if (seg.type === 'vl_field') {
+                text = String(vlData[seg.field] ?? '');
+                typeLabel = 'VL字段';
+            } else if (seg.type === 'mixed') {
+                text = (seg.prefix || '') + String(vlData[seg.field] ?? '');
+                typeLabel = '混合';
+            }
+            text = text.trim();
+            if (!text) return;
+            html += `<div class="qwen-row">
+                <div class="qwen-label" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px">
+                    <span>段落${idx + 1}</span>
+                    <span style="font-size:10px;font-weight:400;color:var(--ink-soft);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 5px;white-space:nowrap">${typeLabel}</span>
+                </div>
+                <div class="qwen-val" style="color:var(--ink-soft)">${text}</div>
+            </div>`;
+            renderedSegments = true;
+        });
+    } else if (voice) {
+        // 尝试解析 qwen_voice 为新格式 JSON（历史记录路径）
+        let parsed = null;
+        try { parsed = JSON.parse(voice); } catch(e) {}
+        if (parsed && Array.isArray(parsed.segments) && parsed.segments.length > 0) {
+            parsed.segments.forEach((seg, idx) => {
+                const text = (seg.text || '').trim();
+                const typeLabel = seg.typeLabel || '段落';
+                if (!text) return;
+                html += `<div class="qwen-row">
+                    <div class="qwen-label" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px">
+                        <span>段落${idx + 1}</span>
+                        <span style="font-size:10px;font-weight:400;color:var(--ink-soft);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 5px;white-space:nowrap">${typeLabel}</span>
+                    </div>
+                    <div class="qwen-val" style="color:var(--ink-soft)">${text}</div>
+                </div>`;
+                renderedSegments = true;
+            });
+        } else {
+            // 兜底：旧版单段字符串
+            html += `<div class="qwen-row">
+                <div class="qwen-label" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px">
+                    <span>段落1</span>
+                    <span style="font-size:10px;font-weight:400;color:var(--ink-soft);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 5px;white-space:nowrap">固定文案</span>
+                </div>
+                <div class="qwen-val" style="color:var(--ink-soft)">${voice}</div>
+            </div>`;
+            renderedSegments = true;
+        }
+    }
+    // 时间区域：始终显示，无数据就显示 —
+    {
+        const startStr = qwenStartedAt ? new Date(qwenStartedAt).toLocaleString('zh-CN', { hour12: false }) : '—';
+        let endStr = '—';
+        let durStr = '—';
+        if (qwenStartedAt && qwenEndedAt) {
+            const startD = new Date(qwenStartedAt);
+            const endD   = new Date(qwenEndedAt);
+            endStr = endD.toLocaleString('zh-CN', { hour12: false });
+            const dur = Math.round((endD - startD) / 1000);
+            durStr = dur >= 60
+                ? Math.floor(dur / 60) + ' 分 ' + (dur % 60) + ' 秒'
+                : dur + ' 秒';
+        }
+        html += `<div class="qwen-row" style="border-top:1px solid var(--border);padding-top:12px;margin-top:2px">
+            <div class="qwen-label" style="min-width:52px">识图时间</div>
+            <div class="qwen-val" style="color:var(--ink-soft);font-size:12px;line-height:1.9">
+                <span style="display:flex;align-items:center;gap:5px">
+                    <span class="material-icons-round" style="font-size:13px!important;color:var(--accent)">play_circle</span>
+                    开始：${startStr}
+                </span>
+                <span style="display:flex;align-items:center;gap:5px">
+                    <span class="material-icons-round" style="font-size:13px!important;color:var(--success)">stop_circle</span>
+                    完成：${endStr}
+                </span>
+                <span style="display:flex;align-items:center;gap:5px">
+                    <span class="material-icons-round" style="font-size:13px!important;color:var(--warning)">timer</span>
+                    耗时：${durStr}
+                </span>
+            </div>
+        </div>`;
+    }
+    // 声合时间块
+    {
+        const ttsStartStr = ttsStartedAt ? new Date(ttsStartedAt).toLocaleString('zh-CN', { hour12: false }) : '—';
+        let ttsEndStr = '—';
+        let ttsDurStr = '—';
+        if (ttsStartedAt && ttsEndedAt) {
+            const s = new Date(ttsStartedAt);
+            const e = new Date(ttsEndedAt);
+            ttsEndStr = e.toLocaleString('zh-CN', { hour12: false });
+            const dur = Math.round((e - s) / 1000);
+            ttsDurStr = dur >= 60
+                ? Math.floor(dur / 60) + ' 分 ' + (dur % 60) + ' 秒'
+                : dur + ' 秒';
+        }
+        html += `<div class="qwen-row" style="border-top:1px solid var(--border);padding-top:12px;margin-top:2px">
+            <div class="qwen-label" style="min-width:52px">声合时间</div>
+            <div class="qwen-val" style="color:var(--ink-soft);font-size:12px;line-height:1.9">
+                <span style="display:flex;align-items:center;gap:5px">
+                    <span class="material-icons-round" style="font-size:13px!important;color:var(--accent)">play_circle</span>
+                    开始：${ttsStartStr}
+                </span>
+                <span style="display:flex;align-items:center;gap:5px">
+                    <span class="material-icons-round" style="font-size:13px!important;color:var(--success)">stop_circle</span>
+                    完成：${ttsEndStr}
+                </span>
+                <span style="display:flex;align-items:center;gap:5px">
+                    <span class="material-icons-round" style="font-size:13px!important;color:var(--warning)">timer</span>
+                    耗时：${ttsDurStr}
+                </span>
+            </div>
+        </div>`;
+    }
+    return html;
+}
+
+function openQwenDrawer() {
+    const lb = document.getElementById('gen-lightbox');
+    const drawer = document.getElementById('qwen-drawer');
+    const body = document.getElementById('qwen-drawer-body');
+    if (!drawer || !body) return;
+
+    const score        = lb ? lb.dataset.qwenScore    : '';
+    const comment      = lb ? lb.dataset.qwenComment  : '';
+    const praise       = lb ? lb.dataset.qwenPraise   : '';
+    const voice        = lb ? lb.dataset.qwenVoice    : '';
+    const qwenStartedAt  = lb ? lb.dataset.qwenStartedAt  : '';
+    const qwenEndedAt    = lb ? lb.dataset.qwenEndedAt    : '';
+    const ttsStartedAt   = lb ? lb.dataset.ttsStartedAt   : '';
+    const ttsEndedAt     = lb ? lb.dataset.ttsEndedAt     : '';
+
+    // 读取 broadcast_segments 和 VL 返回数据
+    let segments = null;
+    let vlData   = null;
+    try { segments = lb && lb.dataset.broadcastSegments ? JSON.parse(lb.dataset.broadcastSegments) : null; } catch(e) {}
+    try { vlData   = lb && lb.dataset.qwenData          ? JSON.parse(lb.dataset.qwenData)          : null; } catch(e) {}
+
+    // 没有任何数据时，直接触发生成，不打开空 drawer
+    if (!score && !comment && !praise && !voice) {
+        runQwenOnLightbox();
+        return;
+    }
+
+    body.innerHTML = buildQwenDrawerHTML(score, comment, praise, voice, qwenStartedAt, qwenEndedAt, ttsStartedAt, ttsEndedAt, segments, vlData);
+    drawer.classList.add('show');
+}
+
+function closeQwenDrawer() {
+    const drawer = document.getElementById('qwen-drawer');
+    if (drawer) drawer.classList.remove('show');
 }
 
 function downloadGenPhoto() {
@@ -4057,8 +5114,8 @@ async function runQwenTest() {
                         <span style="color:var(--ink)">${data.shortPraise}</span>
                     </div>
                     <div style="display:flex;gap:8px">
-                        <span style="font-weight:700;color:var(--accent);min-width:60px;flex-shrink:0">语音稿</span>
-                        <span style="color:var(--ink)">${data.voiceText}</span>
+                        <span style="font-weight:700;color:var(--accent);min-width:60px;flex-shrink:0">voiceText</span>
+                        <span style="color:var(--ink-soft);font-size:12px">${data.voiceText || '—'}</span>
                     </div>
                     <div style="display:flex;gap:8px">
                         <span style="font-weight:700;color:var(--accent);min-width:60px;flex-shrink:0">风格</span>
@@ -4096,6 +5153,562 @@ async function runQwenTest() {
 
 let zkEditingId = null;
 
+// ── 音色选项（复用 TTS_VOICES 定义，但本块先于其定义，用字符串避免依赖顺序）
+const ZK_VOICES_SHORT = [
+    ['Cherry','Cherry · 芊悦（女）'],['Serena','Serena · 苏瑶（女）'],['Chelsie','Chelsie · 千雪（女）'],
+    ['Momo','Momo · 茉兔（女）'],['Vivian','Vivian · 十三（女）'],['Maia','Maia · 四月（女）'],
+    ['Bella','Bella · 萌宝（女）'],['Mia','Mia · 乖小妹（女）'],['Bellona','Bellona · 燕铮莺（女）'],
+    ['Bunny','Bunny · 萌小姬（女）'],['Elias','Elias · 墨讲师（女）'],['Nini','Nini · 邻家妹妹（女）'],
+    ['Seren','Seren · 小婉（女）'],['Stella','Stella · 少女阿月（女）'],
+    ['Ethan','Ethan · 晨煦（男）'],['Moon','Moon · 月白（男）'],['Kai','Kai · 凯（男）'],
+    ['Nofish','Nofish · 不吃鱼（男）'],['Eldric Sage','Eldric Sage · 沧明子（男）'],
+    ['Mochi','Mochi · 沙小弥（男）'],['Vincent','Vincent · 田叔（男）'],
+    ['Neil','Neil · 阿闻（男）'],['Arthur','Arthur · 徐大爷（男）'],['Pip','Pip · 顽屁小孩（男）'],
+];
+
+function zkVoiceOptions(selectedTtsPromptId) {
+    if (!_zkTtsTemplates || _zkTtsTemplates.length === 0) {
+        return `<option value="" disabled selected>请先在声播页配置语音模板</option>`;
+    }
+    return _zkTtsTemplates.map(tpl =>
+        `<option value="${tpl.id}" ${tpl.id === selectedTtsPromptId ? 'selected' : ''}>${escapeHtml(tpl.name)}</option>`
+    ).join('');
+}
+
+// VL 输出字段配置（动态化：从 vl_fields 表加载，此处为兜底备用）
+const ZK_OUTPUT_FIELD_DEFS_FALLBACK = [
+    { value: 'score',       label: '评分',     example: '85' },
+    { value: 'shortPraise', label: '夸奖词',   example: '光影捕捉恰到好处，表情自然生动' },
+    { value: 'fourWords',   label: '四字点评', example: '光彩照人' },
+    { value: 'comment',     label: '详细点评', example: '整体构图平衡，光线柔和，人物神态自然…' },
+];
+
+// 动态字段缓存（打开弹窗时从数据库加载）
+let _zkFieldDefs = null;   // null = 未加载，[] = 加载失败用 fallback
+
+// 从 vl_fields 表加载启用字段，结果缓存到 _zkFieldDefs
+async function zkLoadFieldDefs(force = false) {
+    if (_zkFieldDefs && !force) return _zkFieldDefs;
+    if (!sbClient) { _zkFieldDefs = ZK_OUTPUT_FIELD_DEFS_FALLBACK; return _zkFieldDefs; }
+    try {
+        const { data, error } = await sbClient
+            .from('vl_fields')
+            .select('key, label, description')
+            .eq('enabled', true)
+            .order('sort', { ascending: true });
+        if (error || !data || data.length === 0) throw new Error(error?.message || '无数据');
+        _zkFieldDefs = data.map(r => ({ value: r.key, label: r.label, example: r.description }));
+    } catch (e) {
+        console.warn('[zkLoadFieldDefs] 加载 vl_fields 失败，使用内置兜底：', e.message);
+        _zkFieldDefs = ZK_OUTPUT_FIELD_DEFS_FALLBACK;
+    }
+    return _zkFieldDefs;
+}
+
+// 动态渲染输出字段复选框（传入已选字段数组以恢复勾选状态）
+function zkRenderOutputFields(selectedFields) {
+    const container = document.getElementById('zk-output-fields');
+    if (!container) return;
+    const defs = _zkFieldDefs || ZK_OUTPUT_FIELD_DEFS_FALLBACK;
+    if (defs.length === 0) {
+        container.innerHTML = '<div style="font-size:12px;color:#b91c1c;padding:8px">未找到任何启用字段，请点击「新增字段」添加。</div>';
+        return;
+    }
+    container.innerHTML = defs.map(f => {
+        const checked = selectedFields.includes(f.value) ? 'checked' : '';
+        return `<div class="zk-field-row">
+            <label style="flex:1;min-width:0;display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">
+                <input type="checkbox" class="zk-field-cb" value="${escapeHtml(f.value)}" ${checked} style="margin-top:2px;flex-shrink:0">
+                <span style="flex:1;min-width:0">
+                    <span class="zk-field-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><code style="font-size:10px;background:var(--accent-light);color:var(--accent);padding:1px 6px;border-radius:5px">${escapeHtml(f.value)}</code></span>
+                    <span class="zk-field-example" style="font-size:11px;color:var(--ink-soft);display:block;margin-top:2px">${escapeHtml(f.example || '')}</span>
+                </span>
+            </label>
+            <button type="button" onclick="zkOpenEditField('${escapeHtml(f.value)}')" title="编辑此字段"
+                style="flex-shrink:0;width:30px;height:30px;border:1px solid var(--border);background:var(--surface2);color:var(--ink-soft);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+                <span class="material-icons-round" style="font-size:15px!important">edit</span>
+            </button>
+            <button type="button" onclick="zkDeleteField('${escapeHtml(f.value)}', '${escapeHtml(f.label)}')" title="删除此字段"
+                style="flex-shrink:0;width:30px;height:30px;border:1px solid #fca5a5;background:#fff3f3;color:#b91c1c;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+                <span class="material-icons-round" style="font-size:15px!important">delete</span>
+            </button>
+        </div>`;
+    }).join('');
+}
+
+// ── 打开编辑字段表单 ────────────────────────────────────
+function zkOpenEditField(key) {
+    const defs = _zkFieldDefs || ZK_OUTPUT_FIELD_DEFS_FALLBACK;
+    const f = defs.find(d => d.value === key);
+    if (!f) { showToast('找不到该字段', 'error'); return; }
+
+    // 关闭新增表单（避免两个表单同时展开）
+    const addForm = document.getElementById('zk-add-field-form');
+    if (addForm) addForm.style.display = 'none';
+
+    // 找或创建编辑表单
+    let editForm = document.getElementById('zk-edit-field-form');
+    if (!editForm) {
+        editForm = document.createElement('div');
+        editForm.id = 'zk-edit-field-form';
+        const outputFields = document.getElementById('zk-output-fields');
+        outputFields.parentNode.insertBefore(editForm, outputFields);
+    }
+
+    editForm.style.cssText = 'display:block;background:var(--surface2);border:1px solid var(--accent);border-radius:12px;padding:12px;margin-bottom:10px';
+    editForm.innerHTML = `
+        <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:10px;display:flex;align-items:center;gap:5px">
+            <span class="material-icons-round" style="font-size:14px!important">edit</span>编辑字段：${escapeHtml(f.label)}
+            <code style="font-size:10px;background:var(--accent-light);padding:1px 6px;border-radius:5px;margin-left:4px">${escapeHtml(key)}</code>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+            <div>
+                <div style="font-size:11px;color:var(--ink-soft);margin-bottom:3px">展示名称 <span style="color:#b91c1c">*</span></div>
+                <input id="zk-edit-field-label" type="text" value="${escapeHtml(f.label)}"
+                    style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;background:var(--bg);color:var(--ink)">
+            </div>
+            <div style="position:relative">
+                <div style="font-size:11px;color:var(--ink-soft);margin-bottom:3px">字段描述（VL 提示词）<span style="color:#b91c1c">*</span> <span style="opacity:.5;font-size:10px">输入 @ 可引用其他字段</span></div>
+                <textarea id="zk-edit-field-desc" rows="3"
+                    style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;background:var(--bg);color:var(--ink);resize:vertical;line-height:1.5"
+                    oninput="zkHandleDescInput(this,'zk-edit-field-desc')" onkeydown="zkHandleDescKeydown(event,'zk-edit-field-desc')">${escapeHtml(f.example || '')}</textarea>
+                <div id="zk-edit-field-desc-menu" class="zk-at-menu" style="display:none"></div>
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+            <button type="button" class="btn-ghost btn-sm" onclick="zkCloseEditField()" style="flex:1">取消</button>
+            <button type="button" class="btn-primary btn-sm" onclick="zkSaveEditField('${escapeHtml(key)}')" id="zk-edit-field-save-btn" style="flex:2">
+                <span class="material-icons-round" style="font-size:14px!important">save</span>保存修改
+            </button>
+        </div>`;
+
+    // 滚动到编辑表单
+    editForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function zkCloseEditField() {
+    const editForm = document.getElementById('zk-edit-field-form');
+    if (editForm) editForm.style.display = 'none';
+}
+
+async function zkSaveEditField(key) {
+    const label = (document.getElementById('zk-edit-field-label').value || '').trim();
+    const desc  = (document.getElementById('zk-edit-field-desc').value || '').trim();
+    if (!label) { showToast('展示名称不能为空', 'error'); return; }
+    if (!desc)  { showToast('字段描述不能为空', 'error'); return; }
+
+    const btn = document.getElementById('zk-edit-field-save-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons-round" style="font-size:14px!important">hourglass_top</span>保存中…';
+
+    try {
+        if (!sbClient) throw new Error('数据库未连接');
+        const { error } = await sbClient.from('vl_fields')
+            .update({ label, description: desc })
+            .eq('key', key);
+        if (error) throw error;
+
+        showToast('✅ 修改已保存', 'success');
+        zkCloseEditField();
+        const selected = zkGetSelectedOutputFields();
+        await zkLoadFieldDefs(true);
+        zkRenderOutputFields(selected);
+    } catch(e) {
+        showToast('保存失败：' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons-round" style="font-size:14px!important">save</span>保存修改';
+    }
+}
+
+// ── 内联新增字段表单开关 ───────────────────────────────
+function zkToggleAddFieldForm() {
+    const form = document.getElementById('zk-add-field-form');
+    if (!form) return;
+    const isHidden = form.style.display === 'none' || form.style.display === '';
+    form.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) {
+        // 清空输入
+        document.getElementById('zk-new-field-key').value = '';
+        document.getElementById('zk-new-field-label').value = '';
+        document.getElementById('zk-new-field-desc').value = '';
+        document.getElementById('zk-new-field-key').focus();
+    }
+}
+
+// ── 保存新字段 ─────────────────────────────────────────
+async function zkSaveNewField() {
+    const key   = (document.getElementById('zk-new-field-key').value || '').trim();
+    const label = (document.getElementById('zk-new-field-label').value || '').trim();
+    const desc  = (document.getElementById('zk-new-field-desc').value || '').trim();
+
+    if (!key)   { showToast('字段 Key 不能为空', 'error'); return; }
+    if (!label) { showToast('展示名称不能为空', 'error'); return; }
+    if (!desc)  { showToast('字段描述不能为空', 'error'); return; }
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) {
+        showToast('Key 只能包含字母、数字、下划线，且不能以数字开头', 'error'); return;
+    }
+
+    const btn = document.getElementById('zk-new-field-save-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons-round" style="font-size:14px!important">hourglass_top</span>保存中…';
+
+    try {
+        if (!sbClient) throw new Error('数据库未连接');
+        // 计算当前最大 sort 值
+        const curDefs = _zkFieldDefs || ZK_OUTPUT_FIELD_DEFS_FALLBACK;
+        const nextSort = curDefs.length + 1;
+        const { error } = await sbClient.from('vl_fields').insert({
+            key, label, description: desc, sort: nextSort, enabled: true
+        });
+        if (error) throw error;
+
+        showToast('✅ 字段已添加', 'success');
+        // 关闭表单
+        document.getElementById('zk-add-field-form').style.display = 'none';
+        // 刷新缓存 + 重渲染（保持当前勾选状态）
+        const selected = zkGetSelectedOutputFields();
+        await zkLoadFieldDefs(true);
+        // 新字段自动勾选
+        const newSelected = [...new Set([...selected, key])];
+        zkRenderOutputFields(newSelected);
+        // 同步刷新段落区字段下拉框，确保新字段立即可选
+        zkRenderSegments();
+    } catch(e) {
+        showToast('保存失败：' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons-round" style="font-size:14px!important">save</span>保存字段';
+    }
+}
+
+// ── 删除字段 ───────────────────────────────────────────
+async function zkDeleteField(key, label) {
+    if (!confirm(`确定删除字段「${label}」(${key})？\n\n已使用此字段的模板配置可能受影响。`)) return;
+    try {
+        if (!sbClient) throw new Error('数据库未连接');
+
+        // 1. 删除 vl_fields 记录
+        const { error } = await sbClient.from('vl_fields').delete().eq('key', key);
+        if (error) throw error;
+
+        // 2. 自动清理所有 qwen_prompts 里引用了此 key 的 broadcast_segments
+        const { data: allPrompts, error: fetchErr } = await sbClient
+            .from('qwen_prompts')
+            .select('id, broadcast_segments');
+        if (fetchErr) throw fetchErr;
+
+        for (const row of (allPrompts || [])) {
+            const segs = Array.isArray(row.broadcast_segments) ? row.broadcast_segments : [];
+            const hasRef = segs.some(s => s.field === key);
+            if (!hasRef) continue;
+
+            // 引用了被删字段的段落：type 改为 fixed，text 用原 prefix 兜底，避免播出空内容
+            const cleaned = segs.map(s =>
+                s.field === key
+                    ? { ...s, field: '', type: 'fixed', text: s.prefix || '' }
+                    : s
+            );
+            await sbClient.from('qwen_prompts')
+                .update({ broadcast_segments: cleaned })
+                .eq('id', row.id);
+        }
+
+        showToast('已删除字段：' + label + '（相关模板段落已自动清理）', 'success');
+
+        // 3. 刷新 UI
+        const selected = zkGetSelectedOutputFields().filter(f => f !== key);
+        await zkLoadFieldDefs(true);
+        zkRenderOutputFields(selected);
+        // 同步刷新段落区字段下拉框，移除已删除字段
+        zkRenderSegments();
+    } catch(e) {
+        showToast('删除失败：' + e.message, 'error');
+    }
+}
+
+// ── 段落数据（模态框本地状态）
+let _zkSegments = [];
+let _zkSegIdCounter = 0;
+let _zkTtsTemplates = []; // 声播模板缓存，打开弹窗时从 tts_prompts 表加载
+
+function zkDefaultSegments() {
+    return [
+        { id: ++_zkSegIdCounter, type: 'fixed',    text: '图片生成好了，感谢您的耐心等待。', field: '', prefix: '', tts_prompt_id: '' },
+        { id: ++_zkSegIdCounter, type: 'vl_field',  text: '', field: 'shortPraise', prefix: '', tts_prompt_id: '' },
+        { id: ++_zkSegIdCounter, type: 'mixed',     text: '', field: 'fourWords', prefix: '用四个字形容那就是，', tts_prompt_id: '' },
+    ];
+}
+
+function zkRenderSegments() {
+    const container = document.getElementById('zk-segments');
+    if (!container) return;
+    container.innerHTML = '';
+    _zkSegments.forEach((seg, idx) => {
+        const div = document.createElement('div');
+        div.className = 'zk-seg-card';
+        div.dataset.segId = seg.id;
+
+        const _defs = _zkFieldDefs || ZK_OUTPUT_FIELD_DEFS_FALLBACK;
+        const fieldOpts = _defs.map(f =>
+            `<option value="${f.value}" ${seg.field === f.value ? 'selected' : ''}>${f.label}（${f.value}）</option>`
+        ).join('');
+
+        div.innerHTML = `
+            <div class="zk-seg-header">
+                <span class="zk-seg-num">段落 ${idx + 1}</span>
+                <div class="zk-seg-type-tabs">
+                    <button type="button" class="zk-seg-tab ${seg.type==='fixed'?'active':''}" onclick="zkSetSegType(${seg.id},'fixed')">固定文案</button>
+                    <button type="button" class="zk-seg-tab ${seg.type==='vl_field'?'active':''}" onclick="zkSetSegType(${seg.id},'vl_field')">VL字段</button>
+                    <button type="button" class="zk-seg-tab ${seg.type==='mixed'?'active':''}" onclick="zkSetSegType(${seg.id},'mixed')">混合</button>
+                </div>
+                <button type="button" class="zk-seg-del" onclick="zkDelSegment(${seg.id})" title="删除">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="zk-seg-body">
+                ${seg.type === 'fixed' ? `
+                    <div class="zk-seg-row">
+                        <span class="zk-seg-row-label">文案</span>
+                        <input class="form-input" style="font-size:12px;padding:8px 10px" placeholder="固定播报文案…"
+                            value="${escapeHtml(seg.text)}" oninput="zkUpdateSeg(${seg.id},'text',this.value)">
+                    </div>
+                ` : ''}
+                ${seg.type === 'vl_field' ? `
+                    <div class="zk-seg-row">
+                        <span class="zk-seg-row-label">字段</span>
+                        <select class="form-input" style="font-size:12px;padding:8px 10px" onchange="zkUpdateSeg(${seg.id},'field',this.value)">
+                            ${fieldOpts}
+                        </select>
+                    </div>
+                ` : ''}
+                ${seg.type === 'mixed' ? `
+                    <div class="zk-seg-row">
+                        <span class="zk-seg-row-label">前缀</span>
+                        <input class="form-input" style="font-size:12px;padding:8px 10px" placeholder="固定前缀文字…"
+                            value="${escapeHtml(seg.prefix)}" oninput="zkUpdateSeg(${seg.id},'prefix',this.value)">
+                    </div>
+                    <div class="zk-seg-row">
+                        <span class="zk-seg-row-label">字段</span>
+                        <select class="form-input" style="font-size:12px;padding:8px 10px" onchange="zkUpdateSeg(${seg.id},'field',this.value)">
+                            ${fieldOpts}
+                        </select>
+                    </div>
+                ` : ''}
+                <div class="zk-seg-row">
+                    <span class="zk-seg-row-label">音色</span>
+                    <select class="form-input" style="font-size:12px;padding:8px 10px"
+                        ${(!_zkTtsTemplates || _zkTtsTemplates.length === 0) ? 'disabled' : ''}
+                        onchange="zkUpdateSeg(${seg.id},'tts_prompt_id',this.value)">
+                        ${zkVoiceOptions(seg.tts_prompt_id)}
+                    </select>
+                </div>
+            </div>`;
+        container.appendChild(div);
+    });
+
+    // 超过6段时隐藏新增按钮
+    const addBtn = document.getElementById('zk-add-seg-btn');
+    if (addBtn) addBtn.style.display = _zkSegments.length >= 6 ? 'none' : 'inline-flex';
+}
+
+function zkSetSegType(id, type) {
+    const seg = _zkSegments.find(s => s.id === id);
+    if (!seg) return;
+    seg.type = type;
+    zkRenderSegments();
+}
+
+function zkUpdateSeg(id, key, val) {
+    const seg = _zkSegments.find(s => s.id === id);
+    if (seg) seg[key] = val;
+}
+
+function zkAddSegment() {
+    if (_zkSegments.length >= 6) return;
+    _zkSegments.push({ id: ++_zkSegIdCounter, type: 'fixed', text: '', field: 'shortPraise', prefix: '', tts_prompt_id: '' });
+    zkRenderSegments();
+}
+
+function zkDelSegment(id) {
+    _zkSegments = _zkSegments.filter(s => s.id !== id);
+    zkRenderSegments();
+}
+
+
+// ══ 默认框架提示词 ══════════════════════════════════════════
+let ZK_DEFAULT_PROMPT_TEMPLATE = "你是一个图片分析助手。请仔细观察图片，按以下字段顺序依次输出分析结果。\n\n规则：\n- 严格按字段编号顺序输出\n- 后面的字段可以、也应该引用前面字段已经写好的内容\n- 以 JSON 格式返回，key 与字段定义完全一致\n- 用中文输出";
+
+function zkTogglePromptSection() {
+    const body = document.getElementById('zk-prompt-body');
+    const chevron = document.getElementById('zk-prompt-chevron');
+    const isOpen = body.style.display !== 'none';
+    body.style.display = isOpen ? 'none' : 'block';
+    chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+function zkUpdatePromptPreview() {
+    const val = (document.getElementById('zk-prompt').value || '').trim();
+    const preview = document.getElementById('zk-prompt-preview');
+    if (preview) preview.textContent = val ? val.slice(0, 30) + (val.length > 30 ? '…' : '') : '（未填写）';
+}
+
+function zkInsertDefaultPrompt() {
+    const ta = document.getElementById('zk-prompt');
+    if (ta.value.trim() && !confirm('当前已有内容，确定覆盖吗？')) return;
+    ta.value = ZK_DEFAULT_PROMPT_TEMPLATE;
+    zkUpdatePromptPreview();
+}
+
+function zkClearPrompt() {
+    const ta = document.getElementById('zk-prompt');
+    if (!ta.value.trim()) return;
+    if (!confirm('确定清空提示词吗？')) return;
+    ta.value = '';
+    zkUpdatePromptPreview();
+}
+
+// ══ @ 联想功能 ══════════════════════════════════════════════
+let _zkAtState = { active: false, menuId: null, taId: null, startPos: 0, query: '' };
+
+function zkHandleDescInput(ta, menuId) {
+    const val = ta.value;
+    const pos = ta.selectionStart;
+
+    // 找最近的 @ 位置
+    let atPos = -1;
+    for (let i = pos - 1; i >= 0; i--) {
+        if (val[i] === '@') { atPos = i; break; }
+        if (val[i] === ' ' || val[i] === '\n') break;
+    }
+
+    if (atPos === -1) {
+        zkHideAtMenu(menuId);
+        return;
+    }
+
+    const query = val.slice(atPos + 1, pos).toLowerCase();
+    _zkAtState = { active: true, menuId, taId: ta.id, startPos: atPos, query };
+    zkShowAtMenu(menuId, query, ta);
+}
+
+function zkHandleDescKeydown(e, menuId) {
+    if (!_zkAtState.active || _zkAtState.menuId !== menuId) return;
+    const menu = document.getElementById(menuId + '-menu');
+    if (!menu || menu.style.display === 'none') return;
+    const items = menu.querySelectorAll('.zk-at-item');
+    const activeIdx = Array.from(items).findIndex(i => i.classList.contains('active'));
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const next = Math.min(activeIdx + 1, items.length - 1);
+        items.forEach((it, i) => it.classList.toggle('active', i === next));
+        items[next] && items[next].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prev = Math.max(activeIdx - 1, 0);
+        items.forEach((it, i) => it.classList.toggle('active', i === prev));
+        items[prev] && items[prev].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+        const active = menu.querySelector('.zk-at-item.active');
+        if (active) { e.preventDefault(); active.click(); }
+    } else if (e.key === 'Escape') {
+        zkHideAtMenu(menuId);
+    }
+}
+
+function zkShowAtMenu(menuId, query, ta) {
+    const menu = document.getElementById(menuId + '-menu');
+    if (!menu) return;
+    // 只显示已勾选的字段
+    const selectedKeys = zkGetSelectedOutputFields();
+    const defs = (_zkFieldDefs || ZK_OUTPUT_FIELD_DEFS_FALLBACK).filter(f => {
+        // 必须是已勾选的字段
+        if (!selectedKeys.includes(f.value)) return false;
+        // 排除当前正在编辑的字段
+        if (menuId === 'zk-edit-field-desc') {
+            const editForm = document.getElementById('zk-edit-field-form');
+            const titleEl = editForm && editForm.querySelector('code');
+            const editingKey = titleEl ? titleEl.textContent.trim() : '';
+            if (f.value === editingKey) return false;
+        }
+        if (!query) return true;
+        return f.value.toLowerCase().includes(query) || f.label.includes(query);
+    });
+
+    if (defs.length === 0) { zkHideAtMenu(menuId); return; }
+
+    const atAllItem = `<div class="zk-at-item active zk-at-item-all" onclick="zkInsertAtAll('${menuId}')">
+        <span class="zk-at-item-key" style="color:var(--accent)">@全部</span>
+        <span class="zk-at-item-label" style="color:var(--ink-soft);font-size:11px">引用所有字段</span>
+    </div>`;
+    menu.innerHTML = atAllItem + defs.map(f =>
+        `<div class="zk-at-item" onclick="zkInsertAtRef('${f.value}','${escapeHtml(f.label)}','${menuId}')">
+            <span class="zk-at-item-key">@${f.value}</span>
+            <span class="zk-at-item-label">${escapeHtml(f.label)}</span>
+        </div>`
+    ).join('');
+    menu.style.display = 'block';
+}
+
+function zkHideAtMenu(menuId) {
+    const menu = document.getElementById(menuId + '-menu');
+    if (menu) menu.style.display = 'none';
+    _zkAtState.active = false;
+}
+
+function zkInsertAtRef(key, label, menuId) {
+    const ta = document.getElementById(_zkAtState.taId);
+    if (!ta) return;
+    const val = ta.value;
+    const before = val.slice(0, _zkAtState.startPos);
+    const after = val.slice(ta.selectionStart);
+    // 插入格式：@key（只用 key，不带展示名，避免 AI 输出角色名）
+    const insertion = `@${key}`;
+    ta.value = before + insertion + after;
+    const newPos = before.length + insertion.length;
+    ta.setSelectionRange(newPos, newPos);
+    ta.focus();
+    zkHideAtMenu(menuId);
+}
+
+// ── @全部：把菜单内所有字段一次性插入，格式 @key1、@key2… ──
+function zkInsertAtAll(menuId) {
+    const ta = document.getElementById(_zkAtState.taId);
+    if (!ta) return;
+    const menu = document.getElementById(menuId + '-menu');
+    const items = menu ? menu.querySelectorAll('.zk-at-item:not(.zk-at-item-all)') : [];
+    if (!items.length) { zkHideAtMenu(menuId); return; }
+    const insertion = Array.from(items).map(el => {
+        const keyEl = el.querySelector('.zk-at-item-key');
+        return keyEl ? keyEl.textContent.trim() : ''; // 已经是 "@key" 格式
+    }).filter(Boolean).join('、');
+    const before = ta.value.slice(0, _zkAtState.startPos);
+    const after  = ta.value.slice(ta.selectionStart);
+    ta.value = before + insertion + after;
+    const newPos = before.length + insertion.length;
+    ta.setSelectionRange(newPos, newPos);
+    ta.focus();
+    zkHideAtMenu(menuId);
+}
+
+// 点击外部关闭 @ 菜单
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.zk-at-menu') && !e.target.closest('textarea')) {
+        document.querySelectorAll('.zk-at-menu').forEach(m => m.style.display = 'none');
+        _zkAtState.active = false;
+    }
+});
+
+function zkGetSelectedOutputFields() {
+    return Array.from(document.querySelectorAll('.zk-field-cb:checked')).map(cb => cb.value);
+}
+
+// zkSetOutputFields：直接重渲染复选框列表（字段定义已在 _zkFieldDefs 中）
+function zkSetOutputFields(fields) {
+    zkRenderOutputFields(fields);
+}
+
 async function loadZhiKua() {
     const listEl = document.getElementById('zk-list');
     if (!listEl) return;
@@ -4121,11 +5734,34 @@ async function loadZhiKua() {
         const { data, error } = await sbClient.from('qwen_prompts').select('*').order('created_at', { ascending: false });
         if (error) throw error;
         if (!data || data.length === 0) {
-            listEl.innerHTML = `<div style="text-align:center;padding:40px;color:var(--ink-soft)"><span class="material-icons-round" style="font-size:36px!important;opacity:.3">auto_awesome</span><p style="margin-top:10px;font-size:13px">还没有 Prompt，点击「新增」开始配置</p></div>`;
+            listEl.innerHTML = `<div style="text-align:center;padding:40px;color:var(--ink-soft)"><span class="material-icons-round" style="font-size:36px!important;opacity:.3">auto_awesome</span><p style="margin-top:10px;font-size:13px">还没有模板，点击「新增模板」开始配置</p></div>`;
             return;
         }
+        // 加载声播模板名称索引，用于卡片摘要展示
+        let ttsNameMap = {};
+        try {
+            const { data: ttsData } = await sbClient.from('tts_prompts').select('id, name');
+            if (ttsData) ttsData.forEach(t => { ttsNameMap[t.id] = t.name; });
+        } catch(e) { /* 加载失败时静默处理，仅影响摘要显示 */ }
+
         listEl.innerHTML = '';
         data.forEach(row => {
+            const segs = Array.isArray(row.broadcast_segments) ? row.broadcast_segments : [];
+            const fields = Array.isArray(row.output_fields) ? row.output_fields : [];
+            const segSummary = segs.length > 0
+                ? segs.map((s, i) => {
+                    const typeLabel = s.type==='fixed' ? '固定' : s.type==='vl_field' ? s.field : s.field+'(混合)';
+                    // 显示模板名：优先 tts_prompt_id，兼容旧 voice 字段
+                    const ttsLabel = s.tts_prompt_id && ttsNameMap[s.tts_prompt_id]
+                        ? `·${ttsNameMap[s.tts_prompt_id]}`
+                        : (s.voice ? `·${s.voice}` : '');
+                    return `<span style="background:var(--surface2);padding:1px 6px;border-radius:5px;font-size:10px;font-weight:600">${i+1}.${typeLabel}${ttsLabel}</span>`;
+                }).join(' ')
+                : '<span style="opacity:.4;font-size:11px">未配置段落</span>';
+            const fieldsSummary = fields.length > 0
+                ? fields.map(f => `<span style="background:var(--accent-light);color:var(--accent);padding:1px 6px;border-radius:5px;font-size:10px;font-weight:700">${f}</span>`).join(' ')
+                : '<span style="opacity:.4;font-size:11px">未配置字段</span>';
+
             const card = document.createElement('div');
             card.className = 'zk-card' + (row.enabled ? ' enabled-card' : '');
             card.innerHTML = `
@@ -4134,6 +5770,12 @@ async function loadZhiKua() {
                     ${row.enabled ? '<span class="zk-enabled-badge">✓ 已启用</span>' : ''}
                 </div>
                 <div class="zk-card-prompt">${escapeHtml(row.prompt)}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;align-items:center">
+                    <span style="font-size:10px;font-weight:700;color:var(--ink-soft);margin-right:2px">字段：</span>${fieldsSummary}
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+                    <span style="font-size:10px;font-weight:700;color:var(--ink-soft);margin-right:2px">段落：</span>${segSummary}
+                </div>
                 <div class="zk-card-footer">
                     <div class="toggle-row" style="flex:1;padding:8px 10px">
                         <div class="toggle-label">启用<small>同时只能启用一个</small></div>
@@ -4152,7 +5794,7 @@ async function loadZhiKua() {
             listEl.appendChild(card);
         });
     } catch(e) {
-        listEl.innerHTML = `<div style="color:#b91c1c;padding:16px;background:#fff3f3;border:1px solid #fca5a5;border-radius:12px;font-size:12px;word-break:break-all;line-height:1.8">u9519u8befuff1a${e.message}<br>code: ${e.code||""}<br>hint: ${e.hint||""}<br>details: ${e.details||""}</div>`;
+        listEl.innerHTML = `<div style="color:#b91c1c;padding:16px;background:#fff3f3;border:1px solid #fca5a5;border-radius:12px;font-size:12px;word-break:break-all;line-height:1.8">错误：${e.message}<br>code: ${e.code||""}<br>hint: ${e.hint||""}<br>details: ${e.details||""}</div>`;
     }
 }
 
@@ -4160,13 +5802,67 @@ function escapeHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function openZhiKuaModal(row) {
+async function openZhiKuaModal(row) {
     zkEditingId = row ? row.id : null;
-    document.getElementById('zk-modal-title').textContent = row ? '编辑 Prompt' : '新增 Prompt';
+
+    // 先显示弹窗（带 loading 遮罩），避免用户以为没反应
+    const modal = document.getElementById('zk-modal');
+    const modalBox = modal.querySelector('.modal-card');
+    let loadingMask = document.getElementById('zk-modal-loading');
+    if (!loadingMask) {
+        loadingMask = document.createElement('div');
+        loadingMask.id = 'zk-modal-loading';
+        loadingMask.style.cssText = 'position:absolute;inset:0;background:rgba(255,255,255,.82);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:10;border-radius:inherit;gap:10px;font-size:13px;font-weight:600;color:var(--ink-soft)';
+        loadingMask.innerHTML = '<span class="material-icons-round" style="font-size:22px!important;animation:spin 1s linear infinite;color:var(--accent)">sync</span>数据加载中\u2026';
+        modalBox.style.position = 'relative';
+        modalBox.appendChild(loadingMask);
+    }
+    loadingMask.style.display = 'flex';
+    modal.classList.add('show');
+
+    document.getElementById('zk-modal-title').textContent = row ? '编辑智夸模板' : '新增智夸模板';
     document.getElementById('zk-name').value = row ? row.name : '';
     document.getElementById('zk-prompt').value = row ? row.prompt : '';
+    // 折叠区初始化：有内容则展示预览，无内容则折叠
+    const _promptBody = document.getElementById('zk-prompt-body');
+    const _promptChevron = document.getElementById('zk-prompt-chevron');
+    if (_promptBody) _promptBody.style.display = 'none';
+    if (_promptChevron) _promptChevron.style.transform = '';
+    zkUpdatePromptPreview();
     document.getElementById('zk-enabled').checked = row ? !!row.enabled : false;
-    document.getElementById('zk-modal').classList.add('show');
+
+    // 并行加载：字段定义 + 声播模板
+    const fields = (row && Array.isArray(row.output_fields)) ? row.output_fields : ['score','shortPraise','fourWords'];
+    _zkTtsTemplates = [];
+    await Promise.all([
+        zkLoadFieldDefs(),
+        (async () => {
+            if (!sbClient) return;
+            try {
+                const { data: ttsData, error: ttsError } = await sbClient.from('tts_prompts').select('id, name').order('created_at', { ascending: true });
+                if (!ttsError && ttsData) _zkTtsTemplates = ttsData;
+            } catch(e) { console.warn('加载声播模板失败', e); }
+        })()
+    ]);
+
+    zkRenderOutputFields(fields);
+
+    // 恢复段落配置（兼容旧数据：若段落有 voice 字段但无 tts_prompt_id，保留 voice 字段，但不映射为 tts_prompt_id）
+    _zkSegIdCounter = 0;
+    if (row && Array.isArray(row.broadcast_segments) && row.broadcast_segments.length > 0) {
+        _zkSegments = row.broadcast_segments.map(s => {
+            const seg = { ...s, id: ++_zkSegIdCounter };
+            // 旧数据兼容：若有 voice 但无 tts_prompt_id，则 tts_prompt_id 为空（不自动映射）
+            if (!seg.tts_prompt_id) seg.tts_prompt_id = '';
+            return seg;
+        });
+    } else {
+        _zkSegments = zkDefaultSegments();
+    }
+    zkRenderSegments();
+
+    // 移除 loading 遮罩
+    loadingMask.style.display = 'none';
 }
 
 function closeZhiKuaModal() {
@@ -4175,9 +5871,27 @@ function closeZhiKuaModal() {
 }
 
 async function editZhiKua(id) {
-    const { data, error } = await sbClient.from('qwen_prompts').select('*').eq('id', id).single();
-    if (error) { showToast('获取失败：' + error.message, 'error'); return; }
-    openZhiKuaModal(data);
+    // 找到触发的按钮，给它加 loading 状态
+    const allBtns = document.querySelectorAll('.zk-card .btn-ghost.btn-sm');
+    let btn = null;
+    allBtns.forEach(b => { if (b.getAttribute('onclick') && b.getAttribute('onclick').includes(id)) btn = b; });
+    const origHTML = btn ? btn.innerHTML : null;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-icons-round" style="font-size:14px!important;animation:spin 1s linear infinite">sync</span>加载中\u2026';
+    }
+    try {
+        const { data, error } = await sbClient.from('qwen_prompts').select('*').eq('id', id).single();
+        if (error) throw error;
+        await openZhiKuaModal(data);
+    } catch(e) {
+        showToast('获取失败：' + e.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHTML || '<span class="material-icons-round">edit</span>编辑';
+        }
+    }
 }
 
 async function saveZhiKuaPrompt() {
@@ -4186,22 +5900,53 @@ async function saveZhiKuaPrompt() {
     const enabled = document.getElementById('zk-enabled').checked;
     if (!name || !prompt) { showToast('名称和 Prompt 不能为空', 'error'); return; }
 
+    // 收集输出字段
+    const output_fields = zkGetSelectedOutputFields();
+    if (output_fields.length === 0) { showToast('至少勾选一个输出字段', 'error'); return; }
+
+    // 收集段落（从当前 _zkSegments，但以 DOM 里最新 value 为准）
+    document.querySelectorAll('[data-seg-id]').forEach(card => {
+        const id = parseInt(card.dataset.segId);
+        const seg = _zkSegments.find(s => s.id === id);
+        if (!seg) return;
+        const textInput = card.querySelector('input[oninput*="text"]');
+        const prefixInput = card.querySelector('input[oninput*="prefix"]');
+        if (textInput)  seg.text   = textInput.value;
+        if (prefixInput) seg.prefix = prefixInput.value;
+    });
+
+    // 清理 id 字段（不需要存库），同时去掉旧 voice 字段，只保留 tts_prompt_id
+    const broadcast_segments = _zkSegments.map(({ id: _id, voice: _voice, ...rest }) => rest);
+
     const btn = document.getElementById('zk-save-btn');
     btn.disabled = true;
     btn.innerHTML = '<span class="material-icons-round" style="font-size:16px!important">hourglass_top</span>保存中…';
 
     try {
-        // 如果启用，先关闭其他所有
         if (enabled) {
             await sbClient.from('qwen_prompts').update({ enabled: false }).neq('id', zkEditingId || '00000000-0000-0000-0000-000000000000');
         }
+        const payload = { name, prompt, enabled, output_fields, broadcast_segments };
         if (zkEditingId) {
-            const { error } = await sbClient.from('qwen_prompts').update({ name, prompt, enabled }).eq('id', zkEditingId);
+            const { error } = await sbClient.from('qwen_prompts').update(payload).eq('id', zkEditingId);
             if (error) throw error;
         } else {
-            const { error } = await sbClient.from('qwen_prompts').insert({ name, prompt, enabled });
+            const { error } = await sbClient.from('qwen_prompts').insert(payload);
             if (error) throw error;
         }
+
+        // 第4步：联动开启用到的声播模板（只开启，不关闭其他）
+        const usedTtsIds = [...new Set(
+            broadcast_segments
+                .map(s => s.tts_prompt_id)
+                .filter(id => !!id)
+        )];
+        if (usedTtsIds.length > 0 && sbClient) {
+            for (const ttsId of usedTtsIds) {
+                await sbClient.from('tts_prompts').update({ enabled: true }).eq('id', ttsId);
+            }
+        }
+
         showToast('✅ 保存成功', 'success');
         closeZhiKuaModal();
         await loadZhiKua();
@@ -4216,7 +5961,6 @@ async function saveZhiKuaPrompt() {
 async function toggleZkEnabled(id, newVal) {
     try {
         if (newVal) {
-            // 关闭其他所有
             await sbClient.from('qwen_prompts').update({ enabled: false }).neq('id', id);
         }
         await sbClient.from('qwen_prompts').update({ enabled: newVal }).eq('id', id);
@@ -4229,19 +5973,297 @@ async function toggleZkEnabled(id, newVal) {
 }
 
 async function deleteZhiKua(id) {
-    if (!confirm('确定删除这条 Prompt 吗？')) return;
+    if (!confirm('确定删除这条模板吗？')) return;
     const { error } = await sbClient.from('qwen_prompts').delete().eq('id', id);
     if (error) { showToast('删除失败：' + error.message, 'error'); return; }
     showToast('已删除', 'success');
     await loadZhiKua();
 }
 
+// ── 内置预设数据（第5步：完整配置，含 output_fields + broadcast_segments）──
+const ZK_PRESETS = [
+    {
+        name: '🌸 温柔自然（默认）',
+        prompt: '你是一名高情商摄影点评师，擅长用温暖自然的语言点评照片。请分析这张照片，点评表情、姿势、构图、氛围感，语言自然温暖，不要AI感。',
+        output_fields: ['score', 'shortPraise', 'fourWords'],
+        broadcast_segments: [
+            { type: 'fixed',    text: '图片生成好了，感谢您的耐心等待。', tts_prompt_id: '' },
+            { type: 'vl_field', field: 'shortPraise', tts_prompt_id: '' },
+            { type: 'mixed',    prefix: '用四个字形容那就是，', field: 'fourWords', tts_prompt_id: '' },
+        ],
+    },
+    {
+        name: '🎬 高级电影感',
+        prompt: '你是一名高端电影摄影师，用电影镜头语言点评这张照片，分析光影、构图、情绪张力，高级简洁，有电影旁白质感。',
+        output_fields: ['score', 'shortPraise', 'fourWords'],
+        broadcast_segments: [
+            { type: 'fixed',    text: '画面已就绪，请欣赏您的专属电影时刻。', tts_prompt_id: '' },
+            { type: 'vl_field', field: 'shortPraise', tts_prompt_id: '' },
+            { type: 'mixed',    prefix: '如果用一句话定格这帧画面，那就是——', field: 'fourWords', tts_prompt_id: '' },
+        ],
+    },
+    {
+        name: '🍭 韩系甜妹',
+        prompt: '你是一名韩系时尚博主，用活泼甜美的语气点评这张照片，关注颜值状态和氛围感，甜美活泼，有亲切感，不油腻。',
+        output_fields: ['score', 'shortPraise', 'fourWords'],
+        broadcast_segments: [
+            { type: 'fixed',    text: '哇，照片出来了！快来看看！', tts_prompt_id: '' },
+            { type: 'vl_field', field: 'shortPraise', tts_prompt_id: '' },
+            { type: 'mixed',    prefix: '今天的你啊，简直就是——', field: 'fourWords', tts_prompt_id: '' },
+        ],
+    },
+    {
+        name: '📚 成语夸奖',
+        prompt: '你是一名国学文化达人，善用成语和古典意境点评这张照片，优雅有文化感，至少使用1-2个成语，雅俗共赏。',
+        output_fields: ['score', 'shortPraise', 'fourWords'],
+        broadcast_segments: [
+            { type: 'fixed',    text: '佳作已成，请听雅评。', tts_prompt_id: '' },
+            { type: 'vl_field', field: 'shortPraise', tts_prompt_id: '' },
+            { type: 'mixed',    prefix: '此照风采，可谓——', field: 'fourWords', tts_prompt_id: '' },
+        ],
+    },
+    {
+        name: '🎉 节日祝福',
+        prompt: '你是一名节日氛围专家，结合节日主题点评这张照片并送上祝福，温馨喜庆，融入节日温馨感。',
+        output_fields: ['score', 'shortPraise', 'fourWords'],
+        broadcast_segments: [
+            { type: 'fixed',    text: '节日快乐！您的专属纪念照来啦！', tts_prompt_id: '' },
+            { type: 'vl_field', field: 'shortPraise', tts_prompt_id: '' },
+            { type: 'mixed',    prefix: '愿这份美好化作——', field: 'fourWords', tts_prompt_id: '' },
+        ],
+    },
+    {
+        name: '🌹 浪漫氛围',
+        prompt: '你是一名浪漫派摄影诗人，用诗意浪漫的语言点评这张照片的氛围感和情绪，语言优美富有诗意，有意境美。',
+        output_fields: ['score', 'shortPraise', 'fourWords'],
+        broadcast_segments: [
+            { type: 'fixed',    text: '光影流转，一帧浪漫为您定格。', tts_prompt_id: '' },
+            { type: 'vl_field', field: 'shortPraise', tts_prompt_id: '' },
+            { type: 'mixed',    prefix: '此刻的你，恰如——', field: 'fourWords', tts_prompt_id: '' },
+        ],
+    },
+    {
+        name: '⚡ 元气少女',
+        prompt: '你是一名元气满满的摄影师，用充满活力的语气点评这张照片，关注活力感和朝气，充满正能量，有感染力。',
+        output_fields: ['score', 'shortPraise', 'fourWords'],
+        broadcast_segments: [
+            { type: 'fixed',    text: '超级无敌可爱的照片冲出来啦！', tts_prompt_id: '' },
+            { type: 'vl_field', field: 'shortPraise', tts_prompt_id: '' },
+            { type: 'mixed',    prefix: '你今天的状态真的是——', field: 'fourWords', tts_prompt_id: '' },
+        ],
+    },
+    {
+        name: '📷 专业摄影感',
+        prompt: '你是一名专业摄影评论家，从摄影专业角度分析这张照片的光线、构图、景深、色调，使用摄影专业术语但不晦涩。',
+        output_fields: ['score', 'shortPraise', 'fourWords', 'comment'],
+        broadcast_segments: [
+            { type: 'fixed',    text: '影像分析完成，以下是专业评价。', tts_prompt_id: '' },
+            { type: 'vl_field', field: 'comment',     tts_prompt_id: '' },
+            { type: 'mixed',    prefix: '综合评分摘要：', field: 'shortPraise', tts_prompt_id: '' },
+        ],
+    },
+];
+
+function renderZkPresets() {
+    const el = document.getElementById('zk-presets');
+    if (!el) return;
+    el.innerHTML = '';
+
+    // 批量初始化按钮
+    const batchRow = document.createElement('div');
+    batchRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--accent-light);border:1.5px solid rgba(91,79,255,.2);border-radius:12px;gap:10px;margin-bottom:6px';
+    batchRow.innerHTML = `
+        <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:1px">一键导入全部 ${ZK_PRESETS.length} 套预设</div>
+            <div style="font-size:11px;color:var(--ink-soft)">含完整播报方案，重名将跳过，不影响已有模板</div>
+        </div>
+        <button class="btn-primary btn-sm" id="zk-batch-import-btn" onclick="zkBatchImportPresets()" style="white-space:nowrap;flex-shrink:0">
+            <span class="material-icons-round" style="font-size:14px!important">upload</span>批量导入
+        </button>`;
+    el.appendChild(batchRow);
+
+    ZK_PRESETS.forEach((p, idx) => {
+        const segCount = p.broadcast_segments ? p.broadcast_segments.length : 0;
+        const fieldTags = (p.output_fields || []).map(f =>
+            `<span style="background:var(--accent-light);color:var(--accent);padding:1px 5px;border-radius:4px;font-size:9px;font-weight:700">${f}</span>`
+        ).join(' ');
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#f8f8fc;border-radius:12px;gap:10px;cursor:default';
+        row.innerHTML = `
+            <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:3px">${escapeHtml(p.name)}</div>
+                <div style="font-size:11px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px">${escapeHtml(p.prompt.substring(0,52))}…</div>
+                <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+                    ${fieldTags}
+                    <span style="background:var(--surface2);color:var(--ink-soft);padding:1px 5px;border-radius:4px;font-size:9px;font-weight:600">${segCount}段播报</span>
+                </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+                <button class="btn-primary btn-sm" style="font-size:11px;padding:5px 10px;white-space:nowrap" onclick='zkImportPresetToDB(${idx})'>
+                    <span class="material-icons-round" style="font-size:12px!important">cloud_upload</span>导入库
+                </button>
+                <button class="btn-ghost btn-sm" style="font-size:11px;padding:5px 10px;white-space:nowrap" onclick='zkImportPresetToModal(${idx})'>
+                    <span class="material-icons-round" style="font-size:12px!important">edit</span>编辑后存
+                </button>
+            </div>`;
+        el.appendChild(row);
+    });
+}
+
+// 「导入库」：直接写入数据库（跳过同名）
+async function zkImportPresetToDB(idx) {
+    const p = ZK_PRESETS[idx];
+    if (!p) return;
+    if (!sbClient) { showToast('数据库未连接', 'error'); return; }
+
+    // 检查是否已有同名
+    const { data: existing } = await sbClient.from('qwen_prompts').select('id').eq('name', p.name).limit(1);
+    if (existing && existing.length > 0) {
+        showToast(`「${p.name}」已存在，跳过`, 'error');
+        return;
+    }
+
+    const { error } = await sbClient.from('qwen_prompts').insert({
+        name: p.name,
+        prompt: p.prompt,
+        enabled: false,
+        output_fields: p.output_fields,
+        broadcast_segments: p.broadcast_segments,
+    });
+    if (error) { showToast('导入失败：' + error.message, 'error'); return; }
+    showToast(`✅ 「${p.name}」已导入`, 'success');
+    await loadZhiKua();
+}
+
+// 「编辑后存」：填入弹窗供修改
+function zkImportPresetToModal(idx) {
+    const p = ZK_PRESETS[idx];
+    if (!p) return;
+    openZhiKuaModal({
+        id: null,
+        name: p.name,
+        prompt: p.prompt,
+        enabled: false,
+        output_fields: p.output_fields,
+        broadcast_segments: p.broadcast_segments,
+    });
+    // openZhiKuaModal 会用 row.id=null → 视为新建
+    zkEditingId = null;
+    showToast('预设已填入，修改后点保存', 'success');
+}
+
+// 批量导入全部预设（跳过同名）
+async function zkBatchImportPresets() {
+    if (!sbClient) { showToast('数据库未连接', 'error'); return; }
+    const btn = document.getElementById('zk-batch-import-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-icons-round" style="font-size:14px!important;animation:spin 1s linear infinite">refresh</span>导入中…'; }
+
+    try {
+        // 获取已有名称列表
+        const { data: existing } = await sbClient.from('qwen_prompts').select('name');
+        const existingNames = new Set((existing || []).map(r => r.name));
+
+        const toInsert = ZK_PRESETS
+            .filter(p => !existingNames.has(p.name))
+            .map(p => ({
+                name: p.name,
+                prompt: p.prompt,
+                enabled: false,
+                output_fields: p.output_fields,
+                broadcast_segments: p.broadcast_segments,
+            }));
+
+        if (toInsert.length === 0) {
+            showToast('全部预设已存在，无需重复导入', 'error');
+            return;
+        }
+
+        const { error } = await sbClient.from('qwen_prompts').insert(toInsert);
+        if (error) throw error;
+
+        showToast(`✅ 成功导入 ${toInsert.length} 套预设${toInsert.length < ZK_PRESETS.length ? `（跳过 ${ZK_PRESETS.length - toInsert.length} 个同名）` : ''}`, 'success');
+        await loadZhiKua();
+    } catch(e) {
+        showToast('批量导入失败：' + e.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-icons-round" style="font-size:14px!important">upload</span>批量导入'; }
+    }
+}
+
+// 旧的 importPreset 兜底（兼容其他地方可能调用）
+function importPreset(p) {
+    openZhiKuaModal();
+    document.getElementById('zk-name').value = p.name;
+    document.getElementById('zk-prompt').value = p.prompt;
+    showToast('已导入预设，可修改后保存', 'success');
+}
+
 // 自动加载智夸页
 const _origNavTo2 = window.navTo;
 window.navTo = function(page, btnEl) {
     _origNavTo2(page, btnEl);
-    if (page === 'zhi-kua') loadZhiKua();
+    if (page === 'zhi-kua') { loadZhiKua(); loadGlobalPrompt(); }
 };
+
+// ══ 全局提示词：读取 / 保存（存储在 app_config 表，key='global_system_prompt'）══
+
+async function loadGlobalPrompt() {
+    const ta     = document.getElementById('global-prompt-textarea');
+    const status = document.getElementById('global-prompt-status');
+    const count  = document.getElementById('global-prompt-charcount');
+    if (!ta) return;
+    if (!sbClient) { status.textContent = '⚠️ 数据库未连接'; return; }
+
+    status.textContent = '加载中…';
+    try {
+        const { data, error } = await sbClient
+            .from('app_config')
+            .select('value')
+            .eq('key', 'global_system_prompt')
+            .maybeSingle();
+        if (error) throw error;
+        const val = data?.value ?? '';
+        ta.value = val;
+        count.textContent = val.length + ' 字';
+        status.textContent = data ? '✅ 已加载' : '（尚未设置，留空则不生效）';
+        // 同步到“插入默认框架”
+        if (val) ZK_DEFAULT_PROMPT_TEMPLATE = val;
+        // 实时字数
+        ta.oninput = () => { count.textContent = ta.value.length + ' 字'; };
+    } catch(e) {
+        status.textContent = '⚠️ 加载失败：' + e.message;
+    }
+}
+
+async function saveGlobalPrompt() {
+    const ta     = document.getElementById('global-prompt-textarea');
+    const status = document.getElementById('global-prompt-status');
+    const btn    = document.getElementById('global-prompt-save-btn');
+    if (!ta || !sbClient) { showToast('数据库未连接', 'error'); return; }
+
+    const val = ta.value.trim();
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons-round" style="font-size:15px!important">hourglass_top</span>保存中…';
+    status.textContent = '保存中…';
+
+    try {
+        // upsert：有则更新，无则插入
+        const { error } = await sbClient
+            .from('app_config')
+            .upsert({ key: 'global_system_prompt', value: val }, { onConflict: 'key' });
+        if (error) throw error;
+        showToast('✅ 全局提示词已保存', 'success');
+        status.textContent = '✅ 已保存 · ' + new Date().toLocaleTimeString('zh-CN');
+        // 同步到“插入默认框架”
+        ZK_DEFAULT_PROMPT_TEMPLATE = val;
+    } catch(e) {
+        showToast('保存失败：' + e.message, 'error');
+        status.textContent = '❌ 保存失败：' + e.message;
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons-round" style="font-size:15px!important">save</span>保存';
+    }
+}
 
 // ══ Lightbox：AI 智夸按钮 ══════════════════════════
 
@@ -4251,21 +6273,24 @@ async function runQwenOnLightbox() {
     const imageUrl = lb.dataset.hdUrl;
     if (!imageUrl) { showToast('无图片链接', 'error'); return; }
 
-    const btn     = document.getElementById('gen-lb-qwen-btn');
-    const resultEl = document.getElementById('gen-lb-qwen-result');
-    const contentEl = document.getElementById('gen-lb-qwen-content');
+    const lbBtn    = document.getElementById('gen-lb-qwen-btn');
+    const regenBtn = document.getElementById('qwen-regen-btn');
+    const drawerBody = document.getElementById('qwen-drawer-body');
 
-    btn.disabled = true;
-    btn.innerHTML = '<span class="material-icons-round" style="font-size:15px!important">hourglass_top</span>';
-    resultEl.style.display = 'none';
+    if (lbBtn) { lbBtn.disabled = true; lbBtn.innerHTML = '<span class="material-icons-round" style="font-size:15px!important">hourglass_top</span><span>识别中…</span>'; }
+    if (regenBtn) { regenBtn.disabled = true; regenBtn.innerHTML = '<span class="material-icons-round" style="font-size:16px!important;animation:spin 1s linear infinite">refresh</span> 识别中…'; }
+    if (drawerBody) drawerBody.innerHTML = '<div class="qwen-empty"><span class="material-icons-round" style="font-size:36px;display:block;margin-bottom:8px;color:#d0d0da;animation:spin 1s linear infinite">refresh</span>正在识别…</div>';
 
     try {
-        // 取当前启用的 Prompt
         const { data: prompts } = await sbClient.from('qwen_prompts').select('*').eq('enabled', true).limit(1);
         const activePrompt = prompts && prompts.length > 0 ? prompts[0] : null;
 
         const body = { imageUrl, generateVoice: false };
-        if (activePrompt) body.customPrompt = activePrompt.prompt;
+        // 不传 customPrompt，让 TS 自己从 DB 读模板（传了会走旧版兼容分支，broadcastSegments 会是空数组）
+
+        const qwenStart = new Date();
+        lb.dataset.qwenStartedAt = qwenStart.toISOString();
+        lb.dataset.qwenEndedAt   = '';
 
         const res = await fetch(SUPABASE_URL + '/functions/v1/qwen-vision', {
             method: 'POST',
@@ -4274,33 +6299,815 @@ async function runQwenOnLightbox() {
         });
         const data = await res.json();
 
+        const qwenEnd = new Date();
+        lb.dataset.qwenEndedAt = qwenEnd.toISOString();
+
         if (data.success) {
-            let html = '';
-            if (data.score !== undefined) html += `<div style="display:flex;gap:8px;align-items:center"><span style="font-weight:700;color:var(--accent);min-width:48px;font-size:11px">评分</span><span style="background:var(--accent);color:#fff;border-radius:6px;padding:1px 8px;font-weight:700;font-size:11px">${data.score} 分</span></div>`;
-            if (data.comment)     html += `<div style="display:flex;gap:8px"><span style="font-weight:700;color:var(--accent);min-width:48px;flex-shrink:0;font-size:11px">点评</span><span style="color:var(--ink);font-size:12px;line-height:1.6">${data.comment}</span></div>`;
-            if (data.shortPraise) html += `<div style="display:flex;gap:8px"><span style="font-weight:700;color:var(--accent);min-width:48px;flex-shrink:0;font-size:11px">夸奖</span><span style="color:var(--ink);font-size:12px;line-height:1.6">${data.shortPraise}</span></div>`;
-            if (data.voiceText)   html += `<div style="display:flex;gap:8px"><span style="font-weight:700;color:var(--accent);min-width:48px;flex-shrink:0;font-size:11px">语音稿</span><span style="color:var(--ink-soft);font-size:11px;line-height:1.6">${data.voiceText}</span></div>`;
-            // 如果没有结构化字段，显示原始文本
-            if (!html && data.text) html = `<div style="font-size:12px;color:var(--ink);line-height:1.7;white-space:pre-wrap">${data.text}</div>`;
-            contentEl.innerHTML = html || '<div style="font-size:12px;color:var(--ink-soft)">（无内容）</div>';
-            resultEl.style.display = 'block';
+            const score   = data.score   ?? null;
+            const comment = data.comment || '';
+            const praise  = data.shortPraise || '';
+            // 兼容旧字段 voiceText，新版用多段播报
+            const voice   = data.voiceText || '';
+
+            lb.dataset.qwenScore     = score != null ? score : '';
+            lb.dataset.qwenComment   = comment;
+            lb.dataset.qwenPraise    = praise;
+            lb.dataset.qwenVoice     = voice;
+            lb.dataset.qwenStartedAt = qwenStart.toISOString();
+            lb.dataset.qwenEndedAt   = qwenEnd.toISOString();
+            // 存完整 VL 返回供多段 TTS 使用
+            lb.dataset.qwenData      = JSON.stringify(data);
+            // 存播报方案：优先用 TS 返回的 broadcastSegments（TS 自己从 DB 读取，最准确）
+            // 备用：本地 activePrompt.broadcast_segments
+            const _effectiveSegs = (Array.isArray(data.broadcastSegments) && data.broadcastSegments.length > 0)
+                ? data.broadcastSegments
+                : (activePrompt && Array.isArray(activePrompt.broadcast_segments) && activePrompt.broadcast_segments.length > 0
+                    ? activePrompt.broadcast_segments : null);
+            lb.dataset.broadcastSegments = _effectiveSegs ? JSON.stringify(_effectiveSegs) : '';
+
+            // 解析播报方案和 VL 数据，传入 drawer 渲染
+            const _segs = _effectiveSegs;
+            const _vld  = data || null;
+            if (drawerBody) drawerBody.innerHTML = buildQwenDrawerHTML(score, comment, praise, voice, qwenStart.toISOString(), qwenEnd.toISOString(), lb.dataset.ttsStartedAt || '', lb.dataset.ttsEndedAt || '', _segs, _vld);
+            const drawer = document.getElementById('qwen-drawer');
+            if (drawer && !drawer.classList.contains('show')) drawer.classList.add('show');
+
+            // ── 多段顺序播报 TTS ──────────────────────────────
+            if (_effectiveSegs && _effectiveSegs.length > 0) {
+                playMultiSegmentTTS(_effectiveSegs, data, lb);
+            } else if (voice) {
+                // 兜底：旧逻辑单段播放
+                playSingleLegacyTTS(voice, lb);
+            }
+
+            // ── 写回 generations 表 ──
+            const curSessionId = lb.dataset.sessionId;
+            if (sbClient && curSessionId) {
+                sbClient.from('generations').update({
+                    qwen_score:      score,
+                    qwen_comment:    comment    || null,
+                    qwen_praise:     praise     || null,
+                    qwen_voice:      voice      || null,
+                    qwen_started_at: qwenStart.toISOString(),
+                    qwen_ended_at:   qwenEnd.toISOString(),
+                }).eq('session_id', curSessionId).then(() => {});
+            }
+
             showToast('✅ AI 点评完成', 'success');
+            if (lbBtn) { lbBtn.disabled = false; lbBtn.innerHTML = '<span class="material-icons-round">auto_awesome</span><span>查看点评</span>'; }
         } else {
-            contentEl.innerHTML = `<div style="color:var(--danger);font-size:12px">${data.error || '接口返回错误'}</div>`;
-            resultEl.style.display = 'block';
+            if (drawerBody) drawerBody.innerHTML = `<div class="qwen-empty" style="color:var(--danger)">${data.error || '接口返回错误'}</div>`;
+            const drawer = document.getElementById('qwen-drawer');
+            if (drawer && !drawer.classList.contains('show')) drawer.classList.add('show');
             showToast('❌ ' + (data.error || '点评失败'), 'error');
+            if (lbBtn) { lbBtn.disabled = false; lbBtn.innerHTML = '<span class="material-icons-round">auto_awesome</span><span>生成点评</span>'; }
         }
     } catch(e) {
-        contentEl.innerHTML = `<div style="color:var(--danger);font-size:12px">请求失败：${e.message}</div>`;
-        resultEl.style.display = 'block';
+        if (drawerBody) drawerBody.innerHTML = `<div class="qwen-empty" style="color:var(--danger)">请求失败：${e.message}</div>`;
+        const drawer = document.getElementById('qwen-drawer');
+        if (drawer && !drawer.classList.contains('show')) drawer.classList.add('show');
         showToast('❌ ' + e.message, 'error');
+        if (lbBtn) { lbBtn.disabled = false; lbBtn.innerHTML = '<span class="material-icons-round">auto_awesome</span><span>生成点评</span>'; }
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<span class="material-icons-round">auto_awesome</span>';
+        if (regenBtn) { regenBtn.disabled = false; regenBtn.innerHTML = '<span class="material-icons-round" style="font-size:16px!important">refresh</span>重新识别'; }
     }
 }
+
+// ══ 第4步：多段并发合成、顺序播放 ══════════════════════
+
+/**
+ * 根据 broadcast_segments 配置和 VL 返回数据，
+ * 并发发起所有段落的 TTS 合成，然后按顺序播放。
+ */
+async function playMultiSegmentTTS(segments, vlData, lb) {
+    if (!segments || segments.length === 0) return;
+
+    // 1. 逐段构建播报文本 + tts_prompt_id
+    const segTexts = segments.map(seg => {
+        let text = '';
+        if (seg.type === 'fixed') {
+            text = seg.text || '';
+        } else if (seg.type === 'vl_field') {
+            text = String(vlData[seg.field] ?? '');
+        } else if (seg.type === 'mixed') {
+            text = (seg.prefix || '') + String(vlData[seg.field] ?? '');
+        }
+        return { text: text.trim(), tts_prompt_id: seg.tts_prompt_id || '' };
+    }).filter(s => s.text !== '');
+
+    if (segTexts.length === 0) return;
+
+    // 2. 去重查询所有用到的声播模板，拿 voice + instructions
+    const ttsIdSet = [...new Set(segTexts.map(s => s.tts_prompt_id).filter(id => !!id))];
+    let ttsMap = {};
+    if (ttsIdSet.length > 0 && sbClient) {
+        try {
+            const { data: ttsRows } = await sbClient
+                .from('tts_prompts')
+                .select('id, voice, instructions')
+                .in('id', ttsIdSet);
+            if (ttsRows) ttsRows.forEach(r => { ttsMap[r.id] = r; });
+        } catch(e) {
+            console.warn('[playMultiSegmentTTS] 加载声播模板失败:', e.message);
+        }
+    }
+
+    // 3. 并发请求所有段落的 TTS（并发发出，顺序播放）
+    const ttsStart = new Date();
+    if (lb) lb.dataset.ttsStartedAt = ttsStart.toISOString();
+
+    const audioPromises = segTexts.map(({ text, tts_prompt_id }) => {
+        const tpl = ttsMap[tts_prompt_id];
+        const body = { text, previewMode: true };
+        if (tpl && tpl.voice) body.voice = tpl.voice;
+        if (tpl && tpl.instructions) body.instructions = tpl.instructions;
+        return fetch(SUPABASE_URL + '/functions/v1/qwen-tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+            body: JSON.stringify(body),
+        }).then(r => r.json()).catch(err => ({ success: false, error: err.message }));
+    });
+
+    // 等待全部合成完成
+    const results = await Promise.all(audioPromises);
+
+    // 4. 顺序播放
+    const audioUrls = results
+        .map(d => d && d.success ? d.audioUrl : null)
+        .filter(Boolean);
+
+    if (audioUrls.length === 0) return;
+
+    async function playNext(idx) {
+        if (idx >= audioUrls.length) {
+            const ttsEnd = new Date();
+            if (lb) lb.dataset.ttsEndedAt = ttsEnd.toISOString();
+            return;
+        }
+        const audio = new Audio(audioUrls[idx]);
+        audio.volume = 1.0;
+        if (typeof _lbAudio !== 'undefined') { try { _lbAudio.pause(); } catch(e){} }
+        window._lbAudio = audio;
+        audio.onended = () => playNext(idx + 1);
+        audio.onerror = () => playNext(idx + 1);
+        try { await audio.play(); } catch(e) { playNext(idx + 1); }
+    }
+
+    await playNext(0);
+}
+
+/**
+ * 兜底：旧版单段 TTS 播放逻辑（无 broadcast_segments 时使用）
+ */
+async function playSingleLegacyTTS(voiceText, lb) {
+    if (!voiceText) return;
+    try {
+        const ttsStart = new Date();
+        if (lb) lb.dataset.ttsStartedAt = ttsStart.toISOString();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/qwen-tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+            body: JSON.stringify({ text: voiceText, previewMode: true }),
+        });
+        const data = await res.json();
+        if (data.success && data.audioUrl) {
+            const audio = new Audio(data.audioUrl);
+            window._lbAudio = audio;
+            audio.volume = 1.0;
+            audio.onended = () => {
+                const ttsEnd = new Date();
+                if (lb) lb.dataset.ttsEndedAt = ttsEnd.toISOString();
+            };
+            await audio.play();
+        }
+    } catch(e) { /* 静默失败 */ }
+}
+
+// ══════════════════════════════════════════════════════
+//  AI 声播配置页面 JS  (v2 — tts_prompts 表)
+// ══════════════════════════════════════════════════════
+
+// 千问TTS 全量音色表（与 Modal 下拉保持一致）
+const TTS_VOICES = [
+    { id: 'Cherry',      label: 'Cherry · 芊悦（女）',       desc: '阳光积极、亲切自然' },
+    { id: 'Serena',      label: 'Serena · 苏瑶（女）',       desc: '温柔小姐姐' },
+    { id: 'Chelsie',     label: 'Chelsie · 千雪（女）',      desc: '二次元虚拟女友' },
+    { id: 'Momo',        label: 'Momo · 茉兔（女）',         desc: '撒娇搞怪' },
+    { id: 'Vivian',      label: 'Vivian · 十三（女）',       desc: '拽拽可爱小暴躁' },
+    { id: 'Maia',        label: 'Maia · 四月（女）',         desc: '知性与温柔' },
+    { id: 'Bella',       label: 'Bella · 萌宝（女）',        desc: '甜美小萝莉' },
+    { id: 'Mia',         label: 'Mia · 乖小妹（女）',        desc: '温顺乖巧' },
+    { id: 'Bellona',     label: 'Bellona · 燕铮莺（女）',    desc: '声音洪亮热血' },
+    { id: 'Bunny',       label: 'Bunny · 萌小姬（女）',      desc: '萌属性爆棚' },
+    { id: 'Elias',       label: 'Elias · 墨讲师（女）',      desc: '严谨知识讲解' },
+    { id: 'Nini',        label: 'Nini · 邻家妹妹（女）',     desc: '软糯甜蜜' },
+    { id: 'Seren',       label: 'Seren · 小婉（女）',        desc: '温和舒缓助眠' },
+    { id: 'Stella',      label: 'Stella · 少女阿月（女）',   desc: '迷糊少女' },
+    { id: 'Ethan',       label: 'Ethan · 晨煦（男）',        desc: '阳光温暖朝气' },
+    { id: 'Moon',        label: 'Moon · 月白（男）',         desc: '率性帅气' },
+    { id: 'Kai',         label: 'Kai · 凯（男）',            desc: '耳朵的一场SPA' },
+    { id: 'Nofish',      label: 'Nofish · 不吃鱼（男）',     desc: '设计师男声' },
+    { id: 'Eldric Sage', label: 'Eldric Sage · 沧明子（男）',desc: '沉稳睿智老者' },
+    { id: 'Mochi',       label: 'Mochi · 沙小弥（男）',      desc: '聪明伶俐小大人' },
+    { id: 'Vincent',     label: 'Vincent · 田叔（男）',      desc: '沙哑烟嗓江湖气' },
+    { id: 'Neil',        label: 'Neil · 阿闻（男）',         desc: '专业新闻主持人' },
+    { id: 'Arthur',      label: 'Arthur · 徐大爷（男）',     desc: '质朴乡土嗓音' },
+    { id: 'Pip',         label: 'Pip · 顽屁小孩（男）',      desc: '调皮童真' },
+];
+
+function ttsVoiceLabel(id) {
+    return TTS_VOICES.find(v => v.id === id)?.label || id;
+}
+
+let ttsEditingId  = null;
+let _ttsPreviewAudio = null;
+
+// ── 加载列表 ────────────────────────────────────────────
+async function loadTtsList() {
+    const listEl = document.getElementById('tts-list');
+    if (!listEl) return;
+    listEl.innerHTML = `<div style="text-align:center;padding:40px;color:var(--ink-soft)">
+        <span class="material-icons-round" style="font-size:36px!important;opacity:.3;display:block;margin-bottom:10px">hourglass_top</span>
+        <span style="font-size:13px">加载中…</span>
+    </div>`;
+
+    let waited = 0;
+    while (!sbClient && waited < 4000) { await new Promise(r => setTimeout(r, 100)); waited += 100; }
+    if (!sbClient) {
+        listEl.innerHTML = `<div style="color:var(--danger);padding:20px;font-size:13px;text-align:center">数据库未连接，请刷新页面重试</div>`;
+        return;
+    }
+
+    try {
+        const { data, error } = await sbClient
+            .from('tts_prompts')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            listEl.innerHTML = `<div style="text-align:center;padding:40px;color:var(--ink-soft)">
+                <span class="material-icons-round" style="font-size:36px!important;opacity:.3">record_voice_over</span>
+                <p style="margin-top:10px;font-size:13px">还没有配置，点击「新增配置」开始</p>
+            </div>`;
+            return;
+        }
+
+        listEl.innerHTML = '';
+        data.forEach(row => {
+            const card = document.createElement('div');
+            card.className = 'zk-card' + (row.enabled ? ' enabled-card' : '');
+            card.innerHTML = `
+                <div class="zk-card-header">
+                    <div class="zk-card-name">${escapeHtml(row.name)}</div>
+                    ${row.enabled ? '<span class="zk-enabled-badge">✓ 已启用</span>' : ''}
+                </div>
+                <div style="font-size:12px;color:var(--ink-soft);margin:6px 0 4px;display:flex;align-items:center;gap:6px">
+                    <span class="material-icons-round" style="font-size:14px!important">mic</span>
+                    ${escapeHtml(ttsVoiceLabel(row.voice))}
+                </div>
+                <div class="zk-card-prompt">${row.instructions ? escapeHtml(row.instructions) : '<em style="opacity:.4">无指令（使用模型默认风格）</em>'}</div>
+                <div class="zk-card-footer">
+                    <div class="toggle-row" style="flex:1;padding:8px 10px">
+                        <div class="toggle-label">启用<small>同时只能启用一个</small></div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" ${row.enabled ? 'checked' : ''} onchange="toggleTtsEnabled('${row.id}', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <button class="btn-ghost btn-sm" onclick="editTtsPrompt('${row.id}')">
+                        <span class="material-icons-round">edit</span>编辑
+                    </button>
+                    <button class="btn-danger btn-sm" onclick="deleteTtsPrompt('${row.id}')">
+                        <span class="material-icons-round">delete</span>删除
+                    </button>
+                </div>`;
+            listEl.appendChild(card);
+        });
+
+        // 更新试听区"当前启用指令"展示
+        const activeRow = data.find(r => r.enabled);
+        const wrapEl    = document.getElementById('tts-active-instructions-wrap');
+        const textEl    = document.getElementById('tts-active-instructions-text');
+        const noActEl   = document.getElementById('tts-no-active-instructions');
+        if (activeRow && activeRow.instructions) {
+            if (wrapEl)  { wrapEl.style.display  = 'block'; }
+            if (noActEl) { noActEl.style.display = 'none';  }
+            if (textEl)  { textEl.textContent    = activeRow.instructions; }
+        } else {
+            if (wrapEl)  { wrapEl.style.display  = 'none';  }
+            if (noActEl) { noActEl.style.display = 'block'; }
+        }
+    } catch(e) {
+        listEl.innerHTML = `<div style="color:#b91c1c;padding:16px;background:#fff3f3;border:1px solid #fca5a5;border-radius:12px;font-size:12px;line-height:1.8">错误：${e.message}</div>`;
+    }
+}
+
+// ── Modal 开关 ──────────────────────────────────────────
+function openTtsModal(row) {
+    ttsEditingId = row ? row.id : null;
+    document.getElementById('tts-modal-title').textContent = row ? '编辑声播配置' : '新增声播配置';
+    document.getElementById('tts-name').value          = row?.name         || '';
+    document.getElementById('tts-voice').value         = row?.voice        || 'Cherry';
+    document.getElementById('tts-instructions').value  = row?.instructions || '';
+    document.getElementById('tts-optimize').checked    = row ? !!row.optimize_instructions : true;
+    document.getElementById('tts-language').value      = row?.language_type || 'Chinese';
+    document.getElementById('tts-enabled').checked     = row ? !!row.enabled : false;
+    // 重置所有标签选中状态
+    ttsResetAllTags();
+    document.getElementById('tts-modal').classList.add('show');
+}
+function closeTtsModal() {
+    document.getElementById('tts-modal').classList.remove('show');
+    ttsEditingId = null;
+}
+
+// ── 编辑 ────────────────────────────────────────────────
+async function editTtsPrompt(id) {
+    const { data, error } = await sbClient.from('tts_prompts').select('*').eq('id', id).single();
+    if (error) { showToast('获取失败：' + error.message, 'error'); return; }
+    openTtsModal(data);
+}
+
+// ── 保存 ────────────────────────────────────────────────
+async function saveTtsPrompt() {
+    const name         = document.getElementById('tts-name').value.trim();
+    const voice        = document.getElementById('tts-voice').value;
+    const instructions = document.getElementById('tts-instructions').value.trim();
+    const optimize     = document.getElementById('tts-optimize').checked;
+    const language     = document.getElementById('tts-language').value;
+    const enabled      = document.getElementById('tts-enabled').checked;
+
+    if (!name) { showToast('配置名称不能为空', 'error'); return; }
+
+    const btn = document.getElementById('tts-save-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons-round" style="font-size:16px!important">hourglass_top</span>保存中…';
+
+    try {
+        if (enabled) {
+            await sbClient.from('tts_prompts').update({ enabled: false })
+                .neq('id', ttsEditingId || '00000000-0000-0000-0000-000000000000');
+        }
+        const payload = { name, voice, instructions, optimize_instructions: optimize, language_type: language, enabled };
+        if (ttsEditingId) {
+            const { error } = await sbClient.from('tts_prompts').update(payload).eq('id', ttsEditingId);
+            if (error) throw error;
+        } else {
+            const { error } = await sbClient.from('tts_prompts').insert(payload);
+            if (error) throw error;
+        }
+        showToast('✅ 保存成功', 'success');
+        closeTtsModal();
+        await loadTtsList();
+    } catch(e) {
+        showToast('保存失败：' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons-round">save</span>保存';
+    }
+}
+
+// ── 启用开关 ────────────────────────────────────────────
+async function toggleTtsEnabled(id, newVal) {
+    try {
+        if (newVal) {
+            await sbClient.from('tts_prompts').update({ enabled: false }).neq('id', id);
+        }
+        await sbClient.from('tts_prompts').update({ enabled: newVal }).eq('id', id);
+        showToast(newVal ? '✅ 已启用' : '已关闭', 'success');
+        await loadTtsList();
+    } catch(e) {
+        showToast('操作失败：' + e.message, 'error');
+        await loadTtsList();
+    }
+}
+
+// ── 删除 ────────────────────────────────────────────────
+async function deleteTtsPrompt(id) {
+    if (!confirm('确定删除这条声播配置吗？')) return;
+    const { error } = await sbClient.from('tts_prompts').delete().eq('id', id);
+    if (error) { showToast('删除失败：' + error.message, 'error'); return; }
+    showToast('已删除', 'success');
+    await loadTtsList();
+}
+
+// ── 试听 ────────────────────────────────────────────────
+function ttsPreviewStop() {
+    if (_ttsPreviewAudio) { _ttsPreviewAudio.pause(); _ttsPreviewAudio = null; }
+    const stopBtn  = document.getElementById('tts-stop-btn');
+    const playBtn  = document.getElementById('tts-preview-btn');
+    const statusEl = document.getElementById('tts-preview-status');
+    if (stopBtn)  stopBtn.style.display  = 'none';
+    if (playBtn)  playBtn.style.display  = '';
+    if (statusEl) statusEl.textContent   = '';
+}
+
+async function ttsPreviewPlay() {
+    const text     = document.getElementById('tts-test-text').value.trim();
+    const voice    = document.getElementById('tts-test-voice').value;
+    const statusEl = document.getElementById('tts-preview-status');
+    const playBtn  = document.getElementById('tts-preview-btn');
+    const stopBtn  = document.getElementById('tts-stop-btn');
+
+    if (!text) { showToast('请输入试听文字', 'error'); return; }
+    ttsPreviewStop();
+    if (statusEl) statusEl.textContent = '⏳ 正在生成语音，请稍候…';
+    if (playBtn)  playBtn.disabled = true;
+
+    try {
+        const res = await fetch(SUPABASE_URL + '/functions/v1/qwen-tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+            body: JSON.stringify({ text, voice, previewMode: true }),
+        });
+        const data = await res.json();
+        if (!data.success) {
+            if (statusEl) statusEl.textContent = '❌ 失败：' + (data.error || '未知错误');
+            showToast('试听失败：' + data.error, 'error');
+            return;
+        }
+        _ttsPreviewAudio = new Audio(data.audioUrl);
+        _ttsPreviewAudio.volume = 1.0;
+        if (statusEl) statusEl.textContent = '🔊 正在播放… 音色：' + ttsVoiceLabel(data.voice);
+        if (stopBtn)  stopBtn.style.display = 'flex';
+        _ttsPreviewAudio.onended = () => { ttsPreviewStop(); if (statusEl) statusEl.textContent = '✅ 播放完毕'; };
+        _ttsPreviewAudio.onerror = () => { ttsPreviewStop(); if (statusEl) statusEl.textContent = '❌ 音频加载失败'; };
+        _ttsPreviewAudio.play();
+    } catch(e) {
+        if (statusEl) statusEl.textContent = '❌ 请求异常：' + e.message;
+        showToast('试听异常：' + e.message, 'error');
+    } finally {
+        if (playBtn) playBtn.disabled = false;
+    }
+}
+
+// ══ 语音风格标签 CSS（动态注入）══════════════════════
+(function injectTtsTagStyles() {
+    if (document.getElementById('tts-tag-style')) return;
+    const s = document.createElement('style');
+    s.id = 'tts-tag-style';
+    s.textContent = `
+        .tts-tag {
+            padding: 5px 13px;
+            border: 1.5px solid var(--border);
+            border-radius: 20px;
+            background: var(--white);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--ink-soft);
+            cursor: pointer;
+            transition: all .15s;
+            font-family: inherit;
+            line-height: 1;
+        }
+        .tts-tag:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-light);
+        }
+        .tts-tag.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+            box-shadow: 0 2px 8px var(--accent-glow);
+        }
+    `;
+    document.head.appendChild(s);
+})();
+
+// ══ 语音风格标签逻辑 ══════════════════════════════════
+
+const TTS_SPEED = {
+    '缓慢': '语速缓慢', '偏慢': '语速偏慢', '中速': '语速适中',
+    '偏快': '语速偏快', '快速': '语速快速',
+};
+const TTS_EMOTION = {
+    '开朗': '情感开朗', '沉稳': '情感沉稳', '温柔': '情感温柔',
+    '严肃': '情感严肃', '活泼': '情感活泼', '冷静': '情感冷静',
+    '治愈': '情感治愈',
+};
+const TTS_TONE  = { '偏低': '音调偏低', '中音': '音调适中', '偏高': '音调偏高' };
+const TTS_SCENE = {
+    '广告配音':   '适合广告配音',
+    '有声书':     '适合有声书朗读',
+    '纪录片解说': '适合纪录片解说',
+    '新闻播报':   '适合新闻播报',
+    '语音助手':   '适合语音助手',
+    '动画角色':   '适合动画角色配音',
+};
+
+// 跟踪当前选择
+let _ttsSpeed   = null;
+let _ttsEmotion = null;
+let _ttsTone    = null;
+let _ttsTraits  = [];
+let _ttsScene   = null;
+let _ttsManualEdit = false; // 用户是否手动编辑过指令框
+
+// 单选标签
+function selectTtsTag(btn) {
+    const group = btn.dataset.group;
+    const val   = btn.dataset.val;
+    const groupEl = btn.closest('.tts-tag-group');
+    // 取消同组其他选中
+    groupEl.querySelectorAll('.tts-tag').forEach(b => b.classList.remove('active'));
+    // 如果点击已选中的 → 取消（toggle）
+    const isActive = btn.classList.contains('active');
+    if (!isActive) btn.classList.add('active');
+
+    if (group === 'speed')   _ttsSpeed   = isActive ? null : val;
+    if (group === 'emotion') _ttsEmotion = isActive ? null : val;
+    if (group === 'tone')    _ttsTone    = isActive ? null : val;
+    if (group === 'scene')   _ttsScene   = isActive ? null : val;
+
+    _ttsManualEdit = false;
+    buildTtsInstructions();
+}
+
+// 多选标签（特点）
+function toggleTtsTraitTag(btn) {
+    const val = btn.dataset.val;
+    const isActive = btn.classList.contains('active');
+    btn.classList.toggle('active', !isActive);
+    if (isActive) {
+        _ttsTraits = _ttsTraits.filter(t => t !== val);
+    } else {
+        if (!_ttsTraits.includes(val)) _ttsTraits.push(val);
+    }
+    _ttsManualEdit = false;
+    buildTtsInstructions();
+}
+
+// 拼装指令
+function buildTtsInstructions() {
+    if (_ttsManualEdit) return; // 用户手动编辑后不覆盖
+    const parts = [];
+    if (_ttsSpeed)            parts.push(TTS_SPEED[_ttsSpeed]);
+    if (_ttsEmotion)          parts.push(TTS_EMOTION[_ttsEmotion]);
+    if (_ttsTone)             parts.push(TTS_TONE[_ttsTone]);
+    if (_ttsTraits.length > 0) parts.push('声音' + _ttsTraits.join('、'));
+    if (_ttsScene)            parts.push(TTS_SCENE[_ttsScene]);
+    const result = parts.length > 0 ? parts.join('，') + '。' : '';
+    const ta = document.getElementById('tts-instructions');
+    if (ta) ta.value = result;
+}
+
+// 用户手动编辑指令框时，标记为手动模式，不再覆盖
+function ttsInstructionsManualEdit() {
+    _ttsManualEdit = true;
+}
+
+// 重置所有标签（打开弹窗时调用）
+function ttsResetAllTags() {
+    _ttsSpeed = null; _ttsEmotion = null; _ttsTone = null;
+    _ttsTraits = []; _ttsScene = null; _ttsManualEdit = false;
+    document.querySelectorAll('.tts-tag').forEach(b => b.classList.remove('active'));
+}
+
+// ── navTo 钩子：进入声播页自动加载列表 ──────────────────
+const _origNavToTts = window.navTo;
+window.navTo = function(page, btnEl) {
+    _origNavToTts(page, btnEl);
+    if (page === 'ai-voice') { loadTtsList(); }
+};
 </script>
 
+<script>
+// ══════════════════════════════════════════════════════
+//  VL 字段管理页面 JS  (vl_fields 表)
+// ══════════════════════════════════════════════════════
+
+let _vlEditingId = null;
+let _vlAllFields = []; // 当前已加载的全部字段，供 @引用栏使用
+
+// ── @引用：渲染快捷按钮栏 ───────────────────────────────
+// 渲染「引用字段」按钮（排除当前正在编辑的字段自身）
+function vlRenderAtRefBar(currentKey) {
+    const bar = document.getElementById('vl-at-ref-btns');
+    if (!bar) return;
+    bar.innerHTML = '';
+    const others = _vlAllFields.filter(f => f.key !== currentKey && f.key);
+    if (others.length === 0) {
+        bar.innerHTML = '<span style="font-size:11px;color:var(--ink-soft);font-style:italic">（暂无其他字段）</span>';
+        return;
+    }
+    others.forEach(f => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = '@' + f.key;
+        btn.title = '插入引用：@' + f.key;
+        btn.style.cssText = `font-size:11px;padding:3px 9px;border-radius:6px;border:1px solid var(--border);
+            background:var(--surface);color:var(--ink-soft);cursor:pointer;transition:all .15s;font-weight:500`;
+        btn.onmouseenter = () => { btn.style.borderColor = 'var(--accent)'; btn.style.color = 'var(--accent)'; };
+        btn.onmouseleave = () => { btn.style.borderColor = 'var(--border)'; btn.style.color = 'var(--ink-soft)'; };
+        btn.onclick = () => vlInsertAtRef(f.key, f.key);
+        bar.appendChild(btn);
+    });
+}
+
+// ── @引用：在光标处插入 @key（只用key，不带展示名，避免AI输出角色名） ───────────────────
+function vlInsertAtRef(key, label) {
+    const ta = document.getElementById('vl-field-description');
+    if (!ta) return;
+    const insert = `@${key}`;
+    const start = ta.selectionStart ?? ta.value.length;
+    const end   = ta.selectionEnd   ?? ta.value.length;
+    ta.value = ta.value.slice(0, start) + insert + ta.value.slice(end);
+    const newPos = start + insert.length;
+    ta.focus();
+    ta.setSelectionRange(newPos, newPos);
+}
+
+// ── @引用：一键插入全部其他字段引用 ─────────────────────
+function vlInsertAtAll() {
+    const ta = document.getElementById('vl-field-description');
+    if (!ta) return;
+    const currentKey = _vlEditingId
+        ? (_vlAllFields.find(f => f.id === _vlEditingId)?.key || '')
+        : document.getElementById('vl-field-key')?.value?.trim() || '';
+    const others = _vlAllFields.filter(f => f.key !== currentKey && f.key);
+    if (others.length === 0) { showToast('暂无其他字段可引用', 'error'); return; }
+    const insert = others.map(f => `@${f.key}`).join('、');
+    const start = ta.selectionStart ?? ta.value.length;
+    const end   = ta.selectionEnd   ?? ta.value.length;
+    ta.value = ta.value.slice(0, start) + insert + ta.value.slice(end);
+    const newPos = start + insert.length;
+    ta.focus();
+    ta.setSelectionRange(newPos, newPos);
+}
+
+// ── 加载列表 ────────────────────────────────────────────
+async function loadVlFieldsList() {
+    const listEl = document.getElementById('vl-fields-list');
+    if (!listEl) return;
+    listEl.innerHTML = `<div style="text-align:center;padding:40px;color:var(--ink-soft)">
+        <span class="material-icons-round" style="font-size:36px!important;opacity:.3;display:block;margin-bottom:10px">hourglass_top</span>
+        <span style="font-size:13px">加载中…</span>
+    </div>`;
+
+    let waited = 0;
+    while (!sbClient && waited < 4000) { await new Promise(r => setTimeout(r, 100)); waited += 100; }
+    if (!sbClient) {
+        listEl.innerHTML = `<div style="color:var(--danger);padding:20px;font-size:13px;text-align:center">数据库未连接，请刷新页面重试</div>`;
+        return;
+    }
+
+    try {
+        const { data, error } = await sbClient
+            .from('vl_fields')
+            .select('*')
+            .order('sort', { ascending: true })
+            .order('created_at', { ascending: true });
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            _vlAllFields = [];
+            listEl.innerHTML = `<div style="text-align:center;padding:40px;color:var(--ink-soft)">
+                <span class="material-icons-round" style="font-size:36px!important;opacity:.3">tune</span>
+                <p style="margin-top:10px;font-size:13px">还没有字段，点击「新增字段」开始</p>
+            </div>`;
+            return;
+        }
+
+        // 同步全量字段，供 @引用栏使用
+        _vlAllFields = data.map(r => ({ id: r.id, key: r.key || r.label, label: r.label || r.key }));
+
+        listEl.innerHTML = '';
+        data.forEach(row => {
+            const card = document.createElement('div');
+            card.className = 'zk-card' + (row.enabled ? ' enabled-card' : '');
+            card.innerHTML = `
+                <div class="zk-card-header">
+                    <div class="zk-card-name">${escapeHtml(row.label)}
+                        <span style="font-size:11px;font-weight:500;color:var(--ink-soft);margin-left:8px;font-family:monospace;background:var(--surface);padding:2px 7px;border-radius:6px;border:1px solid var(--border)">${escapeHtml(row.key)}</span>
+                    </div>
+                    ${row.enabled ? '<span class="zk-enabled-badge">✓ 已启用</span>' : '<span style="font-size:11px;color:var(--ink-soft);background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2px 9px">已禁用</span>'}
+                </div>
+                <div style="font-size:12px;color:var(--ink-soft);margin:4px 0 2px;display:flex;align-items:center;gap:4px">
+                    <span class="material-icons-round" style="font-size:13px!important">sort</span>排序权重：${row.sort ?? 0}
+                </div>
+                <div class="zk-card-prompt">${row.description ? escapeHtml(row.description) : '<em style="opacity:.4">无描述</em>'}</div>
+                <div class="zk-card-footer">
+                    <div class="toggle-row" style="flex:1;padding:8px 10px">
+                        <div class="toggle-label">启用<small>出现在勾选列表</small></div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" ${row.enabled ? 'checked' : ''} onchange="toggleVlFieldEnabled('${row.id}', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <button class="btn-ghost btn-sm" onclick="editVlField('${row.id}')">
+                        <span class="material-icons-round">edit</span>编辑
+                    </button>
+                    <button class="btn-danger btn-sm" onclick="deleteVlField('${row.id}')">
+                        <span class="material-icons-round">delete</span>删除
+                    </button>
+                </div>`;
+            listEl.appendChild(card);
+        });
+    } catch(e) {
+        listEl.innerHTML = `<div style="color:#b91c1c;padding:16px;background:#fff3f3;border:1px solid #fca5a5;border-radius:12px;font-size:12px;line-height:1.8">错误：${escapeHtml(e.message)}</div>`;
+    }
+}
+
+// ── Modal 开关 ──────────────────────────────────────────
+function openVlFieldModal(row) {
+    _vlEditingId = row ? row.id : null;
+    document.getElementById('vl-field-modal-title').textContent = row ? '编辑字段' : '新增字段';
+    const keyInput = document.getElementById('vl-field-key');
+    keyInput.value    = row?.key         || '';
+    keyInput.disabled = !!row;  // key 编辑时不允许修改
+    keyInput.style.opacity = row ? '0.5' : '1';
+    document.getElementById('vl-field-label').value       = row?.label       || '';
+    document.getElementById('vl-field-description').value = row?.description || '';
+    document.getElementById('vl-field-sort').value        = row?.sort        ?? 0;
+    document.getElementById('vl-field-enabled').checked   = row ? !!row.enabled : true;
+    // 渲染 @引用快捷栏（排除自身）
+    vlRenderAtRefBar(row?.key || '');
+    document.getElementById('vl-field-modal').classList.add('show');
+}
+function closeVlFieldModal() {
+    document.getElementById('vl-field-modal').classList.remove('show');
+    _vlEditingId = null;
+}
+
+// ── 编辑（先拉取最新数据） ──────────────────────────────
+async function editVlField(id) {
+    const { data, error } = await sbClient.from('vl_fields').select('*').eq('id', id).single();
+    if (error) { showToast('获取失败：' + error.message, 'error'); return; }
+    openVlFieldModal(data);
+}
+
+// ── 保存 ────────────────────────────────────────────────
+async function saveVlField() {
+    const key         = document.getElementById('vl-field-key').value.trim();
+    const label       = document.getElementById('vl-field-label').value.trim();
+    const description = document.getElementById('vl-field-description').value.trim();
+    const sort        = parseInt(document.getElementById('vl-field-sort').value) || 0;
+    const enabled     = document.getElementById('vl-field-enabled').checked;
+
+    if (!_vlEditingId && !key)   { showToast('字段 Key 不能为空', 'error'); return; }
+    if (!label)                  { showToast('展示名称不能为空', 'error'); return; }
+    if (!description)            { showToast('字段描述不能为空', 'error'); return; }
+    if (!_vlEditingId && !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) {
+        showToast('Key 只能包含字母、数字、下划线，且不能以数字开头', 'error'); return;
+    }
+
+    const btn = document.getElementById('vl-field-save-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons-round" style="font-size:16px!important">hourglass_top</span>保存中…';
+
+    try {
+        if (_vlEditingId) {
+            // 编辑：只改 label / description / sort / enabled，不改 key
+            const { error } = await sbClient.from('vl_fields')
+                .update({ label, description, sort, enabled })
+                .eq('id', _vlEditingId);
+            if (error) throw error;
+        } else {
+            const { error } = await sbClient.from('vl_fields')
+                .insert({ key, label, description, sort, enabled });
+            if (error) throw error;
+        }
+        showToast('✅ 保存成功', 'success');
+        closeVlFieldModal();
+        await loadVlFieldsList();
+    } catch(e) {
+        showToast('保存失败：' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons-round">save</span>保存';
+    }
+}
+
+// ── 启用/禁用开关 ────────────────────────────────────────
+async function toggleVlFieldEnabled(id, newVal) {
+    try {
+        await sbClient.from('vl_fields').update({ enabled: newVal }).eq('id', id);
+        showToast(newVal ? '✅ 已启用' : '已禁用', 'success');
+        await loadVlFieldsList();
+    } catch(e) {
+        showToast('操作失败：' + e.message, 'error');
+        await loadVlFieldsList();
+    }
+}
+
+// ── 删除 ────────────────────────────────────────────────
+async function deleteVlField(id) {
+    if (!confirm('确定删除这个字段吗？删除后智夸中使用此字段的配置可能受影响。')) return;
+    const { error } = await sbClient.from('vl_fields').delete().eq('id', id);
+    if (error) { showToast('删除失败：' + error.message, 'error'); return; }
+    showToast('已删除', 'success');
+    await loadVlFieldsList();
+}
+
+// ── navTo 钩子：进入 VL 字段页自动加载列表 ────────────────
+const _origNavToVl = window.navTo;
+window.navTo = function(page, btnEl) {
+    _origNavToVl(page, btnEl);
+    if (page === 'vl-fields') { loadVlFieldsList(); }
+};
+</script>
 
 <!-- ══ FAB：风格库页悬浮新增按钮 ══ -->
 <button class="fab-add show" id="fab-add-btn"
