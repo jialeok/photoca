@@ -283,13 +283,32 @@
         selectedFile = file;
         e.target.value = ''; // 重置value：下次选同一张图时change事件仍能触发
         hideError();
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            document.getElementById('preview-img').src = ev.target.result;
+        // 用 canvas 生成缩略图再预览，避免大图直接塞入 <img> 导致手机内存不足加载失败
+        const _objURL = URL.createObjectURL(file);
+        const _tmpImg = new Image();
+        _tmpImg.onload = function() {
+            try {
+                const MAX = 800;
+                const scale = Math.min(1, MAX / Math.max(_tmpImg.width, _tmpImg.height));
+                const w = Math.round(_tmpImg.width  * scale);
+                const h = Math.round(_tmpImg.height * scale);
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                canvas.getContext('2d').drawImage(_tmpImg, 0, 0, w, h);
+                document.getElementById('preview-img').src = canvas.toDataURL('image/jpeg', 0.82);
+            } catch(e) {
+                // canvas 失败降级直接用 objectURL
+                document.getElementById('preview-img').src = _objURL;
+            }
+            URL.revokeObjectURL(_objURL);
             document.getElementById('preview-area').classList.add('show');
             document.getElementById('file-pick-area').style.display = 'none';
         };
-        reader.readAsDataURL(file);
+        _tmpImg.onerror = function() {
+            URL.revokeObjectURL(_objURL);
+            showError('图片读取失败，请重新选择');
+        };
+        _tmpImg.src = _objURL;
     }
 
     function resetSelection() {
