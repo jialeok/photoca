@@ -3656,20 +3656,38 @@
         const confirmBtn = document.getElementById('du-confirm-btn');
 
         if (previewImg) {
-            previewImg.onload = function() {
-                window._debugLog && window._debugLog('[duHandleFile] 预览图加载完成，等待用户确认');
+            // 用独立 Image 对象 + canvas 生成缩略图，避免大图直接赋给 <img> 时
+            // Android WebView 内存不足或多次快速选图导致加载失败
+            const _capturedURL = _duObjectURL; // 闭包捕获当前 URL，防止快速换图时竞态
+            const _thumbLoader = new Image();
+            _thumbLoader.onload = function() {
+                if (_duObjectURL !== _capturedURL) return; // 已换图，丢弃旧结果
+                try {
+                    const MAX = 600;
+                    const scale = Math.min(1, MAX / Math.max(_thumbLoader.width, _thumbLoader.height));
+                    const w = Math.round(_thumbLoader.width  * scale);
+                    const h = Math.round(_thumbLoader.height * scale);
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(_thumbLoader, 0, 0, w, h);
+                    previewImg.src = canvas.toDataURL('image/jpeg', 0.82);
+                } catch(e) {
+                    previewImg.src = _capturedURL; // canvas 失败降级
+                }
+                previewImg.style.display = 'block';
                 if (pickIcon)   pickIcon.style.display = 'none';
                 if (pickLabel)  pickLabel.style.display = 'none';
                 if (confirmBtn) confirmBtn.style.display = 'flex';
+                window._debugLog && window._debugLog('[duHandleFile] 预览图加载完成，等待用户确认');
             };
-            previewImg.onerror = function() {
+            _thumbLoader.onerror = function() {
+                if (_duObjectURL !== _capturedURL) return;
                 window._debugLog && window._debugLog('[duHandleFile] 预览图加载失败');
                 _duSelectedFile = null;
                 URL.revokeObjectURL(_duObjectURL); _duObjectURL = null;
                 showToast('图片读取失败，请重新选择');
             };
-            previewImg.src = _duObjectURL;
-            previewImg.style.display = 'block';
+            _thumbLoader.src = _capturedURL;
         }
 
         // ── input.value 不再清空（清空会触发某些 Android 撤销 URI 权限）──
