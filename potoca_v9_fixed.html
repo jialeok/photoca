@@ -4282,6 +4282,7 @@
 
                         const audioUrls = (await Promise.all(audioPromises)).filter(url => !!url);
                         return audioUrls;
+                        window._debugLog && window._debugLog("[TTS] 并发完成，有效数=" + audioUrls.length + (audioUrls.length===0?" ❌全部失败":""));
 
                     } else {
                         // 兜底：旧版单段逻辑（无 broadcast_segments 时）
@@ -4313,19 +4314,25 @@
             const body = { text, groupId };
             if (voice) body.voice = voice;
             if (instructions) body.instructions = instructions;
-            // 段落有独立音色或指令时，用 previewMode:true 绕过服务端全局启用配置，
-            // 确保各段落使用各自配置的音色，而不是统一被 enabled=true 那条记录覆盖
             if (voice || instructions) body.previewMode = true;
+            window._debugLog && window._debugLog('[TTS→] 合成中 len=' + text.length + ' voice=' + (voice||'默认'));
             const res = await fetch(SUPABASE_URL + '/functions/v1/qwen-tts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
                 body: JSON.stringify(body),
             });
-            const data = await res.json();
+            window._debugLog && window._debugLog('[TTS←] HTTP=' + res.status);
+            let rawText = '', data;
+            try {
+                rawText = await res.text();
+                data = JSON.parse(rawText);
+            } catch(pe) {
+                window._debugLog && window._debugLog('[TTS←] ❌ JSON解析失败: ' + rawText.slice(0,100));
+                return null;
+            }
             const ttsEnd = new Date();
-
             if (data.success && data.audioUrl) {
-                // 写回 TTS 时间（仅首段，避免多次写入覆盖）
+                window._debugLog && window._debugLog('[TTS←] ✅ 成功');
                 if (supabaseClient && sessionId) {
                     supabaseClient.from('generations').update({
                         tts_started_at: ttsStart.toISOString(),
@@ -4334,9 +4341,10 @@
                 }
                 return data.audioUrl;
             }
+            window._debugLog && window._debugLog('[TTS←] ❌ 失败: ' + (data.error||data.message||JSON.stringify(data).slice(0,100)));
             return null;
         } catch(e) {
-            console.warn('[synthesizeTTS] 异常:', e.message);
+            window._debugLog && window._debugLog('[TTS←] 💥 异常: ' + e.message);
             return null;
         }
     }
@@ -5397,24 +5405,11 @@
     // Reset idle timer on any user interaction
     document.addEventListener('click',      resetIdleTimer, true);
     document.addEventListener('touchstart', resetIdleTimer, { capture: true, passive: true });
-
-    // ── 首次用户手势时解锁音频自动播放 ──────────────────────
     let _audioUnlocked = false;
     function _unlockAudio() {
-        if (_audioUnlocked) return;
-        _audioUnlocked = true;
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const buf = ctx.createBuffer(1, 1, 22050);
-            const src = ctx.createBufferSource();
-            src.buffer = buf; src.connect(ctx.destination); src.start(0);
-            ctx.resume();
-        } catch(e) {}
-        try {
-            const a = new Audio();
-            a.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-            a.volume = 0; a.play().catch(() => {});
-        } catch(e) {}
+        if (_audioUnlocked) return; _audioUnlocked = true;
+        try { const c=new(window.AudioContext||window.webkitAudioContext)(),b=c.createBuffer(1,1,22050),s=c.createBufferSource();s.buffer=b;s.connect(c.destination);s.start(0);c.resume(); } catch(e){}
+        try { const a=new Audio();a.src='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';a.volume=0;a.play().catch(()=>{}); } catch(e){}
     }
     document.addEventListener('click',      _unlockAudio, { once: true, capture: true });
     document.addEventListener('touchstart', _unlockAudio, { once: true, capture: true, passive: true });
@@ -5969,6 +5964,13 @@
             _voiceStampEnabled = config.voice_stamp_enabled !== false;
             // 上传模式开关（默认扫码）
             _uploadMode = config.upload_mode === 'direct' ? 'direct' : 'qrcode';
+            // Debug 面板开关（默认关闭）
+            const _dbgEnabled = config.debug_panel_enabled === true;
+            const _dbgPanel = document.getElementById('debug-panel');
+            const _dbgBtn   = document.getElementById('debug-toggle-btn');
+            if (_dbgPanel) _dbgPanel.style.display = _dbgEnabled ? 'block' : 'none';
+            if (_dbgBtn)   _dbgBtn.style.display   = _dbgEnabled ? 'block' : 'none';
+            if (!_dbgEnabled) window._debugLog = function(){};
             // 重新应用语言，确保"手机上传"描述文字随模式刷新
             applyLanguage();
             // 如果风格已经渲染了，重新渲染一次以应用配置
@@ -6896,7 +6898,7 @@
 </script>
 
     <!-- ══ 调试面板（排查完后删除）══ -->
-    <div id="debug-panel" style="display:block;position:fixed;bottom:80px;left:0;right:0;z-index:99999;background:rgba(0,0,0,0.88);color:#0f0;font-family:monospace;font-size:11px;padding:10px;max-height:40vh;overflow-y:auto;border-top:2px solid #0f0">
+    <div id="debug-panel" style="display:none;position:fixed;bottom:80px;left:0;right:0;z-index:99999;background:rgba(0,0,0,0.88);color:#0f0;font-family:monospace;font-size:11px;padding:10px;max-height:40vh;overflow-y:auto;border-top:2px solid #0f0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
             <span style="color:#ff0;font-weight:bold">🔍 调试日志</span>
             <div style="display:flex;gap:6px">
