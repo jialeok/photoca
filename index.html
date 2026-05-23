@@ -1111,6 +1111,36 @@
             border-radius: 14px;
         }
 
+        /* ── EMO 视频覆盖层（叠在图片上） ──────────────────── */
+        .emo-video-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            border-radius: var(--r-2xl);
+            overflow: hidden;
+            background: #000;
+            animation: emoVideoFadeIn .4s ease;
+        }
+        @keyframes emoVideoFadeIn {
+            from { opacity: 0; transform: scale(1.02); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .emo-video-close-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            z-index: 10;
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(0,0,0,.55);
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
         /* ── 语音播报字幕层 ────────────────────────────────── */
         .voice-subtitle-bar {
             position: absolute;
@@ -2925,6 +2955,19 @@
                 <div class="result-image-card" id="result-main-card">
                     <img id="result-main-img"
                         src="" alt="Result" style="background:#111">
+                    <!-- EMO 视频覆盖层（生成成功后叠在图片上方） -->
+                    <div class="emo-video-overlay" id="emo-video-overlay" style="display:none">
+                        <video id="emo-video-player" playsinline
+                               style="width:100%;height:100%;object-fit:cover;display:block">
+                            <source id="emo-video-source" src="" type="video/mp4">
+                        </video>
+                        <!-- 视频字幕层 -->
+                        <div class="voice-subtitle-bar hidden" id="emo-video-subtitle-bar"></div>
+                        <!-- 关闭视频按钮 -->
+                        <button class="emo-video-close-btn" id="emo-video-close-btn" onclick="closeEmoVideoOverlay()" title="关闭视频">
+                            <span class="material-icons-round" style="font-size:16px!important">close</span>
+                        </button>
+                    </div>
                     <!-- 语音重播按钮（右上角，播完后显示） -->
                     <button class="voice-replay-btn hidden" id="voice-replay-btn"
                             onclick="replayVoice()" title="重新播报">
@@ -2964,7 +3007,7 @@
                 </div>
             </div>
 
-            <!-- ══ EMO 主角视频区域 ══ -->
+            <!-- ══ EMO 生成进度区域（仅状态，视频在图片上方显示）══ -->
             <div class="emo-section" id="emo-section" style="display:none">
                 <div class="emo-section-header">
                     <span class="material-icons-round">movie</span>
@@ -2973,12 +3016,6 @@
                 <div class="emo-status-row" id="emo-status-row">
                     <div class="emo-status-dot" id="emo-status-dot"></div>
                     <span id="emo-status-text">准备中...</span>
-                </div>
-                <div class="emo-video-wrap" id="emo-video-wrap">
-                    <video id="emo-video-player" controls playsinline
-                           style="width:100%;display:block;border-radius:14px">
-                        <source id="emo-video-source" src="" type="video/mp4">
-                    </video>
                 </div>
             </div>
 
@@ -5533,18 +5570,26 @@
 
     function stopEmoFlow() {
         if (_emoPollTimer) { clearInterval(_emoPollTimer); _emoPollTimer = null; }
-        // 隐藏 EMO 区域
+        // 隐藏进度区域和视频 overlay
         const sec = document.getElementById('emo-section');
         if (sec) sec.style.display = 'none';
+        const overlay = document.getElementById('emo-video-overlay');
+        if (overlay) overlay.style.display = 'none';
+        const player = document.getElementById('emo-video-player');
+        if (player) { try { player.pause(); } catch(e) {} }
     }
 
     function showEmoStatus(state, text) {
         const sec  = document.getElementById('emo-section');
         const dot  = document.getElementById('emo-status-dot');
         const txt  = document.getElementById('emo-status-text');
-        const wrap = document.getElementById('emo-video-wrap');
         if (!sec) return;
-        sec.style.display = 'block';
+        // 成功时隐藏状态栏（视频已在图片上显示），失败/跳过时也隐藏
+        if (state === 'succeeded' || state === 'failed' || state === 'skipped') {
+            sec.style.display = 'none';
+        } else {
+            sec.style.display = 'block';
+        }
         if (dot) { dot.className = 'emo-status-dot ' + state; }
         if (txt) {
             const labels = {
@@ -5557,18 +5602,19 @@
             };
             txt.textContent = labels[state] || text || state;
         }
-        if (wrap && state !== 'succeeded') wrap.classList.remove('show');
     }
 
     function showEmoVideo(videoUrl) {
         showEmoStatus('succeeded');
-        const wrap   = document.getElementById('emo-video-wrap');
-        const source = document.getElementById('emo-video-source');
-        const player = document.getElementById('emo-video-player');
-        if (!wrap || !source || !player) return;
+        const overlay = document.getElementById('emo-video-overlay');
+        const source  = document.getElementById('emo-video-source');
+        const player  = document.getElementById('emo-video-player');
+        if (!overlay || !source || !player) return;
+
         source.src = videoUrl;
         player.load();
-        wrap.classList.add('show');
+        overlay.style.display = 'block';
+
         // 自动播放（静音先解锁，再有声）
         player.muted = true;
         player.play().then(() => {
@@ -5576,6 +5622,61 @@
         }).catch(() => {
             player.muted = false;
         });
+
+        // ── 视频播放时同步字幕 ──────────────────────────
+        // 用 _cachedSubtitles 和视频时长做均分同步
+        _setupEmoVideoSubtitles(player);
+    }
+
+    function _setupEmoVideoSubtitles(player) {
+        const subBar = document.getElementById('emo-video-subtitle-bar');
+        if (!subBar) return;
+        const subs = _cachedSubtitles && _cachedSubtitles.length > 0 ? _cachedSubtitles : [];
+        if (subs.length === 0) { subBar.classList.add('hidden'); return; }
+
+        subBar.classList.remove('hidden');
+        let lastShownIdx = -1;
+
+        function onTimeUpdate() {
+            const duration = player.duration;
+            if (!duration || isNaN(duration)) return;
+            const segLen = duration / subs.length;
+            const idx = Math.min(Math.floor(player.currentTime / segLen), subs.length - 1);
+            if (idx !== lastShownIdx) {
+                lastShownIdx = idx;
+                // 清除旧字幕行
+                subBar.querySelectorAll('.voice-subtitle-line').forEach(el => {
+                    el.classList.add('fade-out');
+                    setTimeout(() => { if (el.parentNode) el.remove(); }, 230);
+                });
+                const line = document.createElement('div');
+                line.className = 'voice-subtitle-line';
+                line.textContent = subs[idx];
+                subBar.appendChild(line);
+                requestAnimationFrame(() => requestAnimationFrame(() => line.classList.add('show')));
+            }
+        }
+
+        function onEnded() {
+            subBar.classList.add('hidden');
+            subBar.innerHTML = '';
+            player.removeEventListener('timeupdate', onTimeUpdate);
+            player.removeEventListener('ended', onEnded);
+        }
+
+        player.removeEventListener('timeupdate', onTimeUpdate);
+        player.removeEventListener('ended', onEnded);
+        player.addEventListener('timeupdate', onTimeUpdate);
+        player.addEventListener('ended', onEnded);
+    }
+
+    function closeEmoVideoOverlay() {
+        const overlay = document.getElementById('emo-video-overlay');
+        const player  = document.getElementById('emo-video-player');
+        if (player) { try { player.pause(); } catch(e) {} }
+        if (overlay) overlay.style.display = 'none';
+        const subBar = document.getElementById('emo-video-subtitle-bar');
+        if (subBar) { subBar.innerHTML = ''; subBar.classList.add('hidden'); }
     }
 
     async function startEmoFlow(imageUrl, audioUrl) {
