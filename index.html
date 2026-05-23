@@ -5574,47 +5574,57 @@
 
     async function startEmoFlow(imageUrl, audioUrl) {
         if (!_emoEnabled) return;
-        if (!imageUrl) { console.warn('[EMO] imageUrl 为空，跳过'); return; }
+        if (!imageUrl) { _debugLog('[EMO] ❌ imageUrl为空，跳过'); return; }
 
-        console.log('[EMO] startEmoFlow imageUrl=', imageUrl, 'audioUrl=', audioUrl ? '✅' : '❌（无主角音频）');
+        _debugLog('[EMO] 🚀 启动 | ratio=' + _emoRatio + ' style=' + _emoStyleLevel);
+        _debugLog('[EMO] imageUrl末尾: ...' + imageUrl.slice(-40));
+        _debugLog('[EMO] audioUrl: ' + (audioUrl ? '✅ 有主角音频' : '❌ 无主角音频'));
         showEmoStatus('detecting');
 
         // 1. 检测图片
         let detectRes;
         try {
+            _debugLog('[EMO] → 调用 emo-detect...');
             const res = await fetch(SUPABASE_URL + '/functions/v1/emo-detect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
                 body: JSON.stringify({ image_url: imageUrl, ratio: _emoRatio }),
             });
-            detectRes = await res.json();
-            console.log('[EMO] detect结果:', detectRes);
+            _debugLog('[EMO] emo-detect HTTP=' + res.status);
+            const rawText = await res.text();
+            _debugLog('[EMO] detect原始返回: ' + rawText.slice(0, 200));
+            detectRes = JSON.parse(rawText);
         } catch(e) {
-            console.warn('[EMO] detect调用失败:', e.message);
+            _debugLog('[EMO] ❌ detect调用异常: ' + e.message);
             showEmoStatus('skipped', '图片检测失败，已跳过');
-            // 降级：直接播放主角音频
             if (audioUrl) { try { new Audio(audioUrl).play(); } catch(e2) {} }
             return;
         }
 
+        _debugLog('[EMO] success=' + detectRes.success + ' check_pass=' + detectRes.check_pass);
+        if (detectRes.face_bbox) _debugLog('[EMO] face_bbox=' + JSON.stringify(detectRes.face_bbox));
+        if (detectRes.error)     _debugLog('[EMO] error=' + detectRes.error);
+
         if (!detectRes.success || !detectRes.check_pass) {
+            _debugLog('[EMO] ⛔ 图片不符合要求，跳过生成');
             showEmoStatus('skipped', '该图片不符合视频生成要求（已跳过）');
-            // 降级：直接播放主角音频
             if (audioUrl) { try { new Audio(audioUrl).play(); } catch(e2) {} }
             return;
         }
 
         // 2. 没有 audioUrl 时跳过整个流程（静默跳过，不显示 EMO 区域）
         if (!audioUrl) {
-            console.warn('[EMO] 无主角音频，不提交生成任务');
+            _debugLog('[EMO] ⚠️ 无主角音频，不提交生成任务');
             stopEmoFlow();
             return;
         }
 
         // 3. 提交 EMO 任务
         showEmoStatus('pending');
+        _debugLog('[EMO] ✅ 检测通过！face_bbox=' + JSON.stringify(detectRes.face_bbox));
         let taskId;
         try {
+            _debugLog('[EMO] → 提交生成任务...');
             const res = await fetch(SUPABASE_URL + '/functions/v1/emo-generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
@@ -5627,18 +5637,22 @@
                     style_level: _emoStyleLevel,
                 }),
             });
-            const createRes = await res.json();
-            console.log('[EMO] create结果:', createRes);
+            _debugLog('[EMO] emo-generate HTTP=' + res.status);
+            const createRaw = await res.text();
+            _debugLog('[EMO] create返回: ' + createRaw.slice(0, 200));
+            const createRes = JSON.parse(createRaw);
             if (!createRes.success || !createRes.task_id) throw new Error(createRes.error || '未返回 task_id');
             taskId = createRes.task_id;
+            _debugLog('[EMO] ✅ 任务已提交 task_id=' + taskId);
         } catch(e) {
-            console.warn('[EMO] create任务失败:', e.message);
+            _debugLog('[EMO] ❌ create任务失败: ' + e.message);
             showEmoStatus('failed', '提交生成任务失败');
             if (audioUrl) { try { new Audio(audioUrl).play(); } catch(e2) {} }
             return;
         }
 
         showEmoStatus('running');
+        _debugLog('[EMO] ⏳ 开始轮询，每15秒查一次，最多30次...');
         // 同时写入 DB（如果 photos 表已有 emo_task_id 字段）
         if (supabaseClient && downloadSessionId) {
             supabaseClient.from('photos')
@@ -5674,31 +5688,37 @@
             }
 
             try {
+                _debugLog('[EMO] 轮询 #' + count + '/' + MAX_POLL + ' task=' + taskId.slice(-12));
                 const res = await fetch(SUPABASE_URL + '/functions/v1/emo-generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
                     body: JSON.stringify({ action: 'query', task_id: taskId }),
                 });
-                const data = await res.json();
-                console.log('[EMO] poll #' + count, data.task_status);
+                _debugLog('[EMO] poll HTTP=' + res.status);
+                const rawPoll = await res.text();
+                _debugLog('[EMO] poll返回: ' + rawPoll.slice(0, 150));
+                const data = JSON.parse(rawPoll);
 
                 if (data.task_status === 'SUCCEEDED') {
                     clearInterval(_emoPollTimer); _emoPollTimer = null;
+                    _debugLog('[EMO] 🎉 生成成功！video_url=...' + (data.video_url || '').slice(-40));
                     // 保存视频到 Storage（通过 video-save 函数），避免24小时过期
                     let finalVideoUrl = data.video_url;
                     if (data.video_url && supabaseClient) {
                         try {
+                            _debugLog('[EMO] → 调用 video-save 永久存储...');
                             const saveRes = await fetch(SUPABASE_URL + '/functions/v1/video-save', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
                                 body: JSON.stringify({ video_url: data.video_url, photo_id: downloadSessionId || 'emo_' + Date.now() }),
                             });
                             const saveData = await saveRes.json();
+                            _debugLog('[EMO] video-save: success=' + saveData.success + ' url=...' + (saveData.saved_url||'').slice(-30));
                             if (saveData.success && saveData.saved_url) {
                                 finalVideoUrl = saveData.saved_url;
                             }
                         } catch(e) {
-                            console.warn('[EMO] video-save失败，使用原始URL:', e.message);
+                            _debugLog('[EMO] ⚠️ video-save失败，用原始URL: ' + e.message);
                         }
                     }
                     // 更新 DB
@@ -5712,6 +5732,7 @@
 
                 } else if (data.task_status === 'FAILED') {
                     clearInterval(_emoPollTimer); _emoPollTimer = null;
+                    _debugLog('[EMO] ❌ 生成失败 error=' + (data.error || ''));
                     showEmoStatus('failed', '视频生成失败');
                     if (audioUrl) { try { new Audio(audioUrl).play(); } catch(e) {} }
                     if (supabaseClient && downloadSessionId) {
@@ -5720,10 +5741,12 @@
                             .eq('session_id', downloadSessionId)
                             .then(() => {}).catch(() => {});
                     }
+                } else {
+                    _debugLog('[EMO] 状态=' + (data.task_status || '未知') + '，继续等待...');
                 }
                 // PENDING / RUNNING：继续轮询
             } catch(e) {
-                console.warn('[EMO] poll异常 #' + count + ':', e.message);
+                _debugLog('[EMO] ⚠️ poll异常 #' + count + ': ' + e.message);
                 // 网络临时异常不停止，继续等下一次
             }
         }, INTERVAL);
@@ -6376,9 +6399,10 @@
                         if (row.key === 'emo_ratio')       _emoRatio      = row.value || '1:1';
                     });
                 }
+                _debugLog('[EMO] 配置加载 enabled=' + _emoEnabled + ' style=' + _emoStyleLevel + ' ratio=' + _emoRatio + ' rows=' + (emoRows ? emoRows.length : 0));
                 console.log('[EMO] 开关:', _emoEnabled, 'style:', _emoStyleLevel, 'ratio:', _emoRatio);
             }
-        } catch(e) { console.warn('[EMO] 加载配置失败:', e.message); }
+        } catch(e) { console.warn('[EMO] 加载配置失败:', e.message); _debugLog('[EMO] ❌ 配置加载失败: ' + e.message); }
     }
 
     // 从DB的 qwen_voice 字段解析字幕文本数组（与audioUrls顺序一致）
