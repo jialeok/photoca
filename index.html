@@ -1111,15 +1111,26 @@
             border-radius: 14px;
         }
 
-        /* ── EMO 视频覆盖层（叠在图片上） ──────────────────── */
+        /* ── EMO 视频覆盖层（叠在图片上，1:1 居中显示） ───── */
         .emo-video-overlay {
             position: absolute;
             inset: 0;
             z-index: 5;
             border-radius: var(--r-2xl);
             overflow: hidden;
-            background: #000;
+            background: rgba(0,0,0,.82);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             animation: emoVideoFadeIn .4s ease;
+        }
+        .emo-video-overlay video {
+            /* 1:1 方块，宽度填满，高度自然等宽 */
+            width: 100%;
+            aspect-ratio: 1/1;
+            object-fit: cover;
+            border-radius: 12px;
+            display: block;
         }
         @keyframes emoVideoFadeIn {
             from { opacity: 0; transform: scale(1.02); }
@@ -4315,11 +4326,12 @@
     // ══ EMO 视频生成状态 ══
     let _emoEnabled       = false;  // 从 app_config 读取，默认关闭
     let _emoStyleLevel    = 'normal'; // calm | normal | active
-    let _emoRatio         = '1:1';   // 1:1 | 3:4
+    let _emoRatio         = '1:1';   // 固定 1:1
     let _emoAudioUrl      = null;    // protagonist 段的 TTS 音频 URL
     let _emoImageUrl      = null;    // 即梦生成的 AI 图片 URL（公网可访问）
     let _emoPollTimer     = null;    // 轮询定时器
     let _emoCurrentPhotoId = null;   // 当前图片 ID（写 photos 表用）
+    let _emoVideoUrl      = null;    // 生成成功的视频 URL，供重播使用
 
     async function autoRunQwenWithTTS(imageUrl, sessionId) {
         if (!supabaseClient || !imageUrl || !sessionId) return [];
@@ -5160,6 +5172,7 @@
     // 当前缓存的音频URL和字幕（供重播使用）
     let _cachedAudioUrls   = [];
     let _cachedSubtitles   = [];
+    let _voiceAudioEnded   = false;  // 语音段落真正播完标志（供 showEmoVideo 衔接用）
 
     // ── 停止播放 + 清理 ──────────────────────────────────────
     function stopVoicePlayback() {
@@ -5178,6 +5191,7 @@
     async function startVoicePlayback() {
         stopVoicePlayback();
         _voicePlaybackDone = false;
+        _voiceAudioEnded = false;
         _voiceStopped = false;
         _cachedAudioUrls = [];
         _cachedSubtitles = [];
@@ -5322,8 +5336,19 @@
     function playAudioSequence(urls, subs, idx) {
         if (_voiceStopped) { setVoiceReplayBtn('idle'); return; }
         if (idx >= urls.length) {
-            // 最后一段字幕淡出后再显示印章
+            // 语音全部播完，字幕淡出
             const bar = document.getElementById('voice-subtitle-bar');
+            const doAfterSubtitle = () => {
+                _voiceAudioEnded = true;
+                // 有视频：播视频，视频播完再印章
+                if (_emoVideoUrl) {
+                    setVoiceReplayBtn('playing');
+                    _playEmoVideoThenStamp();
+                } else {
+                    // 无视频：直接印章
+                    setVoiceReplayBtn('done');
+                }
+            };
             if (bar && !bar.classList.contains('hidden')) {
                 bar.querySelectorAll('.voice-subtitle-line').forEach(el => {
                     el.classList.add('fade-out');
@@ -5331,10 +5356,10 @@
                 setTimeout(() => {
                     bar.innerHTML = '';
                     bar.classList.add('hidden');
-                    setVoiceReplayBtn('done');   // 全部播完，按钮变重播（印章在这里触发）
+                    doAfterSubtitle();
                 }, 400);
             } else {
-                setVoiceReplayBtn('done');
+                doAfterSubtitle();
             }
             return;
         }
@@ -5537,11 +5562,47 @@
         if (stamp) stamp.classList.remove('show');
     }
 
+    // ── 语音播完后播 EMO 视频，视频播完才印章 ──────────────
+    function _playEmoVideoThenStamp() {
+        const overlay = document.getElementById('emo-video-overlay');
+        const source  = document.getElementById('emo-video-source');
+        const player  = document.getElementById('emo-video-player');
+        if (!overlay || !source || !player || !_emoVideoUrl) {
+            // 没有视频元素或 URL，降级直接印章
+            setVoiceReplayBtn('done');
+            return;
+        }
+        // 先隐藏印章、确保 overlay 显示
+        hideVoiceStamp();
+        source.src = _emoVideoUrl;
+        player.load();
+        overlay.style.display = 'block';
+
+        // 自动播放
+        player.muted = true;
+        player.play().then(() => { player.muted = false; }).catch(() => { player.muted = false; });
+
+        // 同步字幕
+        _setupEmoVideoSubtitles(player);
+
+        // 视频播完 → 印章
+        function onVideoEnded() {
+            player.removeEventListener('ended', onVideoEnded);
+            setVoiceReplayBtn('done');  // 这里触发印章
+        }
+        player.removeEventListener('ended', onVideoEnded);
+        player.addEventListener('ended', onVideoEnded);
+    }
+
     // ── 用户点击重播按钮 ─────────────────────────────────────
     function replayVoice() {
         if (_voiceStopped && _cachedAudioUrls.length === 0) return;
+        // 隐藏视频 overlay，重新从图片开始
+        closeEmoVideoOverlay();
+        hideVoiceStamp();
         clearSubtitles();
         _voiceStopped = false;
+        _voiceAudioEnded = false;  // 重置，等语音重新播完
         if (_cachedAudioUrls.length > 0) {
             playAudioSequence([..._cachedAudioUrls], [..._cachedSubtitles], 0);
         } else {
@@ -5606,26 +5667,14 @@
 
     function showEmoVideo(videoUrl) {
         showEmoStatus('succeeded');
-        const overlay = document.getElementById('emo-video-overlay');
-        const source  = document.getElementById('emo-video-source');
-        const player  = document.getElementById('emo-video-player');
-        if (!overlay || !source || !player) return;
-
-        source.src = videoUrl;
-        player.load();
-        overlay.style.display = 'block';
-
-        // 自动播放（静音先解锁，再有声）
-        player.muted = true;
-        player.play().then(() => {
-            player.muted = false;
-        }).catch(() => {
-            player.muted = false;
-        });
-
-        // ── 视频播放时同步字幕 ──────────────────────────
-        // 用 _cachedSubtitles 和视频时长做均分同步
-        _setupEmoVideoSubtitles(player);
+        // 保存视频 URL 供重播使用
+        _emoVideoUrl = videoUrl;
+        // 如果语音已播完，立即衔接播视频
+        // 如果语音还在播，等 playAudioSequence 结束后自动调用 _playEmoVideoThenStamp
+        if (_voiceAudioEnded) {
+            _playEmoVideoThenStamp();
+        }
+        // 否则语音播完时 playAudioSequence 会检测到 _emoVideoUrl 并自动衔接
     }
 
     function _setupEmoVideoSubtitles(player) {
@@ -5704,7 +5753,6 @@
         } catch(e) {
             _debugLog('[EMO] ❌ detect调用异常: ' + e.message);
             showEmoStatus('skipped', '图片检测失败，已跳过');
-            if (audioUrl) { try { new Audio(audioUrl).play(); } catch(e2) {} }
             return;
         }
 
@@ -5715,7 +5763,6 @@
         if (!detectRes.success || !detectRes.check_pass) {
             _debugLog('[EMO] ⛔ 图片不符合要求，跳过生成');
             showEmoStatus('skipped', '该图片不符合视频生成要求（已跳过）');
-            if (audioUrl) { try { new Audio(audioUrl).play(); } catch(e2) {} }
             return;
         }
 
@@ -5754,7 +5801,6 @@
         } catch(e) {
             _debugLog('[EMO] ❌ create任务失败: ' + e.message);
             showEmoStatus('failed', '提交生成任务失败');
-            if (audioUrl) { try { new Audio(audioUrl).play(); } catch(e2) {} }
             return;
         }
 
@@ -5784,7 +5830,6 @@
             if (count > MAX_POLL) {
                 clearInterval(_emoPollTimer); _emoPollTimer = null;
                 showEmoStatus('failed', '生成超时（已超7分钟）');
-                if (audioUrl) { try { new Audio(audioUrl).play(); } catch(e) {} }
                 return;
             }
 
@@ -5841,7 +5886,6 @@
                     clearInterval(_emoPollTimer); _emoPollTimer = null;
                     _debugLog('[EMO] ❌ 生成失败 error=' + (data.error || ''));
                     showEmoStatus('failed', '视频生成失败');
-                    if (audioUrl) { try { new Audio(audioUrl).play(); } catch(e) {} }
                     if (supabaseClient && downloadSessionId) {
                         supabaseClient.from('photos')
                             .update({ emo_status: 'failed' })
@@ -6854,8 +6898,10 @@
             downloadSessionId = null;
             // 清理 EMO 状态
             stopEmoFlow();
-            _emoAudioUrl  = null;
-            _emoImageUrl  = null;
+            _emoAudioUrl    = null;
+            _emoImageUrl    = null;
+            _emoVideoUrl    = null;
+            _voiceAudioEnded = false;
         }
         // 进入拍照页：开前置摄像头
         if (id === 'scr-capture') { startCameraStream(); }
