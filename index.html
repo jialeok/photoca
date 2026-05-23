@@ -4328,6 +4328,7 @@
     let _emoStyleLevel    = 'normal'; // calm | normal | active
     let _emoRatio         = '1:1';   // 固定 1:1
     let _emoAudioUrl      = null;    // protagonist 段的 TTS 音频 URL
+    let _emoSubtitle      = null;    // protagonist 段的字幕文本，视频播放时显示
     let _emoImageUrl      = null;    // 即梦生成的 AI 图片 URL（公网可访问）
     let _emoPollTimer     = null;    // 轮询定时器
     let _emoCurrentPhotoId = null;   // 当前图片 ID（写 photos 表用）
@@ -4479,8 +4480,9 @@
                         segTexts.forEach((seg, idx) => {
                             const isProtagonist = protagonistKey && seg.field === protagonistKey;
                             if (isProtagonist) {
-                                // 主角段：保存 URL 供 EMO 流程用，不加入播放队列
+                                // 主角段：保存 URL 和字幕文本供 EMO 流程用，不加入播放队列
                                 if (allAudioUrls[idx]) _emoAudioUrl = allAudioUrls[idx];
+                                _emoSubtitle = seg.text || null;
                                 console.log('[EMO] 找到主角段 field=' + protagonistKey + ', audioUrl=', allAudioUrls[idx] ? '✅' : '❌');
                             } else {
                                 if (allAudioUrls[idx]) {
@@ -5680,42 +5682,27 @@
     function _setupEmoVideoSubtitles(player) {
         const subBar = document.getElementById('emo-video-subtitle-bar');
         if (!subBar) return;
-        const subs = _cachedSubtitles && _cachedSubtitles.length > 0 ? _cachedSubtitles : [];
-        if (subs.length === 0) { subBar.classList.add('hidden'); return; }
 
+        // 用主角段自己的字幕文本，整段视频期间持续显示
+        const subtitleText = _emoSubtitle || null;
+        if (!subtitleText) { subBar.classList.add('hidden'); return; }
+
+        // 视频开始播放时立即显示主角字幕
+        subBar.innerHTML = '';
         subBar.classList.remove('hidden');
-        let lastShownIdx = -1;
-
-        function onTimeUpdate() {
-            const duration = player.duration;
-            if (!duration || isNaN(duration)) return;
-            const segLen = duration / subs.length;
-            const idx = Math.min(Math.floor(player.currentTime / segLen), subs.length - 1);
-            if (idx !== lastShownIdx) {
-                lastShownIdx = idx;
-                // 清除旧字幕行
-                subBar.querySelectorAll('.voice-subtitle-line').forEach(el => {
-                    el.classList.add('fade-out');
-                    setTimeout(() => { if (el.parentNode) el.remove(); }, 230);
-                });
-                const line = document.createElement('div');
-                line.className = 'voice-subtitle-line';
-                line.textContent = subs[idx];
-                subBar.appendChild(line);
-                requestAnimationFrame(() => requestAnimationFrame(() => line.classList.add('show')));
-            }
-        }
+        const line = document.createElement('div');
+        line.className = 'voice-subtitle-line';
+        line.textContent = subtitleText;
+        subBar.appendChild(line);
+        requestAnimationFrame(() => requestAnimationFrame(() => line.classList.add('show')));
 
         function onEnded() {
             subBar.classList.add('hidden');
             subBar.innerHTML = '';
-            player.removeEventListener('timeupdate', onTimeUpdate);
             player.removeEventListener('ended', onEnded);
         }
 
-        player.removeEventListener('timeupdate', onTimeUpdate);
         player.removeEventListener('ended', onEnded);
-        player.addEventListener('timeupdate', onTimeUpdate);
         player.addEventListener('ended', onEnded);
     }
 
@@ -6901,6 +6888,7 @@
             _emoAudioUrl    = null;
             _emoImageUrl    = null;
             _emoVideoUrl    = null;
+            _emoSubtitle    = null;
             _voiceAudioEnded = false;
         }
         // 进入拍照页：开前置摄像头
