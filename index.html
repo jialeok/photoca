@@ -4299,7 +4299,7 @@
                             try {
                                 const { data: ttsRows } = await supabaseClient
                                     .from('tts_prompts')
-                                    .select('id, voice, instructions')
+                                    .select('id, provider, voice, el_voice_id, instructions')
                                     .in('id', ttsIdSet);
                                 if (ttsRows) ttsRows.forEach(r => { ttsMap[r.id] = r; });
                             } catch(e) {
@@ -4315,7 +4315,9 @@
                                 activeGroupId || '',
                                 idx === 0 ? sessionId : null,
                                 tpl ? tpl.voice : undefined,
-                                tpl ? tpl.instructions : undefined
+                                tpl ? tpl.instructions : undefined,
+                                tpl ? tpl.provider : undefined,
+                                tpl ? tpl.el_voice_id : undefined
                             );
                         });
 
@@ -4345,16 +4347,27 @@
     }
 
     // 只合成单段 TTS，返回 audioUrl（不播放）
-    // voice / instructions 来自对应 tts_prompts 行，不传则服务端使用默认值
-    async function synthesizeTTS(text, groupId, sessionId, voice, instructions) {
+    // tpl 对象来自 tts_prompts 行，含 provider / voice / el_voice_id / instructions
+    async function synthesizeTTS(text, groupId, sessionId, voice, instructions, provider, elVoiceId) {
         try {
             const ttsStart = new Date();
-            const body = { text, groupId };
-            if (voice) body.voice = voice;
-            if (instructions) body.instructions = instructions;
-            if (voice || instructions) body.previewMode = true;
-            window._debugLog && window._debugLog('[TTS→] 合成中 len=' + text.length + ' voice=' + (voice||'默认'));
-            const res = await fetch(SUPABASE_URL + '/functions/v1/qwen-tts', {
+            const ttsProvider = provider || 'qwen';
+
+            let endpoint, body;
+            if (ttsProvider === 'elevenlabs') {
+                endpoint = 'elevenlabs-tts';
+                body = { text, groupId, voiceId: elVoiceId, previewMode: true };
+            } else {
+                // qwen 或未来其他 provider 兜底走千问
+                endpoint = ttsProvider === 'google' ? 'google-tts' : 'qwen-tts'; // 预留 google
+                body = { text, groupId };
+                if (voice) body.voice = voice;
+                if (instructions) body.instructions = instructions;
+                if (voice || instructions) body.previewMode = true;
+            }
+
+            window._debugLog && window._debugLog('[TTS→] 合成中 len=' + text.length + ' provider=' + ttsProvider + ' voice=' + (elVoiceId || voice || '默认'));
+            const res = await fetch(SUPABASE_URL + '/functions/v1/' + endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
                 body: JSON.stringify(body),
@@ -5063,7 +5076,7 @@
                                 try {
                                     const { data: ttsRows } = await supabaseClient
                                         .from('tts_prompts')
-                                        .select('id, voice, instructions')
+                                        .select('id, provider, voice, el_voice_id, instructions')
                                         .in('id', idSet);
                                     if (ttsRows) ttsRows.forEach(r => { ttsMap[r.id] = r; });
                                 } catch(e) { console.warn('[Voice] 加载tts配置失败:', e.message); }
@@ -5074,7 +5087,9 @@
                                     const tpl = ttsMap[s.tts_prompt_id];
                                     return {
                                         text:         s.text,
+                                        provider:     tpl?.provider     || undefined,
                                         voice:        tpl?.voice        || undefined,
+                                        el_voice_id:  tpl?.el_voice_id  || undefined,
                                         instructions: tpl?.instructions || undefined,
                                     };
                                 });
@@ -5098,21 +5113,30 @@
     // ── 兜底路径：多段文本 → 调TTS → 顺序播 ────────────────
     // segs 支持两种格式：
     //   - 字符串数组: ['text1', 'text2']
-    //   - 对象数组:   [{ text, voice, instructions }, ...]
+    //   - 对象数组:   [{ text, provider, voice, el_voice_id, instructions }, ...]
     async function playTTSSegments(segs, groupId, sessionId) {
         // 依次合成每段TTS，顺序播放
         const urls = [];
         const subs = [];
         for (const seg of segs) {
-            const text         = typeof seg === 'string' ? seg : seg.text;
-            const segVoice     = typeof seg === 'string' ? undefined : seg.voice;
-            const segInstr     = typeof seg === 'string' ? undefined : seg.instructions;
+            const text        = typeof seg === 'string' ? seg : seg.text;
+            const segProvider = typeof seg === 'string' ? 'qwen' : (seg.provider || 'qwen');
+            const segVoice    = typeof seg === 'string' ? undefined : seg.voice;
+            const segElVoice  = typeof seg === 'string' ? undefined : seg.el_voice_id;
+            const segInstr    = typeof seg === 'string' ? undefined : seg.instructions;
             try {
-                const body = { text, groupId };
-                if (segVoice) body.voice = segVoice;
-                if (segInstr) body.instructions = segInstr;
-                if (segVoice || segInstr) body.previewMode = true;
-                const res  = await fetch(SUPABASE_URL + '/functions/v1/qwen-tts', {
+                let endpoint, body;
+                if (segProvider === 'elevenlabs') {
+                    endpoint = 'elevenlabs-tts';
+                    body = { text, groupId, voiceId: segElVoice, previewMode: true };
+                } else {
+                    endpoint = segProvider === 'google' ? 'google-tts' : 'qwen-tts';
+                    body = { text, groupId };
+                    if (segVoice) body.voice = segVoice;
+                    if (segInstr) body.instructions = segInstr;
+                    if (segVoice || segInstr) body.previewMode = true;
+                }
+                const res  = await fetch(SUPABASE_URL + '/functions/v1/' + endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
                     body: JSON.stringify(body),
