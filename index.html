@@ -4056,7 +4056,7 @@
 
                     // ── EMO 流程：图片生成完成后立即启动（不阻塞主流程）──
                     _emoImageUrl = hdUrl || thumbUrl;
-                    if (_emoEnabled && _emoImageUrl) {
+                    if (_emoEnabled && _emoImageUrl && _emoAudioUrl) {
                         startEmoFlow(_emoImageUrl, _emoAudioUrl);
                     }
                 }
@@ -4331,7 +4331,13 @@
                             : null);
 
                     // 构建每段播报文本（含 type/label 供 admin drawer 展示）
-                    const segTextsForDB = segments ? segments.map(seg => {
+                    // 主角段不写入 DB，避免兜底路径印章取到主角段文案
+                    const _protagonistKeyForDB = activePrompt ? (activePrompt.protagonist_field || null) : null;
+                    const segTextsForDB = segments ? segments.filter(seg => {
+                        // 过滤掉主角段（protagonist_field 匹配的 vl_field/mixed 段）
+                        if (_protagonistKeyForDB && seg.field === _protagonistKeyForDB) return false;
+                        return true;
+                    }).map(seg => {
                         let text = '';
                         let typeLabel = seg.type === 'fixed' ? '固定文案' : seg.type === 'vl_field' ? 'VL字段' : '混合';
                         if (seg.type === 'fixed') {
@@ -4379,7 +4385,7 @@
                                 text = (seg.prefix || '') + fieldText;
                                 _debugLog(`[TTS] mixed "${seg.field}" prefix="${seg.prefix}" raw=${raw==null?'null':String(raw).slice(0,20)} → "${text.slice(0,30)}"`);
                             }
-                            return { text: text.trim(), tts_prompt_id: seg.tts_prompt_id || '' };
+                            return { text: text.trim(), tts_prompt_id: seg.tts_prompt_id || '', field: seg.field || null };
                         }).filter(s => s.text !== '');
                         _debugLog('[TTS] 最终段落数: ' + segTexts.length + ' | ' + segTexts.map(s=>s.text.slice(0,15)).join(' / '));
 
@@ -4416,17 +4422,17 @@
 
                         const allAudioUrls = (await Promise.all(audioPromises));
 
-                        // 分离：emo_only 段（主角音频）vs 正常播放段
+                        // 分离：protagonist_field 指定的主角段 vs 正常播放段
                         const playUrls = [];
                         const playSubs = [];
                         _emoAudioUrl = null;
+                        const protagonistKey = activePrompt ? (activePrompt.protagonist_field || null) : null;
                         segTexts.forEach((seg, idx) => {
-                            const tpl = ttsMap[seg.tts_prompt_id];
-                            const isEmoOnly = tpl && tpl.emo_only === true;
-                            if (isEmoOnly) {
-                                // protagonist 段：保存 URL 供 EMO 流程用，不加入播放队列
+                            const isProtagonist = protagonistKey && seg.field === protagonistKey;
+                            if (isProtagonist) {
+                                // 主角段：保存 URL 供 EMO 流程用，不加入播放队列
                                 if (allAudioUrls[idx]) _emoAudioUrl = allAudioUrls[idx];
-                                console.log('[EMO] 找到 emo_only 段, audioUrl=', allAudioUrls[idx] ? '✅' : '❌');
+                                console.log('[EMO] 找到主角段 field=' + protagonistKey + ', audioUrl=', allAudioUrls[idx] ? '✅' : '❌');
                             } else {
                                 if (allAudioUrls[idx]) {
                                     playUrls.push(allAudioUrls[idx]);
@@ -7077,7 +7083,7 @@
 
                 // ── EMO 流程：图片生成完成后立即启动（不阻塞主流程）──
                 _emoImageUrl = hdUrl || thumbUrl;
-                if (_emoEnabled && _emoImageUrl) {
+                if (_emoEnabled && _emoImageUrl && _emoAudioUrl) {
                     startEmoFlow(_emoImageUrl, _emoAudioUrl);
                 }
             }
