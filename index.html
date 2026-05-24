@@ -3893,16 +3893,12 @@
                     window._debugLog && window._debugLog('[duConfirmUpload] ✅ 复用缓存base64，跳过FileReader（避免Android二次读权限失效）');
                     const img = new Image();
                     img.onload = function() {
-                        const srcW = img.width, srcH = img.height;
-                        window._debugLog && window._debugLog('[duConfirmUpload] 📐 原图尺寸=' + srcW + 'x' + srcH + '，比例=' + (srcW/srcH).toFixed(3) + '，原始文件=' + (_duSelectedFile ? (_duSelectedFile.size/1024).toFixed(1)+'KB' : '?'));
+                        window._debugLog && window._debugLog('[duConfirmUpload] 压缩: Image解码成功，原始尺寸=' + img.width + 'x' + img.height);
                         try {
-                            // 短边限制800px，保持原始比例，不裁切
-                            const MAX_SHORT = 800;
-                            const shortEdge = Math.min(srcW, srcH);
-                            const scale = shortEdge > MAX_SHORT ? MAX_SHORT / shortEdge : 1;
-                            const w = Math.round(srcW * scale);
-                            const h = Math.round(srcH * scale);
-                            window._debugLog && window._debugLog('[duConfirmUpload] 📐 缩放比=' + scale.toFixed(3) + '，上传尺寸=' + w + 'x' + h + (scale < 1 ? '（已缩小）' : '（原尺寸，无需缩小）'));
+                            const MAX_W = 1440;
+                            const srcW = img.width, srcH = img.height;
+                            const w = srcW > MAX_W ? MAX_W : srcW;
+                            const h = srcW > MAX_W ? Math.round(srcH * MAX_W / srcW) : srcH;
                             const canvas = document.createElement('canvas');
                             canvas.width = w; canvas.height = h;
                             canvas.getContext('2d').drawImage(img, 0, 0, w, h);
@@ -3934,15 +3930,10 @@
                         const img = new Image();
                         img.onload = function() {
                             try {
+                                const MAX_W = 1440;
                                 const srcW = img.width, srcH = img.height;
-                                window._debugLog && window._debugLog('[duConfirmUpload] 补救: 原图尺寸=' + srcW + 'x' + srcH);
-                                // 短边限制800px，保持原始比例
-                                const MAX_SHORT = 800;
-                                const shortEdge = Math.min(srcW, srcH);
-                                const scale = shortEdge > MAX_SHORT ? MAX_SHORT / shortEdge : 1;
-                                const w = Math.round(srcW * scale);
-                                const h = Math.round(srcH * scale);
-                                window._debugLog && window._debugLog('[duConfirmUpload] 补救: 上传尺寸=' + w + 'x' + h);
+                                const w = srcW > MAX_W ? MAX_W : srcW;
+                                const h = srcW > MAX_W ? Math.round(srcH * MAX_W / srcW) : srcH;
                                 const canvas = document.createElement('canvas');
                                 canvas.width = w; canvas.height = h;
                                 canvas.getContext('2d').drawImage(img, 0, 0, w, h);
@@ -7040,19 +7031,24 @@
         const video  = document.getElementById('camera-video');
         const canvas = document.getElementById('camera-canvas');
         if (!video || !canvas || !video.videoWidth) return null;
-        // 限制最大宽度 800px，保持比例，减小上传体积加快生图速度
-        const MAX_W = 800;
         const srcW  = video.videoWidth;
         const srcH  = video.videoHeight;
+        window._debugLog && window._debugLog('━━━━━━ [captureFrame] 拍照截帧 ━━━━━━');
+        window._debugLog && window._debugLog('[captureFrame] 📐 摄像头原始分辨率=' + srcW + 'x' + srcH + '，比例=' + (srcW/srcH).toFixed(3));
+        // 限制最大宽度 800px，保持比例，减小上传体积加快生图速度
+        const MAX_W = 800;
         canvas.width  = srcW > MAX_W ? MAX_W : srcW;
         canvas.height = srcW > MAX_W ? Math.round(srcH * MAX_W / srcW) : srcH;
+        window._debugLog && window._debugLog('[captureFrame] 📐 截帧尺寸=' + canvas.width + 'x' + canvas.height + (srcW > MAX_W ? '（已按宽度缩小）' : '（原尺寸，宽度≤800）'));
         const ctx = canvas.getContext('2d');
         // 镜像绘制（前置摄像头需要翻转回来）
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         ctx.setTransform(1, 0, 0, 1, 0, 0);
-        return canvas.toDataURL('image/jpeg', 0.92);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        window._debugLog && window._debugLog('[captureFrame] ✅ 截帧完成，估算大小=' + (dataUrl.length * 0.75 / 1024).toFixed(1) + 'KB');
+        return dataUrl;
     }
 
     // ── FIX 1: Record selected style ──────────────────
@@ -7337,27 +7333,58 @@
     async function uploadCameraPhotoToStorage(dataUrl) {
         if (!supabaseClient) {
             console.error('[uploadCamera] supabaseClient 未初始化');
+            window._debugLog && window._debugLog('[uploadCamera] ❌ supabaseClient 未初始化');
             return null;
         }
         try {
+            window._debugLog && window._debugLog('━━━━━━ [uploadCamera] 开始上传 ━━━━━━');
+            const _t0 = Date.now();
+
+            // ── 网络连通性检测 ──
+            window._debugLog && window._debugLog('[uploadCamera] 步骤1: 检测网络连通性...');
+            const _netStart = Date.now();
+            try {
+                await fetch('https://fuaamwgdbxymxbhmstxc.supabase.co', {
+                    method: 'HEAD', mode: 'no-cors', cache: 'no-store',
+                    signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
+                });
+                window._debugLog && window._debugLog('[uploadCamera] ✅ 网络连通，ping耗时=' + (Date.now()-_netStart) + 'ms');
+            } catch(netErr) {
+                window._debugLog && window._debugLog('[uploadCamera] ⚠️ 网络ping失败: ' + netErr.message + '（继续尝试上传）');
+            }
+
+            // ── dataURL → Blob ──
+            window._debugLog && window._debugLog('[uploadCamera] 步骤2: dataURL转Blob...');
             const res  = await fetch(dataUrl);
             const blob = await res.blob();
+            window._debugLog && window._debugLog('[uploadCamera] 📐 上传体积=' + (blob.size/1024).toFixed(1) + 'KB');
+
             // 与手机上传保持一致，放在 uploads/ 目录下
             const fileName = 'uploads/camera_' + Date.now() + '.jpg';
             console.log('[uploadCamera] 上传路径:', fileName, '大小:', blob.size);
+            window._debugLog && window._debugLog('[uploadCamera] 步骤3: 上传Storage，path=' + fileName);
+            const _uploadStart = Date.now();
+
             const { data, error } = await supabaseClient
                 .storage
                 .from('photos')
                 .upload(fileName, blob, { contentType: 'image/jpeg', upsert: false });
             if (error) {
+                const errType = error.message === 'Failed to fetch' ? '【网络问题】Supabase不可达' : ('HTTP ' + (error.statusCode || '?'));
                 console.error('[uploadCamera] Supabase 上传失败:', JSON.stringify(error));
+                window._debugLog && window._debugLog('[uploadCamera] ❌ Storage上传失败: ' + errType + ' | ' + JSON.stringify(error));
                 return null;
             }
+            window._debugLog && window._debugLog('[uploadCamera] ✅ Storage上传成功，耗时=' + (Date.now()-_uploadStart) + 'ms');
+
             const { data: urlData } = supabaseClient.storage.from('photos').getPublicUrl(fileName);
             console.log('[uploadCamera] 上传成功, publicUrl=', urlData?.publicUrl);
+            window._debugLog && window._debugLog('━━━━━━ [uploadCamera] 全程耗时=' + (Date.now()-_t0) + 'ms ━━━━━━');
             return urlData?.publicUrl || null;
         } catch (err) {
             console.error('[uploadCamera] 上传异常:', err);
+            const errMsg = err?.message || JSON.stringify(err);
+            window._debugLog && window._debugLog('[uploadCamera] ❌ 上传异常: ' + errMsg);
             return null;
         }
     }
