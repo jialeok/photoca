@@ -4178,10 +4178,16 @@
                     });
 
                     // 等待 Qwen 识别 + TTS 合成（在"优化细节"步骤中等待）
-                    const audioUrls = await autoRunQwenWithTTS(thumbUrl || hdUrl, downloadSessionId);
-                    _pendingAudioUrls = audioUrls;
-                    // 同步提取字幕文本（从DB读qwen_voice，与audioUrls一一对应）
-                    _pendingSubtitles = await extractSubtitlesFromSession(downloadSessionId);
+                    // 语音播报开关关闭时，跳过千问视觉分析和TTS合成
+                    if (_voiceSubtitleEnabled) {
+                        const audioUrls = await autoRunQwenWithTTS(thumbUrl || hdUrl, downloadSessionId);
+                        _pendingAudioUrls = audioUrls;
+                        // 同步提取字幕文本（从DB读qwen_voice，与audioUrls一一对应）
+                        _pendingSubtitles = await extractSubtitlesFromSession(downloadSessionId);
+                    } else {
+                        _pendingAudioUrls = [];
+                        _pendingSubtitles = [];
+                    }
 
                     // 推进到"输出成片"（快速冲满约0.8秒）
                     notifyDetailStepDone();
@@ -5281,6 +5287,7 @@
 
     // ── 进入result页时调用 ───────────────────────────────────
     async function startVoicePlayback() {
+        if (!_voiceSubtitleEnabled) return;  // 开关关闭时不播放
         stopVoicePlayback();
         _voicePlaybackDone = false;
         _voiceAudioEnded = false;
@@ -7299,10 +7306,16 @@
                     ai_duration_seconds: aiDurationSeconds,
                     group_id:   activeGroupId || '',
                 });
-                const audioUrls = await autoRunQwenWithTTS(thumbUrl || hdUrl, insertedSessionId);
-                _pendingAudioUrls = audioUrls;
-                // 同步提取字幕文本
-                _pendingSubtitles = await extractSubtitlesFromSession(insertedSessionId);
+                // 语音播报开关关闭时，跳过千问视觉分析和TTS合成
+                if (_voiceSubtitleEnabled) {
+                    const audioUrls = await autoRunQwenWithTTS(thumbUrl || hdUrl, insertedSessionId);
+                    _pendingAudioUrls = audioUrls;
+                    // 同步提取字幕文本
+                    _pendingSubtitles = await extractSubtitlesFromSession(insertedSessionId);
+                } else {
+                    _pendingAudioUrls = [];
+                    _pendingSubtitles = [];
+                }
                 notifyDetailStepDone();
                 await new Promise(r => setTimeout(r, 900));
 
