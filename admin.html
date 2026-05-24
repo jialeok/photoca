@@ -2195,24 +2195,40 @@
     <div class="card" style="margin-top:24px;margin-bottom:8px">
         <div style="padding:18px 22px">
             <div style="font-weight:700;font-size:15px;margin-bottom:4px">🎧 在线试听</div>
-            <div style="font-size:12px;color:var(--ink-soft);margin-bottom:14px">使用当前启用配置的指令，选择任意音色即时试听效果</div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-bottom:14px">选择引擎和音色，即时试听效果</div>
+
+            <!-- Provider Tab -->
+            <div style="display:flex;gap:8px;margin-bottom:14px;background:var(--surface);border-radius:12px;padding:4px">
+                <button id="preview-tab-qwen" onclick="switchPreviewTab('qwen')"
+                    style="flex:1;padding:7px 0;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;background:var(--white);color:var(--accent);box-shadow:var(--shadow-sm)">
+                    🇨🇳 千问 TTS
+                </button>
+                <button id="preview-tab-el" onclick="switchPreviewTab('elevenlabs')"
+                    style="flex:1;padding:7px 0;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;background:transparent;color:var(--ink-soft)">
+                    🌍 ElevenLabs
+                </button>
+            </div>
+
             <textarea id="tts-test-text" rows="3"
                 placeholder="输入试听文字，例如：哇！你今天真的太美了，这张 AI 照片简直绝了！"
                 style="width:100%;padding:12px 14px;border:1.5px solid rgba(0,0,0,.1);border-radius:12px;font-size:13px;font-family:inherit;resize:vertical;line-height:1.6;outline:none;transition:border-color .2s"
                 onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='rgba(0,0,0,.1)'"></textarea>
 
-            <!-- 当前启用指令展示 -->
-            <div id="tts-active-instructions-wrap" style="margin-top:12px;display:none">
-                <div style="font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase">当前启用的指令</div>
-                <div id="tts-active-instructions-text"
-                    style="padding:10px 14px;background:var(--surface);border-radius:10px;font-size:12px;color:var(--ink);line-height:1.6;border:1px solid var(--border)"></div>
-                <div style="font-size:11px;color:var(--ink-soft);margin-top:4px">来自启用配置，仅展示，不可在此修改</div>
-            </div>
-            <div id="tts-no-active-instructions" style="margin-top:12px;font-size:12px;color:var(--ink-soft);font-style:italic;display:none">
-                当前无启用配置指令（使用模型默认风格）
+            <!-- 千问：当前启用指令展示 -->
+            <div id="tts-qwen-instructions-area">
+                <div id="tts-active-instructions-wrap" style="margin-top:12px;display:none">
+                    <div style="font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase">当前启用的指令</div>
+                    <div id="tts-active-instructions-text"
+                        style="padding:10px 14px;background:var(--surface);border-radius:10px;font-size:12px;color:var(--ink);line-height:1.6;border:1px solid var(--border)"></div>
+                    <div style="font-size:11px;color:var(--ink-soft);margin-top:4px">来自启用配置，仅展示，不可在此修改</div>
+                </div>
+                <div id="tts-no-active-instructions" style="margin-top:12px;font-size:12px;color:var(--ink-soft);font-style:italic;display:none">
+                    当前无启用配置指令（使用模型默认风格）
+                </div>
             </div>
 
             <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+                <!-- 千问音色 -->
                 <select id="tts-test-voice" class="input-field" style="width:100%;padding:10px 14px;font-size:14px">
                     <optgroup label="👩 女声">
                         <option value="Cherry">Cherry · 芊悦 — 阳光积极、亲切自然</option>
@@ -2246,6 +2262,12 @@
                         <option value="Dylan">Dylan · 迪伦 — 年轻有活力男声</option>
                     </optgroup>
                 </select>
+
+                <!-- ElevenLabs 音色（动态加载，默认隐藏） -->
+                <select id="tts-test-el-voice" class="input-field" style="width:100%;padding:10px 14px;font-size:14px;display:none">
+                    <option value="" disabled selected>加载中…</option>
+                </select>
+
                 <div style="display:flex;gap:10px">
                     <button class="btn-primary" onclick="ttsPreviewPlay()" id="tts-preview-btn" style="display:flex;align-items:center;justify-content:center;gap:6px;flex:1">
                         <span class="material-icons-round" style="font-size:16px!important">play_arrow</span>播放
@@ -2348,6 +2370,44 @@
             </div>
         </div>
     </div>
+
+    <!-- EMO 视频生成开关 -->
+    <div style="margin-top:28px">
+        <div style="font-size:13px;font-weight:700;color:var(--ink-soft);letter-spacing:.5px;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+            <span class="material-icons-round" style="font-size:16px!important">videocam</span>
+            EMO 视频生成
+            <span style="font-size:11px;font-weight:500;color:var(--ink-soft);background:var(--surface2);padding:2px 8px;border-radius:20px;margin-left:4px">主角说话视频</span>
+        </div>
+        <div class="card">
+            <div class="card-body" style="padding:16px 20px">
+                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:16px;display:flex;align-items:flex-start;gap:6px;background:var(--accent-light);border-radius:10px;padding:10px 12px">
+                    <span class="material-icons-round" style="font-size:15px!important;color:var(--accent);flex-shrink:0;margin-top:1px">info</span>
+                    <span>开启后，AI 生成图片完成时会自动检测并生成主角说话视频（需要 2~5 分钟）。关闭则只生成图片和语音，速度更快。</span>
+                </div>
+                <!-- 开关行 -->
+                <div class="toggle-row" style="padding:0">
+                    <div class="toggle-label">
+                        启用 EMO 视频生成
+                        <small id="emo-enabled-status">加载中…</small>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="emo-enabled-toggle" onchange="saveEmoEnabled(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <!-- 动作风格（仅开启时显示） -->
+                <div id="emo-style-group" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+                    <div style="font-size:12px;font-weight:700;color:var(--ink-soft);letter-spacing:.5px;margin-bottom:10px;text-transform:uppercase">动作风格</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <button type="button" class="tts-tag" id="emo-style-calm"   onclick="selectEmoStyle('calm')"  >😌 平静 calm</button>
+                        <button type="button" class="tts-tag" id="emo-style-normal" onclick="selectEmoStyle('normal')" >😊 适中 normal</button>
+                        <button type="button" class="tts-tag" id="emo-style-active" onclick="selectEmoStyle('active')" >😄 活泼 active</button>
+                    </div>
+                    <div style="font-size:11px;color:var(--ink-soft);margin-top:8px">控制视频中人物的运动姿态和幅度</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </main>
 
 
@@ -2443,8 +2503,23 @@
                 <input class="form-input" id="tts-name" type="text" placeholder="例如：温柔女声 · 惊喜感">
             </div>
 
-            <!-- 音色选择 -->
+            <!-- Provider 选择 -->
             <div class="form-group">
+                <label class="form-label">TTS 引擎</label>
+                <div style="display:flex;gap:8px;background:var(--surface);border-radius:12px;padding:4px">
+                    <button id="modal-tab-qwen" type="button" onclick="switchModalProvider('qwen')"
+                        style="flex:1;padding:8px 0;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;background:var(--white);color:var(--accent);box-shadow:var(--shadow-sm)">
+                        🇨🇳 千问 TTS
+                    </button>
+                    <button id="modal-tab-el" type="button" onclick="switchModalProvider('elevenlabs')"
+                        style="flex:1;padding:8px 0;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;background:transparent;color:var(--ink-soft)">
+                        🌍 ElevenLabs
+                    </button>
+                </div>
+            </div>
+
+            <!-- 千问音色（默认显示） -->
+            <div class="form-group" id="modal-qwen-voice-group">
                 <label class="form-label">音色 *</label>
                 <select class="form-input" id="tts-voice">
                     <optgroup label="👩 女声">
@@ -2481,7 +2556,19 @@
                 </select>
             </div>
 
-            <!-- ② 语音风格区 -->
+            <!-- ElevenLabs 音色（动态加载，默认隐藏） -->
+            <div class="form-group" id="modal-el-voice-group" style="display:none">
+                <label class="form-label">ElevenLabs 音色 *</label>
+                <select class="form-input" id="tts-el-voice">
+                    <option value="" disabled selected>加载中…</option>
+                </select>
+                <div style="font-size:11px;color:var(--ink-soft);margin-top:6px">
+                    💡 ElevenLabs 不支持风格指令，直接按音色本身的风格合成
+                </div>
+            </div>
+
+            <!-- ② 语音风格区（仅千问显示） -->
+            <div id="modal-qwen-style-group">
             <div class="form-group">
                 <label class="form-label" style="margin-bottom:12px">语音风格（快速配置）</label>
 
@@ -2548,8 +2635,10 @@
                     </div>
                 </div>
             </div>
+            </div><!-- /modal-qwen-style-group -->
 
-            <!-- ③ 指令预览区 -->
+            <!-- ③ 指令预览区（仅千问） -->
+            <div id="modal-qwen-instructions-group">
             <div class="form-group">
                 <label class="form-label" style="margin-bottom:4px">指令预览（自动生成，可直接编辑）</label>
                 <textarea class="form-input" id="tts-instructions" rows="4"
@@ -2575,6 +2664,21 @@
                         <option value="Auto">自动识别</option>
                         <option value="English">English</option>
                     </select>
+                </div>
+            </div>
+            </div><!-- /modal-qwen-instructions-group -->
+
+            <!-- EMO 专用开关 -->
+            <div class="form-group">
+                <div class="toggle-row">
+                    <div class="toggle-label">
+                        🎬 EMO 专用
+                        <small>勾选后此段语音只给 EMO 视频使用，不加入正常播放队列</small>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="tts-emo-only">
+                        <span class="toggle-slider"></span>
+                    </label>
                 </div>
             </div>
 
@@ -5155,6 +5259,7 @@ async function runQwenTest() {
 // ══ 智夸配置 ══════════════════════════════════════════
 
 let zkEditingId = null;
+let _zkProtagonistField = null; // 当前模板的主角字段 key，null = 不生成 EMO 视频
 
 // ── 音色选项（复用 TTS_VOICES 定义，但本块先于其定义，用字符串避免依赖顺序）
 const ZK_VOICES_SHORT = [
@@ -5208,7 +5313,7 @@ async function zkLoadFieldDefs(force = false) {
     return _zkFieldDefs;
 }
 
-// 动态渲染输出字段复选框（传入已选字段数组以恢复勾选状态）
+// 动态渲染输出字段列表（支持拖拽排序 + 主角标记 + 勾选 + 编辑 + 删除）
 function zkRenderOutputFields(selectedFields) {
     const container = document.getElementById('zk-output-fields');
     if (!container) return;
@@ -5217,18 +5322,41 @@ function zkRenderOutputFields(selectedFields) {
         container.innerHTML = '<div style="font-size:12px;color:#b91c1c;padding:8px">未找到任何启用字段，请点击「新增字段」添加。</div>';
         return;
     }
-    container.innerHTML = defs.map(f => {
+    container.innerHTML = defs.map((f) => {
         const checked = selectedFields.includes(f.value) ? 'checked' : '';
-        return `<div class="zk-field-row">
-            <label style="flex:1;min-width:0;display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">
-                <input type="checkbox" class="zk-field-cb" value="${escapeHtml(f.value)}" ${checked} style="margin-top:2px;flex-shrink:0">
+        const isProtagonist = _zkProtagonistField === f.value;
+        const rowBorder = isProtagonist
+            ? '1.5px solid #7c3aed'
+            : '1.5px solid var(--border)';
+        const rowBg = isProtagonist
+            ? 'linear-gradient(90deg,#ede9fe 0%,var(--surface2) 100%)'
+            : 'var(--surface2)';
+        const protoBtnStyle = isProtagonist
+            ? 'flex-shrink:0;width:30px;height:30px;border:1.5px solid #7c3aed;background:#ede9fe;color:#7c3aed;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center'
+            : 'flex-shrink:0;width:30px;height:30px;border:1px solid var(--border);background:var(--white);color:#c4b5fd;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center';
+        const protoTitle = isProtagonist ? '取消主角（不生成 EMO 视频）' : '设为主角（触发 EMO 视频）';
+        return `<div class="zk-field-row" draggable="true" data-field-key="${escapeHtml(f.value)}"
+            style="display:flex;align-items:center;gap:6px;cursor:default;user-select:none;background:${rowBg};border-radius:10px;border:${rowBorder};padding:8px 10px;transition:box-shadow .15s,opacity .15s,border .15s">
+            <span title="拖拽排序" style="flex-shrink:0;cursor:grab;color:var(--ink-soft);display:flex;align-items:center;touch-action:none">
+                <span class="material-icons-round" style="font-size:18px!important">drag_indicator</span>
+            </span>
+            <label style="flex:1;min-width:0;display:flex;align-items:flex-start;gap:8px;cursor:pointer">
+                <input type="checkbox" class="zk-field-cb" value="${escapeHtml(f.value)}" ${checked} style="margin-top:3px;flex-shrink:0;accent-color:var(--accent)">
                 <span style="flex:1;min-width:0">
-                    <span class="zk-field-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><code style="font-size:10px;background:var(--accent-light);color:var(--accent);padding:1px 6px;border-radius:5px">${escapeHtml(f.value)}</code></span>
-                    <span class="zk-field-example" style="font-size:11px;color:var(--ink-soft);display:block;margin-top:2px">${escapeHtml(f.example || '')}</span>
+                    <span style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+                        <code style="font-size:10px;background:var(--accent-light);color:var(--accent);padding:1px 6px;border-radius:5px;font-weight:700">${escapeHtml(f.value)}</code>
+                        <span style="font-size:12px;font-weight:600;color:var(--ink)">${escapeHtml(f.label)}</span>
+                        ${isProtagonist ? '<span style="font-size:10px;font-weight:700;background:#ede9fe;color:#7c3aed;border-radius:20px;padding:1px 7px">🎬 主角</span>' : ''}
+                    </span>
+                    <span style="font-size:11px;color:var(--ink-soft);display:block;margin-top:2px;line-height:1.4">${escapeHtml((f.example||'').slice(0,60))}${(f.example||'').length>60?'…':''}</span>
                 </span>
             </label>
+            <button type="button" onclick="zkSetProtagonist('${escapeHtml(f.value)}')" title="${protoTitle}"
+                style="${protoBtnStyle}">
+                <span class="material-icons-round" style="font-size:15px!important">videocam</span>
+            </button>
             <button type="button" onclick="zkOpenEditField('${escapeHtml(f.value)}')" title="编辑此字段"
-                style="flex-shrink:0;width:30px;height:30px;border:1px solid var(--border);background:var(--surface2);color:var(--ink-soft);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+                style="flex-shrink:0;width:30px;height:30px;border:1px solid var(--border);background:var(--white);color:var(--ink-soft);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center">
                 <span class="material-icons-round" style="font-size:15px!important">edit</span>
             </button>
             <button type="button" onclick="zkDeleteField('${escapeHtml(f.value)}', '${escapeHtml(f.label)}')" title="删除此字段"
@@ -5237,6 +5365,93 @@ function zkRenderOutputFields(selectedFields) {
             </button>
         </div>`;
     }).join('');
+
+    _zkBindFieldDragSort(container);
+}
+
+// 设置/取消主角字段
+function zkSetProtagonist(key) {
+    if (_zkProtagonistField === key) {
+        _zkProtagonistField = null; // 再点一次取消
+    } else {
+        _zkProtagonistField = key;
+    }
+    const selected = zkGetSelectedOutputFields();
+    zkRenderOutputFields(selected);
+}
+
+// 上下移动字段
+async function zkMoveField(key, dir) {
+    const defs = _zkFieldDefs || [];
+    const idx = defs.findIndex(f => f.value === key);
+    if (idx < 0) return;
+    const targetIdx = idx + dir;
+    if (targetIdx < 0 || targetIdx >= defs.length) return;
+    const a = defs[idx];
+    const b = defs[targetIdx];
+    const sortA = (a.sort !== undefined ? a.sort : idx * 10);
+    const sortB = (b.sort !== undefined ? b.sort : targetIdx * 10);
+    const selected = zkGetSelectedOutputFields();
+    try {
+        if (!sbClient) throw new Error('数据库未连接');
+        await sbClient.from('vl_fields').update({ sort: sortB }).eq('key', a.value);
+        await sbClient.from('vl_fields').update({ sort: sortA }).eq('key', b.value);
+        await zkLoadFieldDefs(true);
+        zkRenderOutputFields(selected);
+        zkRenderSegments();
+    } catch(e) {
+        showToast('排序更新失败：' + e.message, 'error');
+    }
+}
+
+// 拖拽排序绑定
+function _zkBindFieldDragSort(container) {
+    let dragKey = null;
+    let dragEl  = null;
+    container.querySelectorAll('.zk-field-row').forEach(row => {
+        row.addEventListener('dragstart', e => {
+            dragKey = row.dataset.fieldKey;
+            dragEl  = row;
+            row.style.opacity = '0.45';
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        row.addEventListener('dragend', () => {
+            row.style.opacity = '';
+            container.querySelectorAll('.zk-field-row').forEach(r => r.style.outline = '');
+        });
+        row.addEventListener('dragover', e => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            container.querySelectorAll('.zk-field-row').forEach(r => r.style.outline = '');
+            if (row !== dragEl) row.style.outline = '2px dashed var(--accent)';
+        });
+        row.addEventListener('dragleave', () => { row.style.outline = ''; });
+        row.addEventListener('drop', async e => {
+            e.preventDefault();
+            row.style.outline = '';
+            if (!dragKey || row.dataset.fieldKey === dragKey) return;
+            const defs = _zkFieldDefs || [];
+            const fromIdx = defs.findIndex(f => f.value === dragKey);
+            const toIdx   = defs.findIndex(f => f.value === row.dataset.fieldKey);
+            if (fromIdx < 0 || toIdx < 0) return;
+            const newOrder = [...defs];
+            const [moved] = newOrder.splice(fromIdx, 1);
+            newOrder.splice(toIdx, 0, moved);
+            const selected = zkGetSelectedOutputFields();
+            try {
+                if (!sbClient) throw new Error('数据库未连接');
+                for (let i = 0; i < newOrder.length; i++) {
+                    await sbClient.from('vl_fields').update({ sort: i * 10 }).eq('key', newOrder[i].value);
+                }
+                await zkLoadFieldDefs(true);
+                zkRenderOutputFields(selected);
+                zkRenderSegments();
+                showToast('✅ 顺序已更新', 'success');
+            } catch(err) {
+                showToast('排序更新失败：' + err.message, 'error');
+            }
+        });
+    });
 }
 
 // ── 打开编辑字段表单 ────────────────────────────────────
@@ -5258,34 +5473,43 @@ function zkOpenEditField(key) {
         outputFields.parentNode.insertBefore(editForm, outputFields);
     }
 
-    editForm.style.cssText = 'display:block;background:var(--surface2);border:1px solid var(--accent);border-radius:12px;padding:12px;margin-bottom:10px';
+    editForm.style.cssText = 'display:block;background:var(--surface2);border:1.5px solid var(--accent);border-radius:12px;padding:12px;margin-bottom:10px';
+    // data-orig-key 存原始 key，保存时用于定位记录
+    editForm.dataset.origKey = key;
     editForm.innerHTML = `
         <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:10px;display:flex;align-items:center;gap:5px">
-            <span class="material-icons-round" style="font-size:14px!important">edit</span>编辑字段：${escapeHtml(f.label)}
-            <code style="font-size:10px;background:var(--accent-light);padding:1px 6px;border-radius:5px;margin-left:4px">${escapeHtml(key)}</code>
+            <span class="material-icons-round" style="font-size:14px!important">edit</span>
+            编辑字段：<span style="font-weight:700">${escapeHtml(f.label)}</span>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">
             <div>
+                <div style="font-size:11px;color:var(--ink-soft);margin-bottom:3px">
+                    字段 Key <span style="color:#b91c1c">*</span>
+                    <span style="opacity:.55;font-size:10px">修改后关联段落自动同步</span>
+                </div>
+                <input id="zk-edit-field-key" type="text" value="${escapeHtml(key)}"
+                    style="width:100%;box-sizing:border-box;border:1.5px solid var(--accent);border-radius:8px;padding:7px 10px;font-size:13px;font-family:monospace;background:var(--white);color:var(--ink)">
+            </div>
+            <div>
                 <div style="font-size:11px;color:var(--ink-soft);margin-bottom:3px">展示名称 <span style="color:#b91c1c">*</span></div>
                 <input id="zk-edit-field-label" type="text" value="${escapeHtml(f.label)}"
-                    style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;background:var(--bg);color:var(--ink)">
+                    style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;background:var(--white);color:var(--ink)">
             </div>
             <div style="position:relative">
                 <div style="font-size:11px;color:var(--ink-soft);margin-bottom:3px">字段描述（VL 提示词）<span style="color:#b91c1c">*</span> <span style="opacity:.5;font-size:10px">输入 @ 可引用其他字段</span></div>
                 <textarea id="zk-edit-field-desc" rows="3"
-                    style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;background:var(--bg);color:var(--ink);resize:vertical;line-height:1.5"
+                    style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;background:var(--white);color:var(--ink);resize:vertical;line-height:1.5"
                     oninput="zkHandleDescInput(this,'zk-edit-field-desc')" onkeydown="zkHandleDescKeydown(event,'zk-edit-field-desc')">${escapeHtml(f.example || '')}</textarea>
                 <div id="zk-edit-field-desc-menu" class="zk-at-menu" style="display:none"></div>
             </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:10px">
             <button type="button" class="btn-ghost btn-sm" onclick="zkCloseEditField()" style="flex:1">取消</button>
-            <button type="button" class="btn-primary btn-sm" onclick="zkSaveEditField('${escapeHtml(key)}')" id="zk-edit-field-save-btn" style="flex:2">
+            <button type="button" class="btn-primary btn-sm" onclick="zkSaveEditField()" id="zk-edit-field-save-btn" style="flex:2">
                 <span class="material-icons-round" style="font-size:14px!important">save</span>保存修改
             </button>
         </div>`;
 
-    // 滚动到编辑表单
     editForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
@@ -5294,9 +5518,17 @@ function zkCloseEditField() {
     if (editForm) editForm.style.display = 'none';
 }
 
-async function zkSaveEditField(key) {
-    const label = (document.getElementById('zk-edit-field-label').value || '').trim();
-    const desc  = (document.getElementById('zk-edit-field-desc').value || '').trim();
+async function zkSaveEditField() {
+    const editForm = document.getElementById('zk-edit-field-form');
+    const origKey = editForm ? editForm.dataset.origKey : '';
+    const newKey  = (document.getElementById('zk-edit-field-key').value  || '').trim();
+    const label   = (document.getElementById('zk-edit-field-label').value || '').trim();
+    const desc    = (document.getElementById('zk-edit-field-desc').value  || '').trim();
+
+    if (!newKey)  { showToast('字段 Key 不能为空', 'error'); return; }
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(newKey)) {
+        showToast('Key 只能包含字母、数字、下划线，且不能以数字开头', 'error'); return;
+    }
     if (!label) { showToast('展示名称不能为空', 'error'); return; }
     if (!desc)  { showToast('字段描述不能为空', 'error'); return; }
 
@@ -5306,16 +5538,38 @@ async function zkSaveEditField(key) {
 
     try {
         if (!sbClient) throw new Error('数据库未连接');
+
+        // 1. 更新 vl_fields（包括 key 本身）
         const { error } = await sbClient.from('vl_fields')
-            .update({ label, description: desc })
-            .eq('key', key);
+            .update({ key: newKey, label, description: desc })
+            .eq('key', origKey);
         if (error) throw error;
 
-        showToast('✅ 修改已保存', 'success');
+        // 2. 若 key 变了，同步所有 qwen_prompts 里的引用
+        if (newKey !== origKey) {
+            const { data: allPrompts, error: fetchErr } = await sbClient
+                .from('qwen_prompts').select('id, broadcast_segments, output_fields');
+            if (fetchErr) throw fetchErr;
+            for (const row of (allPrompts || [])) {
+                const segs   = Array.isArray(row.broadcast_segments) ? row.broadcast_segments : [];
+                const fields = Array.isArray(row.output_fields)      ? row.output_fields      : [];
+                if (!segs.some(s => s.field === origKey) && !fields.includes(origKey)) continue;
+                const newSegs   = segs.map(s => s.field === origKey ? { ...s, field: newKey } : s);
+                const newFields = fields.map(f => f === origKey ? newKey : f);
+                await sbClient.from('qwen_prompts')
+                    .update({ broadcast_segments: newSegs, output_fields: newFields })
+                    .eq('id', row.id);
+            }
+            showToast(`✅ 保存成功，Key「${origKey}」→「${newKey}」已同步`, 'success');
+        } else {
+            showToast('✅ 修改已保存', 'success');
+        }
+
         zkCloseEditField();
         const selected = zkGetSelectedOutputFields();
         await zkLoadFieldDefs(true);
         zkRenderOutputFields(selected);
+        zkRenderSegments();
     } catch(e) {
         showToast('保存失败：' + e.message, 'error');
     } finally {
@@ -5834,6 +6088,9 @@ async function openZhiKuaModal(row) {
     zkUpdatePromptPreview();
     document.getElementById('zk-enabled').checked = row ? !!row.enabled : false;
 
+    // 读取主角字段（存 qwen_prompts.protagonist_field）
+    _zkProtagonistField = (row && row.protagonist_field) ? row.protagonist_field : null;
+
     // 并行加载：字段定义 + 声播模板
     const fields = (row && Array.isArray(row.output_fields)) ? row.output_fields : ['score','shortPraise','fourWords'];
     _zkTtsTemplates = [];
@@ -5871,6 +6128,7 @@ async function openZhiKuaModal(row) {
 function closeZhiKuaModal() {
     document.getElementById('zk-modal').classList.remove('show');
     zkEditingId = null;
+    _zkProtagonistField = null;
 }
 
 async function editZhiKua(id) {
@@ -5929,7 +6187,7 @@ async function saveZhiKuaPrompt() {
         if (enabled) {
             await sbClient.from('qwen_prompts').update({ enabled: false }).neq('id', zkEditingId || '00000000-0000-0000-0000-000000000000');
         }
-        const payload = { name, prompt, enabled, output_fields, broadcast_segments };
+        const payload = { name, prompt, enabled, output_fields, broadcast_segments, protagonist_field: _zkProtagonistField || null };
         if (zkEditingId) {
             const { error } = await sbClient.from('qwen_prompts').update(payload).eq('id', zkEditingId);
             if (error) throw error;
@@ -6205,8 +6463,69 @@ function importPreset(p) {
 const _origNavTo2 = window.navTo;
 window.navTo = function(page, btnEl) {
     _origNavTo2(page, btnEl);
-    if (page === 'zhi-kua') { loadZhiKua(); loadGlobalPrompt(); }
+    if (page === 'zhi-kua') { loadZhiKua(); loadGlobalPrompt(); loadEmoConfig(); }
 };
+
+// ══ EMO 开关：读取 / 保存（存储在 app_config 表）══
+
+async function loadEmoConfig() {
+    const toggle    = document.getElementById('emo-enabled-toggle');
+    const statusEl  = document.getElementById('emo-enabled-status');
+    const styleGrp  = document.getElementById('emo-style-group');
+    if (!toggle || !sbClient) return;
+
+    try {
+        const { data } = await sbClient
+            .from('app_config')
+            .select('key, value')
+            .in('key', ['emo_enabled', 'emo_style_level']);
+
+        const map = {};
+        (data || []).forEach(r => { map[r.key] = r.value; });
+
+        const enabled = map['emo_enabled'] === 'true';
+        toggle.checked = enabled;
+        statusEl.textContent = enabled ? '✅ 已开启' : '当前已关闭，不生成视频';
+        styleGrp.style.display = enabled ? 'block' : 'none';
+
+        // 恢复动作风格选中
+        const style = map['emo_style_level'] || 'normal';
+        ['calm','normal','active'].forEach(s => {
+            const btn = document.getElementById('emo-style-' + s);
+            if (btn) btn.classList.toggle('tts-tag-active', s === style);
+        });
+    } catch(e) {
+        if (statusEl) statusEl.textContent = '⚠️ 加载失败';
+    }
+}
+
+async function saveEmoEnabled(enabled) {
+    const statusEl = document.getElementById('emo-enabled-status');
+    const styleGrp = document.getElementById('emo-style-group');
+    try {
+        await sbClient.from('app_config')
+            .upsert({ key: 'emo_enabled', value: String(enabled) }, { onConflict: 'key' });
+        statusEl.textContent = enabled ? '✅ 已开启' : '当前已关闭，不生成视频';
+        styleGrp.style.display = enabled ? 'block' : 'none';
+        showToast(enabled ? '✅ EMO 视频生成已开启' : '已关闭 EMO 视频生成', 'success');
+    } catch(e) {
+        showToast('保存失败：' + e.message, 'error');
+    }
+}
+
+async function selectEmoStyle(style) {
+    ['calm','normal','active'].forEach(s => {
+        const btn = document.getElementById('emo-style-' + s);
+        if (btn) btn.classList.toggle('tts-tag-active', s === style);
+    });
+    try {
+        await sbClient.from('app_config')
+            .upsert({ key: 'emo_style_level', value: style }, { onConflict: 'key' });
+        showToast('✅ 动作风格已保存：' + style, 'success');
+    } catch(e) {
+        showToast('保存失败：' + e.message, 'error');
+    }
+}
 
 // ══ 全局提示词：读取 / 保存（存储在 app_config 表，key='global_system_prompt'）══
 
@@ -6490,6 +6809,112 @@ async function playSingleLegacyTTS(voiceText, lb) {
 //  AI 声播配置页面 JS  (v2 — tts_prompts 表)
 // ══════════════════════════════════════════════════════
 
+// ElevenLabs 动态音色缓存（由 loadElVoices() 填充）
+let _elVoicesCache = null;   // null = 未加载；[] = 已加载但为空
+let _elVoicesLoading = false;
+
+// 从缓存中查 voice_id 对应的展示名（供列表卡片用）
+function elVoiceLabel(voiceId) {
+    if (!voiceId) return '—';
+    if (!_elVoicesCache) return voiceId;
+    const v = _elVoicesCache.find(x => x.voice_id === voiceId);
+    return v ? v.name : voiceId;
+}
+
+// 调用 get-voices Edge Function，填充两个下拉
+async function loadElVoices(forceReload = false) {
+    // 已缓存且不强制刷新时，直接渲染（避免每次切 Tab 都重新请求）
+    if (_elVoicesCache && !forceReload) {
+        _renderElVoiceSelects(_elVoicesCache);
+        return;
+    }
+    // 防止并发重复请求
+    if (_elVoicesLoading) return;
+    _elVoicesLoading = true;
+
+    const selPreview = document.getElementById('tts-test-el-voice');
+    const selModal   = document.getElementById('tts-el-voice');
+    const loadingOpt = '<option value="" disabled selected>加载中…</option>';
+    if (selPreview) selPreview.innerHTML = loadingOpt;
+    if (selModal)   selModal.innerHTML   = loadingOpt;
+
+    try {
+        let waited = 0;
+        while (!window.SUPABASE_URL && waited < 4000) { await new Promise(r => setTimeout(r, 100)); waited += 100; }
+
+        const res  = await fetch(SUPABASE_URL + '/functions/v1/get-voices', {
+            headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '获取音色失败');
+
+        _elVoicesCache = data.voices || [];
+        _renderElVoiceSelects(_elVoicesCache);
+    } catch(e) {
+        const errOpt = `<option value="" disabled selected>⚠️ 加载失败：${e.message}</option>`;
+        if (selPreview) selPreview.innerHTML = errOpt;
+        if (selModal)   selModal.innerHTML   = errOpt;
+        console.error('[get-voices]', e);
+    } finally {
+        _elVoicesLoading = false;
+    }
+}
+
+// 根据音色列表渲染两个 <select>，按 category + gender 分组
+function _renderElVoiceSelects(voices) {
+    const selPreview = document.getElementById('tts-test-el-voice');
+    const selModal   = document.getElementById('tts-el-voice');
+    if (!selPreview && !selModal) return;
+
+    // 分组：premade 优先，cloned / generated 靠后
+    const CATEGORY_LABEL = {
+        premade:   '🎙️ 官方音色',
+        cloned:    '🧬 克隆音色',
+        generated: '✨ 生成音色',
+        professional: '⭐ 专业音色',
+    };
+    const GENDER_LABEL = { female: '👩 女声', male: '👨 男声', unknown: '🎤 其他' };
+
+    // 按 category 分组
+    const byCategory = {};
+    for (const v of voices) {
+        const cat = v.category || 'premade';
+        if (!byCategory[cat]) byCategory[cat] = { female: [], male: [], unknown: [] };
+        const g = ['female','male'].includes(v.gender) ? v.gender : 'unknown';
+        byCategory[cat][g].push(v);
+    }
+
+    // 按分类顺序排列：premade → professional → cloned → generated → 其余
+    const catOrder = ['premade', 'professional', 'cloned', 'generated'];
+    const cats = [...new Set([...catOrder, ...Object.keys(byCategory)])].filter(c => byCategory[c]);
+
+    let html = '';
+    for (const cat of cats) {
+        const groups = byCategory[cat];
+        const catLabel = CATEGORY_LABEL[cat] || cat;
+        for (const gender of ['female', 'male', 'unknown']) {
+            const list = groups[gender];
+            if (!list || list.length === 0) continue;
+            const grpLabel = `${catLabel} · ${GENDER_LABEL[gender]}`;
+            html += `<optgroup label="${grpLabel}">`;
+            for (const v of list) {
+                html += `<option value="${v.voice_id}">${v.name}</option>`;
+            }
+            html += '</optgroup>';
+        }
+    }
+
+    if (!html) {
+        html = '<option value="" disabled selected>没有可用音色</option>';
+    }
+
+    // 记住当前已选值，渲染后恢复
+    const prevPreview = selPreview?.value;
+    const prevModal   = selModal?.value;
+    if (selPreview) { selPreview.innerHTML = html; if (prevPreview) selPreview.value = prevPreview; }
+    if (selModal)   { selModal.innerHTML   = html; if (prevModal)   selModal.value   = prevModal; }
+}
+
 // 千问TTS 全量音色表（与 Modal 下拉保持一致）
 const TTS_VOICES = [
     { id: 'Cherry',      label: 'Cherry · 芊悦（女）',       desc: '阳光积极、亲切自然' },
@@ -6560,16 +6985,26 @@ async function loadTtsList() {
         data.forEach(row => {
             const card = document.createElement('div');
             card.className = 'zk-card' + (row.enabled ? ' enabled-card' : '');
+            const isEl = row.provider === 'elevenlabs';
+            const voiceDisplay = isEl
+                ? (elVoiceLabel(row.el_voice_id))
+                : ttsVoiceLabel(row.voice);
+            const providerBadge = isEl
+                ? '<span style="font-size:10px;font-weight:700;background:#f0f4ff;color:#4f6ef7;border-radius:20px;padding:2px 8px;margin-left:8px">🌍 ElevenLabs</span>'
+                : '<span style="font-size:10px;font-weight:700;background:#fff7e6;color:#d97706;border-radius:20px;padding:2px 8px;margin-left:8px">🇨🇳 千问</span>';
+            const emoBadge = row.emo_only
+                ? '<span style="font-size:10px;font-weight:700;background:#f0fff4;color:#16a34a;border-radius:20px;padding:2px 8px;margin-left:4px">🎬 EMO专用</span>'
+                : '';
             card.innerHTML = `
                 <div class="zk-card-header">
-                    <div class="zk-card-name">${escapeHtml(row.name)}</div>
+                    <div class="zk-card-name">${escapeHtml(row.name)}${providerBadge}${emoBadge}</div>
                     ${row.enabled ? '<span class="zk-enabled-badge">✓ 已启用</span>' : ''}
                 </div>
                 <div style="font-size:12px;color:var(--ink-soft);margin:6px 0 4px;display:flex;align-items:center;gap:6px">
                     <span class="material-icons-round" style="font-size:14px!important">mic</span>
-                    ${escapeHtml(ttsVoiceLabel(row.voice))}
+                    ${escapeHtml(voiceDisplay)}
                 </div>
-                <div class="zk-card-prompt">${row.instructions ? escapeHtml(row.instructions) : '<em style="opacity:.4">无指令（使用模型默认风格）</em>'}</div>
+                <div class="zk-card-prompt">${row.instructions ? escapeHtml(row.instructions) : '<em style="opacity:.4">' + (isEl ? 'ElevenLabs 默认风格' : '无指令（使用模型默认风格）') + '</em>'}</div>
                 <div class="zk-card-footer">
                     <div class="toggle-row" style="flex:1;padding:8px 10px">
                         <div class="toggle-label">启用<small>同时只能启用一个</small></div>
@@ -6612,10 +7047,16 @@ function openTtsModal(row) {
     document.getElementById('tts-modal-title').textContent = row ? '编辑声播配置' : '新增声播配置';
     document.getElementById('tts-name').value          = row?.name         || '';
     document.getElementById('tts-voice').value         = row?.voice        || 'Cherry';
+    const elVoiceEl = document.getElementById('tts-el-voice');
+    elVoiceEl.value = row?.el_voice_id || '';
+    elVoiceEl.setAttribute('data-saved-id', row?.el_voice_id || '');
     document.getElementById('tts-instructions').value  = row?.instructions || '';
     document.getElementById('tts-optimize').checked    = row ? !!row.optimize_instructions : true;
     document.getElementById('tts-language').value      = row?.language_type || 'Chinese';
     document.getElementById('tts-enabled').checked     = row ? !!row.enabled : false;
+    document.getElementById('tts-emo-only').checked    = row ? !!row.emo_only : false;
+    // 切到对应 provider tab
+    switchModalProvider(row?.provider || 'qwen');
     // 重置所有标签选中状态
     ttsResetAllTags();
     document.getElementById('tts-modal').classList.add('show');
@@ -6635,11 +7076,14 @@ async function editTtsPrompt(id) {
 // ── 保存 ────────────────────────────────────────────────
 async function saveTtsPrompt() {
     const name         = document.getElementById('tts-name').value.trim();
+    const provider     = document.getElementById('modal-tab-el').style.background === 'var(--white)' ? 'elevenlabs' : 'qwen';
     const voice        = document.getElementById('tts-voice').value;
+    const elVoiceId    = document.getElementById('tts-el-voice').value;
     const instructions = document.getElementById('tts-instructions').value.trim();
     const optimize     = document.getElementById('tts-optimize').checked;
     const language     = document.getElementById('tts-language').value;
     const enabled      = document.getElementById('tts-enabled').checked;
+    const emoOnly      = document.getElementById('tts-emo-only').checked;
 
     if (!name) { showToast('配置名称不能为空', 'error'); return; }
 
@@ -6652,7 +7096,16 @@ async function saveTtsPrompt() {
             await sbClient.from('tts_prompts').update({ enabled: false })
                 .neq('id', ttsEditingId || '00000000-0000-0000-0000-000000000000');
         }
-        const payload = { name, voice, instructions, optimize_instructions: optimize, language_type: language, enabled };
+        const payload = {
+            name, provider,
+            voice: provider === 'qwen' ? voice : null,
+            el_voice_id: provider === 'elevenlabs' ? elVoiceId : null,
+            instructions: provider === 'qwen' ? instructions : null,
+            optimize_instructions: provider === 'qwen' ? optimize : null,
+            language_type: provider === 'qwen' ? language : null,
+            enabled,
+            emo_only: emoOnly,
+        };
         if (ttsEditingId) {
             const { error } = await sbClient.from('tts_prompts').update(payload).eq('id', ttsEditingId);
             if (error) throw error;
@@ -6706,9 +7159,67 @@ function ttsPreviewStop() {
     if (statusEl) statusEl.textContent   = '';
 }
 
+// ── Tab 切换（试听区） ───────────────────────────────────
+let _previewProvider = 'qwen';
+function switchPreviewTab(provider) {
+    _previewProvider = provider;
+    const tabQwen = document.getElementById('preview-tab-qwen');
+    const tabEl   = document.getElementById('preview-tab-el');
+    const voiceQ  = document.getElementById('tts-test-voice');
+    const voiceEl = document.getElementById('tts-test-el-voice');
+    const instrArea = document.getElementById('tts-qwen-instructions-area');
+    if (provider === 'qwen') {
+        tabQwen.style.background = 'var(--white)'; tabQwen.style.color = 'var(--accent)'; tabQwen.style.boxShadow = 'var(--shadow-sm)';
+        tabEl.style.background   = 'transparent';  tabEl.style.color   = 'var(--ink-soft)'; tabEl.style.boxShadow = 'none';
+        voiceQ.style.display  = '';
+        voiceEl.style.display = 'none';
+        if (instrArea) instrArea.style.display = '';
+    } else {
+        tabEl.style.background   = 'var(--white)'; tabEl.style.color   = 'var(--accent)'; tabEl.style.boxShadow = 'var(--shadow-sm)';
+        tabQwen.style.background = 'transparent';  tabQwen.style.color = 'var(--ink-soft)'; tabQwen.style.boxShadow = 'none';
+        voiceQ.style.display  = 'none';
+        voiceEl.style.display = '';
+        if (instrArea) instrArea.style.display = 'none';
+        // 动态加载音色（首次切换时才请求，之后走缓存）
+        loadElVoices();
+    }
+    ttsPreviewStop();
+}
+
+// ── Tab 切换（Modal） ─────────────────────────────────────
+let _modalProvider = 'qwen';
+function switchModalProvider(provider) {
+    _modalProvider = provider;
+    const tabQwen = document.getElementById('modal-tab-qwen');
+    const tabEl   = document.getElementById('modal-tab-el');
+    const qVoice  = document.getElementById('modal-qwen-voice-group');
+    const elVoice = document.getElementById('modal-el-voice-group');
+    const qStyle  = document.getElementById('modal-qwen-style-group');
+    const qInstr  = document.getElementById('modal-qwen-instructions-group');
+    if (provider === 'qwen') {
+        tabQwen.style.background = 'var(--white)'; tabQwen.style.color = 'var(--accent)'; tabQwen.style.boxShadow = 'var(--shadow-sm)';
+        tabEl.style.background   = 'transparent';  tabEl.style.color   = 'var(--ink-soft)'; tabEl.style.boxShadow = 'none';
+        if (qVoice) qVoice.style.display = '';
+        if (elVoice) elVoice.style.display = 'none';
+        if (qStyle) qStyle.style.display = '';
+        if (qInstr) qInstr.style.display = '';
+    } else {
+        tabEl.style.background   = 'var(--white)'; tabEl.style.color   = 'var(--accent)'; tabEl.style.boxShadow = 'var(--shadow-sm)';
+        tabQwen.style.background = 'transparent';  tabQwen.style.color = 'var(--ink-soft)'; tabQwen.style.boxShadow = 'none';
+        if (qVoice) qVoice.style.display = 'none';
+        if (elVoice) elVoice.style.display = '';
+        if (qStyle) qStyle.style.display = 'none';
+        if (qInstr) qInstr.style.display = 'none';
+        // 动态加载音色，加载完后恢复当前编辑行的 voice_id
+        const savedVoiceId = document.getElementById('tts-el-voice').getAttribute('data-saved-id');
+        loadElVoices().then(() => {
+            if (savedVoiceId) document.getElementById('tts-el-voice').value = savedVoiceId;
+        });
+    }
+}
+
 async function ttsPreviewPlay() {
     const text     = document.getElementById('tts-test-text').value.trim();
-    const voice    = document.getElementById('tts-test-voice').value;
     const statusEl = document.getElementById('tts-preview-status');
     const playBtn  = document.getElementById('tts-preview-btn');
     const stopBtn  = document.getElementById('tts-stop-btn');
@@ -6719,21 +7230,41 @@ async function ttsPreviewPlay() {
     if (playBtn)  playBtn.disabled = true;
 
     try {
-        const res = await fetch(SUPABASE_URL + '/functions/v1/qwen-tts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
-            body: JSON.stringify({ text, voice, previewMode: true }),
-        });
-        const data = await res.json();
-        if (!data.success) {
-            if (statusEl) statusEl.textContent = '❌ 失败：' + (data.error || '未知错误');
-            showToast('试听失败：' + data.error, 'error');
-            return;
+        let res, data;
+        if (_previewProvider === 'elevenlabs') {
+            const voiceId = document.getElementById('tts-test-el-voice').value;
+            res = await fetch(SUPABASE_URL + '/functions/v1/elevenlabs-tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+                body: JSON.stringify({ text, voiceId, previewMode: true }),
+            });
+            data = await res.json();
+            if (!data.success) {
+                if (statusEl) statusEl.textContent = '❌ 失败：' + (data.error || '未知错误');
+                showToast('试听失败：' + data.error, 'error');
+                return;
+            }
+            _ttsPreviewAudio = new Audio(data.audioUrl);
+            if (statusEl) statusEl.textContent = '🔊 正在播放… ElevenLabs';
+        } else {
+            const voice = document.getElementById('tts-test-voice').value;
+            res = await fetch(SUPABASE_URL + '/functions/v1/qwen-tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+                body: JSON.stringify({ text, voice, previewMode: true }),
+            });
+            data = await res.json();
+            if (!data.success) {
+                if (statusEl) statusEl.textContent = '❌ 失败：' + (data.error || '未知错误');
+                showToast('试听失败：' + data.error, 'error');
+                return;
+            }
+            _ttsPreviewAudio = new Audio(data.audioUrl);
+            if (statusEl) statusEl.textContent = '🔊 正在播放… 音色：' + ttsVoiceLabel(data.voice);
         }
-        _ttsPreviewAudio = new Audio(data.audioUrl);
+
         _ttsPreviewAudio.volume = 1.0;
-        if (statusEl) statusEl.textContent = '🔊 正在播放… 音色：' + ttsVoiceLabel(data.voice);
-        if (stopBtn)  stopBtn.style.display = 'flex';
+        if (stopBtn) stopBtn.style.display = 'flex';
         _ttsPreviewAudio.onended = () => { ttsPreviewStop(); if (statusEl) statusEl.textContent = '✅ 播放完毕'; };
         _ttsPreviewAudio.onerror = () => { ttsPreviewStop(); if (statusEl) statusEl.textContent = '❌ 音频加载失败'; };
         _ttsPreviewAudio.play();
