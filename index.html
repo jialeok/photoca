@@ -7779,32 +7779,34 @@
         });
     }
 
-    function _doubaoEncode(eventId, payload, sessionId, connectId) {
-        // header[4]
+    function _doubaoEncode(eventId, payload, sessionId) {
+        // header[4]: version=1, header_size=1, msg_type=Full-client(0b0001), flags=event(0b0100), serial=JSON(0b0001), compress=none(0b0000)
+        // 官方示例 StartConnection: [17 20 16 0 0 0 0 1 0 0 0 2 123 125]
         const header = new Uint8Array([0x11, 0x14, 0x10, 0x00]);
-        // optional
         const parts = [];
-        // sequence (event flag = 0b0100 in msg flags → no sequence field used here)
-        // event id (4 bytes BE)
-        const evtBuf = new ArrayBuffer(4); new DataView(evtBuf).setUint32(0, eventId, false);
+
+        // event id (4 bytes BE) — 必须
+        const evtBuf = new ArrayBuffer(4);
+        new DataView(evtBuf).setUint32(0, eventId, false);
         parts.push(new Uint8Array(evtBuf));
-        // connectId (only for event 1 StartConnection)
-        if (connectId) {
-            const cBytes = new TextEncoder().encode(connectId);
-            const cLen = new ArrayBuffer(4); new DataView(cLen).setUint32(0, cBytes.byteLength, false);
-            parts.push(new Uint8Array(cLen)); parts.push(cBytes);
-        }
-        // sessionId (required for session events)
+
+        // sessionId — 仅 Session 级别事件携带，connectId 已通过 X-Api-Connect-Id Header 传递，帧体不含
         if (sessionId) {
             const sBytes = new TextEncoder().encode(sessionId);
-            const sLen = new ArrayBuffer(4); new DataView(sLen).setUint32(0, sBytes.byteLength, false);
-            parts.push(new Uint8Array(sLen)); parts.push(sBytes);
+            const sLen = new ArrayBuffer(4);
+            new DataView(sLen).setUint32(0, sBytes.byteLength, false);
+            parts.push(new Uint8Array(sLen));
+            parts.push(sBytes);
         }
+
         // payload
-        const pBytes = typeof payload === 'string' ? new TextEncoder().encode(payload)
-                       : (payload instanceof Uint8Array ? payload : new Uint8Array(payload));
-        const pLen = new ArrayBuffer(4); new DataView(pLen).setUint32(0, pBytes.byteLength, false);
-        parts.push(new Uint8Array(pLen)); parts.push(pBytes);
+        const pBytes = typeof payload === 'string'
+            ? new TextEncoder().encode(payload)
+            : (payload instanceof Uint8Array ? payload : new Uint8Array(payload));
+        const pLen = new ArrayBuffer(4);
+        new DataView(pLen).setUint32(0, pBytes.byteLength, false);
+        parts.push(new Uint8Array(pLen));
+        parts.push(pBytes);
 
         // concat all
         const totalLen = parts.reduce((s, p) => s + p.byteLength, header.byteLength);
@@ -8002,13 +8004,14 @@
 
     function _doubaoSendEvent(eventId, jsonStr) {
         if (!_doubaoWs || _doubaoWs.readyState !== WebSocket.OPEN) return;
-        _doubaoWs.send(_doubaoEncode(eventId, jsonStr, _doubaoSid, null));
+        _doubaoWs.send(_doubaoEncode(eventId, jsonStr, _doubaoSid));
     }
 
     function _doubaoSendStartConnection() {
         if (!_doubaoWs || _doubaoWs.readyState !== WebSocket.OPEN) return;
-        // event=1, connectId required, no sessionId
-        const buf = _doubaoEncode(1, '{}', null, _doubaoConnId);
+        // connectId 已通过 X-Api-Connect-Id Header 传给 Render proxy，帧体不含 connectId
+        // 官方示例: [17 20 16 0 | 0 0 0 1 | 0 0 0 2 | 123 125] = 14字节
+        const buf = _doubaoEncode(1, '{}', null);
         _doubaoWs.send(buf);
     }
 
