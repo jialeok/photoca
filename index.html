@@ -8083,14 +8083,11 @@
         _doubaoConnId      = _doubaoUUID();
         _doubaoSid         = _doubaoUUID();
 
-        // 2. 建立 WebSocket — 走 Supabase doubao-proxy，避免浏览器直连火山被拒
-        //    proxy 内部用 service role key 连接火山，前台只需传 session_id + apikey
-        const proxyBase = SUPABASE_URL.replace('https://', 'wss://');
-        const wsUrl = new URL(proxyBase + '/functions/v1/doubao-proxy');
+        // 2. 建立 WebSocket — 走 Cloudflare Worker doubao-proxy
+        const wsUrl = new URL('wss://doubao-proxy.gaiming537.workers.dev/proxy');
         wsUrl.searchParams.set('session_id', downloadSessionId || ('anon_' + Date.now()));
-        wsUrl.searchParams.set('apikey',     SUPABASE_ANON_KEY);
 
-        _debugLog('[Doubao] 建立WS(proxy): ' + wsUrl.toString().substring(0, 80));
+        _debugLog('[Doubao] 建立WS(CF): ' + wsUrl.toString().substring(0, 80));
         _doubaoWs = new WebSocket(wsUrl.toString());
         _doubaoWs.binaryType = 'arraybuffer';
 
