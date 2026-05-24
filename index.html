@@ -3893,12 +3893,16 @@
                     window._debugLog && window._debugLog('[duConfirmUpload] ✅ 复用缓存base64，跳过FileReader（避免Android二次读权限失效）');
                     const img = new Image();
                     img.onload = function() {
-                        window._debugLog && window._debugLog('[duConfirmUpload] 压缩: Image解码成功，原始尺寸=' + img.width + 'x' + img.height);
+                        const srcW = img.width, srcH = img.height;
+                        window._debugLog && window._debugLog('[duConfirmUpload] 📐 原图尺寸=' + srcW + 'x' + srcH + '，比例=' + (srcW/srcH).toFixed(3) + '，原始文件=' + (_duSelectedFile ? (_duSelectedFile.size/1024).toFixed(1)+'KB' : '?'));
                         try {
-                            const MAX_W = 1440;
-                            const srcW = img.width, srcH = img.height;
-                            const w = srcW > MAX_W ? MAX_W : srcW;
-                            const h = srcW > MAX_W ? Math.round(srcH * MAX_W / srcW) : srcH;
+                            // 短边限制800px，保持原始比例，不裁切
+                            const MAX_SHORT = 800;
+                            const shortEdge = Math.min(srcW, srcH);
+                            const scale = shortEdge > MAX_SHORT ? MAX_SHORT / shortEdge : 1;
+                            const w = Math.round(srcW * scale);
+                            const h = Math.round(srcH * scale);
+                            window._debugLog && window._debugLog('[duConfirmUpload] 📐 缩放比=' + scale.toFixed(3) + '，上传尺寸=' + w + 'x' + h + (scale < 1 ? '（已缩小）' : '（原尺寸，无需缩小）'));
                             const canvas = document.createElement('canvas');
                             canvas.width = w; canvas.height = h;
                             canvas.getContext('2d').drawImage(img, 0, 0, w, h);
@@ -3930,10 +3934,15 @@
                         const img = new Image();
                         img.onload = function() {
                             try {
-                                const MAX_W = 1440;
                                 const srcW = img.width, srcH = img.height;
-                                const w = srcW > MAX_W ? MAX_W : srcW;
-                                const h = srcW > MAX_W ? Math.round(srcH * MAX_W / srcW) : srcH;
+                                window._debugLog && window._debugLog('[duConfirmUpload] 补救: 原图尺寸=' + srcW + 'x' + srcH);
+                                // 短边限制800px，保持原始比例
+                                const MAX_SHORT = 800;
+                                const shortEdge = Math.min(srcW, srcH);
+                                const scale = shortEdge > MAX_SHORT ? MAX_SHORT / shortEdge : 1;
+                                const w = Math.round(srcW * scale);
+                                const h = Math.round(srcH * scale);
+                                window._debugLog && window._debugLog('[duConfirmUpload] 补救: 上传尺寸=' + w + 'x' + h);
                                 const canvas = document.createElement('canvas');
                                 canvas.width = w; canvas.height = h;
                                 canvas.getContext('2d').drawImage(img, 0, 0, w, h);
