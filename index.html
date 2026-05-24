@@ -8083,11 +8083,11 @@
         _doubaoConnId      = _doubaoUUID();
         _doubaoSid         = _doubaoUUID();
 
-        // 2. 建立 WebSocket — 走 Cloudflare Worker doubao-proxy
-        const wsUrl = new URL('wss://doubao-proxy.gaiming537.workers.dev/proxy');
+        // 2. 建立 WebSocket — 走 Render doubao-ws-proxy
+        const wsUrl = new URL('wss://doubao-ws-proxy.onrender.com/proxy');
         wsUrl.searchParams.set('session_id', downloadSessionId || ('anon_' + Date.now()));
 
-        _debugLog('[Doubao] 建立WS(CF): ' + wsUrl.toString().substring(0, 80));
+        _debugLog('[Doubao] 建立WS(Render): ' + wsUrl.toString().substring(0, 80));
         _doubaoWs = new WebSocket(wsUrl.toString());
         _doubaoWs.binaryType = 'arraybuffer';
 
