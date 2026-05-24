@@ -220,6 +220,7 @@
 
     let supabaseClient = null;
     let selectedFile   = null;
+    let _cachedBase64  = null;    // ★修复：选图时缓存base64，上传时直接复用，避免Android二次读权限失效
     let uploadedUrl    = null;    // 上传后的图片 URL
     let aiPollingTimer = null;    // Bug4修复：轮询定时器提升为模块级变量，可随时 clearInterval
     let isUploading    = false;   // Bug5修复：防重复点击上传锁
@@ -253,62 +254,87 @@
         init();
     }
 
-    // ── 图片压缩：限制最大宽度，保持比例 ─────────────────
-    function compressImage(file, maxWidth, quality) {
+    // ── 图片压缩：接收 base64 字符串，全程无 createObjectURL ────────
+    // ★修复：原版用 createObjectURL(file) 二次读文件，Android WebView 权限已失效会返回 null
+    // 改为复用选图时缓存的 base64，完全避开二次读权限问题
+    function compressImage(base64, maxWidth, quality) {
         return new Promise((resolve) => {
+            if (!base64) { resolve(null); return; }
             const img = new Image();
-            const url = URL.createObjectURL(file);
-            img.onload = () => {
-                URL.revokeObjectURL(url);
-                const srcW = img.naturalWidth;
-                const srcH = img.naturalHeight;
-                const scale = srcW > maxWidth ? maxWidth / srcW : 1;
-                const canvas = document.createElement('canvas');
-                canvas.width  = Math.round(srcW * scale);
-                canvas.height = Math.round(srcH * scale);
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+            img.onload = function() {
+                try {
+                    const srcW = img.naturalWidth;
+                    const srcH = img.naturalHeight;
+                    const scale = srcW > maxWidth ? maxWidth / srcW : 1;
+                    const canvas = document.createElement('canvas');
+                    canvas.width  = Math.round(srcW * scale);
+                    canvas.height = Math.round(srcH * scale);
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+                } catch(e) {
+                    resolve(null);
+                }
             };
-            img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
-            img.src = url;
+            img.onerror = function() { resolve(null); };
+            img.src = base64;
         });
     }
 
-    // ── 文件选择（原逻辑不变） ────────────────────────────
+    // ── 文件选择：用 FileReader 缓存 base64，上传时直接复用 ───────────
+    // ★修复：原版 createObjectURL 预览 + doUpload 里再 createObjectURL 压缩，是二次读文件
+    // Android WebView Content URI 在 change 事件结束后权限撤销，第二次 createObjectURL 权限失效
+    // 改为：选图时立即 FileReader 读一次缓存到 _cachedBase64，预览和上传都复用同一份 base64
+    // e.target.value = '' 移到上传成功/失败后再清，防止某些 Android 提前撤销 URI 权限
     function handleFileSelect(e) {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
         if (file.size > 20 * 1024 * 1024) { showError('照片大小不能超过 20MB'); return; }
-        selectedFile = file;
-        e.target.value = ''; // 重置value：下次选同一张图时change事件仍能触发
+        selectedFile  = file;
+        _cachedBase64 = null; // 先清旧缓存
         hideError();
-        // 用 canvas 生成缩略图再预览，避免大图直接塞入 <img> 导致手机内存不足加载失败
-        const _objURL = URL.createObjectURL(file);
-        const _tmpImg = new Image();
-        _tmpImg.onload = function() {
-            try {
-                const MAX = 800;
-                const scale = Math.min(1, MAX / Math.max(_tmpImg.width, _tmpImg.height));
-                const w = Math.round(_tmpImg.width  * scale);
-                const h = Math.round(_tmpImg.height * scale);
-                const canvas = document.createElement('canvas');
-                canvas.width = w; canvas.height = h;
-                canvas.getContext('2d').drawImage(_tmpImg, 0, 0, w, h);
-                document.getElementById('preview-img').src = canvas.toDataURL('image/jpeg', 0.82);
-            } catch(e) {
-                // canvas 失败降级直接用 objectURL
-                document.getElementById('preview-img').src = _objURL;
-            }
-            URL.revokeObjectURL(_objURL);
-            document.getElementById('preview-area').classList.add('show');
-            document.getElementById('file-pick-area').style.display = 'none';
+
+        const _capturedFile = file;
+        const _fr = new FileReader();
+        _fr.onload = function(ev) {
+            if (selectedFile !== _capturedFile) return; // 已换图，丢弃
+            const b64 = ev.target.result;
+            _cachedBase64 = b64; // ★ 缓存 base64，doUpload 直接复用
+
+            // 用 canvas 生成缩略图再预览，避免大图直接塞入 <img> 导致手机内存不足加载失败
+            const _loader = new Image();
+            _loader.onload = function() {
+                if (selectedFile !== _capturedFile) return;
+                try {
+                    const MAX = 800;
+                    const scale = Math.min(1, MAX / Math.max(_loader.width, _loader.height));
+                    const w = Math.round(_loader.width  * scale);
+                    const h = Math.round(_loader.height * scale);
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(_loader, 0, 0, w, h);
+                    document.getElementById('preview-img').src = canvas.toDataURL('image/jpeg', 0.82);
+                } catch(err) {
+                    document.getElementById('preview-img').src = b64; // canvas 失败降级用 base64
+                }
+                document.getElementById('preview-area').classList.add('show');
+                document.getElementById('file-pick-area').style.display = 'none';
+            };
+            _loader.onerror = function() {
+                if (selectedFile !== _capturedFile) return;
+                selectedFile  = null;
+                _cachedBase64 = null;
+                showError('图片读取失败，请重新选择');
+            };
+            _loader.src = b64;
         };
-        _tmpImg.onerror = function() {
-            URL.revokeObjectURL(_objURL);
-            showError('图片读取失败，请重新选择');
+        _fr.onerror = function() {
+            selectedFile  = null;
+            _cachedBase64 = null;
+            showError('照片读取失败，请重新选择');
         };
-        _tmpImg.src = _objURL;
+        _fr.readAsDataURL(_capturedFile);
+        // ★ 不在此处清空 input.value，移到上传成功/失败后再清
+        // 过早清空会触发某些 Android WebView 撤销 Content URI 权限
     }
 
     function resetSelection() {
@@ -335,8 +361,25 @@
         showUploading(true, '正在上传...');
 
         try {
-            // ── 压缩：限制最大宽度 800px，减小上传体积加快生图速度 ──
-            const compressedBlob = await compressImage(selectedFile, 800, 0.92);
+            // ── 压缩：优先复用选图时缓存的 base64，避免二次读文件 ──────────
+            // ★修复：无缓存时（极少数情况 FileReader 在选图时就失败了）补救再读一次
+            let compressedBlob;
+            if (_cachedBase64) {
+                // 正常路径：直接复用缓存，完全不读文件
+                compressedBlob = await compressImage(_cachedBase64, 800, 0.92);
+            } else {
+                // 补救路径：缓存为空，尝试重新 FileReader 读取
+                console.warn('[doUpload] 无缓存base64，尝试补救FileReader读取');
+                const fallbackBase64 = await new Promise((resolve) => {
+                    const fr = new FileReader();
+                    fr.onload  = (ev) => resolve(ev.target.result);
+                    fr.onerror = ()   => resolve(null);
+                    fr.readAsDataURL(selectedFile);
+                });
+                compressedBlob = fallbackBase64
+                    ? await compressImage(fallbackBase64, 800, 0.92)
+                    : null;
+            }
             const fileToUpload = compressedBlob || selectedFile;
 
             const filePath = 'uploads/' + sessionId + '_' + Date.now() + '.jpg';
@@ -363,6 +406,10 @@
             setStep('✅ 上传完成，等待大屏生成...');
             showUploading(false);
             showUploadSuccess();
+            // ★修复：上传成功后再清 input.value 和缓存，此时 URI 权限已无需保留
+            selectedFile  = null;
+            _cachedBase64 = null;
+            document.getElementById('photo-input').value = '';
             pollForAiResult(sessionId);
 
         } catch (err) {
@@ -371,7 +418,8 @@
             console.error(err);
             isUploading = false; // Bug5修复：失败时解锁，允许用户重试
             // 清空失效的文件引用 + 重置UI到选图状态，防止直接点重试时用旧文件再失败
-            selectedFile = null;
+            selectedFile  = null;
+            _cachedBase64 = null; // ★修复：同步清除缓存
             document.getElementById('preview-img').src = '';
             document.getElementById('preview-area').classList.remove('show');
             document.getElementById('file-pick-area').style.display = '';
