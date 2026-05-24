@@ -1258,9 +1258,27 @@
             white-space: normal;
         }
 
-        /* ═══════════════════════════════════════════════════
+        /* ══ 豆包波形动画 ══ */
+        @keyframes doubao-wave {
+            0%,100% { transform: scaleY(.3); }
+            50%      { transform: scaleY(1); }
+        }
+        .doubao-bar {
+            width: 4px; height: 28px; border-radius: 3px;
+            background: linear-gradient(to top, #5b4fff, #9b59f5);
+            transform-origin: bottom;
+            animation: doubao-wave 1.1s ease-in-out infinite;
+        }
+        .doubao-bar:nth-child(1){ animation-delay:0s;    }
+        .doubao-bar:nth-child(2){ animation-delay:.15s;  }
+        .doubao-bar:nth-child(3){ animation-delay:.3s;   }
+        .doubao-bar:nth-child(4){ animation-delay:.45s;  }
+        .doubao-bar:nth-child(5){ animation-delay:.6s;   }
+        #doubao-modal.listening .doubao-bar { background: linear-gradient(to top,#00c48c,#00e6a8); }
+
+        /* ══════════════════════════════════════════════════════
            SCREEN — QR CODE UPLOAD
-        ═══════════════════════════════════════════════════ */
+        ══════════════════════════════════════════════════════ */
         #scr-qrcode { background: var(--surface); }
 
         .qr-card {
@@ -3036,6 +3054,17 @@
                     <span data-i18n="result_again">再来一张</span>
                 </button>
             </div>
+
+            <!-- ══ 豆包智能助理入口气泡 ══ -->
+            <button id="doubao-btn" onclick="openDoubaoAssistant()"
+                style="display:none;position:absolute;bottom:72px;right:16px;width:52px;height:52px;
+                       border-radius:50%;background:linear-gradient(135deg,#5b4fff,#9b59f5);
+                       border:none;box-shadow:0 4px 16px rgba(91,79,255,.45);
+                       flex-direction:column;align-items:center;justify-content:center;
+                       cursor:pointer;z-index:200;gap:2px;padding:0;">
+                <span class="material-icons-round" style="font-size:22px!important;color:#fff">smart_toy</span>
+                <span style="font-size:9px;color:#fff;letter-spacing:0;line-height:1">助理</span>
+            </button>
         </div>
     </section>
     <!-- ══════════ PAYMENT (新增) ══════════ -->
@@ -4418,6 +4447,22 @@
     // 成功返回 [url1, url2, ...] 数组，失败返回 []（静默，不影响跳转）
     let _pendingAudioUrls = [];
     let _pendingSubtitles = []; // 与 _pendingAudioUrls 一一对应的字幕文本
+
+    // ══ 豆包智能助理状态 ══
+    let _doubaoEnabled      = false;  // 从 display-config 读取，默认关闭
+    let _doubaoWs           = null;   // WebSocket 实例
+    let _doubaoSessionDbId  = null;   // doubao_sessions 表的 DB 记录 ID
+    let _doubaoConnId       = null;   // WebSocket connect id
+    let _doubaoSid          = null;   // Session id
+    let _doubaoMicStream    = null;   // 麦克风 MediaStream
+    let _doubaoAudioCtx     = null;   // AudioContext
+    let _doubaoProcessor    = null;   // ScriptProcessorNode
+    let _doubaoSourceNode   = null;   // MediaStreamAudioSourceNode
+    let _doubaoAudioQueue   = [];     // 待播放的 PCM 音频 Buffer 队列
+    let _doubaoPlaying      = false;  // 当前是否正在播放 AI 语音
+    let _doubaoPlayCtx      = null;   // 播放用 AudioContext
+    let _doubaoNextTime     = 0;      // 下一块音频开始时间
+    let _doubaoState        = 'idle'; // idle | connecting | connected | speaking | listening
 
     // ══ EMO 视频生成状态 ══
     let _emoEnabled       = false;  // 从 app_config 读取，默认关闭
@@ -6607,6 +6652,10 @@
             _voiceStampEnabled = config.voice_stamp_enabled !== false;
             // 上传模式开关（默认扫码）
             _uploadMode = config.upload_mode === 'direct' ? 'direct' : 'qrcode';
+            // 豆包智能助理开关（默认关闭）
+            _doubaoEnabled = config.doubao_assistant_enabled === true;
+            const _doubaoBtn = document.getElementById('doubao-btn');
+            if (_doubaoBtn) _doubaoBtn.style.display = _doubaoEnabled ? 'flex' : 'none';
             // Debug 面板开关（默认关闭，config 加载完才确定，期间 _debugLog 完全静默）
             const _dbgOn  = config.debug_panel_enabled === true;
             window._debugEnabled = _dbgOn;
@@ -6987,6 +7036,8 @@
             _emoVideoUrl    = null;
             _emoSubtitle    = null;
             _voiceAudioEnded = false;
+            // 关闭豆包连接
+            closeDoubaoAssistant();
         }
         // 进入拍照页：开前置摄像头
         if (id === 'scr-capture') { startCameraStream(); }
@@ -7614,6 +7665,48 @@
     screen.orientation && screen.orientation.addEventListener('change', fitScreen);
 </script>
 
+    <!-- ══ 豆包智能助理对话 Modal ══ -->
+    <div id="doubao-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.55);
+         align-items:flex-end;justify-content:center;">
+        <div style="width:100%;max-width:420px;background:#fff;border-radius:24px 24px 0 0;
+                    padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.18);">
+            <!-- 头部 -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#5b4fff,#9b59f5);
+                                display:flex;align-items:center;justify-content:center">
+                        <span class="material-icons-round" style="font-size:18px!important;color:#fff">smart_toy</span>
+                    </div>
+                    <div>
+                        <div style="font-weight:700;font-size:15px;color:#0e0e12">Picto 智能助理</div>
+                        <div id="doubao-status-text" style="font-size:11px;color:#6b6b80">正在连接…</div>
+                    </div>
+                </div>
+                <button onclick="closeDoubaoAssistant()"
+                    style="border:none;background:#f0f0f4;border-radius:50%;width:32px;height:32px;
+                           display:flex;align-items:center;justify-content:center;cursor:pointer">
+                    <span class="material-icons-round" style="font-size:18px!important;color:#6b6b80">close</span>
+                </button>
+            </div>
+            <!-- 字幕区 -->
+            <div id="doubao-subtitle" style="min-height:52px;padding:12px 14px;background:#f4f4f8;
+                 border-radius:14px;font-size:14px;color:#0e0e12;line-height:1.6;margin-bottom:16px;
+                 word-break:break-all"></div>
+            <!-- 波形动画 -->
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;height:40px;margin-bottom:16px">
+                <div class="doubao-bar"></div>
+                <div class="doubao-bar"></div>
+                <div class="doubao-bar"></div>
+                <div class="doubao-bar"></div>
+                <div class="doubao-bar"></div>
+            </div>
+            <!-- 底部提示 -->
+            <div style="text-align:center;font-size:12px;color:#9999aa">
+                正在聆听，直接说话即可
+            </div>
+        </div>
+    </div>
+
     <!-- ══ 调试面板（排查完后删除）══ -->
     <div id="debug-panel" style="display:none;position:fixed;bottom:80px;left:0;right:0;z-index:99999;background:rgba(0,0,0,0.88);color:#0f0;font-family:monospace;font-size:11px;padding:10px;max-height:40vh;overflow-y:auto;border-top:2px solid #0f0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
@@ -7673,6 +7766,379 @@
         if (panel && window._debugLines.length === 1) panel.style.display = 'block';
     };
     window._debugLog_noop = function() {};
+    </script>
+
+    <!-- ══ 豆包智能助理 JS ══ -->
+    <script>
+    // ─── 二进制协议工具 ───────────────────────────────────────────────────────
+
+    function _doubaoUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    }
+
+    function _doubaoEncode(eventId, payload, sessionId, connectId) {
+        // header[4]
+        const header = new Uint8Array([0x11, 0x14, 0x10, 0x00]);
+        // optional
+        const parts = [];
+        // sequence (event flag = 0b0100 in msg flags → no sequence field used here)
+        // event id (4 bytes BE)
+        const evtBuf = new ArrayBuffer(4); new DataView(evtBuf).setUint32(0, eventId, false);
+        parts.push(new Uint8Array(evtBuf));
+        // connectId (only for event 1 StartConnection)
+        if (connectId) {
+            const cBytes = new TextEncoder().encode(connectId);
+            const cLen = new ArrayBuffer(4); new DataView(cLen).setUint32(0, cBytes.byteLength, false);
+            parts.push(new Uint8Array(cLen)); parts.push(cBytes);
+        }
+        // sessionId (required for session events)
+        if (sessionId) {
+            const sBytes = new TextEncoder().encode(sessionId);
+            const sLen = new ArrayBuffer(4); new DataView(sLen).setUint32(0, sBytes.byteLength, false);
+            parts.push(new Uint8Array(sLen)); parts.push(sBytes);
+        }
+        // payload
+        const pBytes = typeof payload === 'string' ? new TextEncoder().encode(payload)
+                       : (payload instanceof Uint8Array ? payload : new Uint8Array(payload));
+        const pLen = new ArrayBuffer(4); new DataView(pLen).setUint32(0, pBytes.byteLength, false);
+        parts.push(new Uint8Array(pLen)); parts.push(pBytes);
+
+        // concat all
+        const totalLen = parts.reduce((s, p) => s + p.byteLength, header.byteLength);
+        const out = new Uint8Array(totalLen);
+        let offset = 0;
+        out.set(header, offset); offset += header.byteLength;
+        parts.forEach(p => { out.set(p, offset); offset += p.byteLength; });
+        return out.buffer;
+    }
+
+    function _doubaoParseFrame(buf) {
+        // Returns { msgType, eventId, sessionId, payload }
+        const dv = new DataView(buf);
+        const headerSize = (dv.getUint8(0) & 0x0f) * 4;
+        const msgType = (dv.getUint8(1) >> 4) & 0x0f;
+        const flags   = dv.getUint8(1) & 0x0f;
+        let offset = headerSize;
+        // error code (flags = 0b1111)
+        if (flags === 0x0f) offset += 4;
+        // sequence (flags bit0 or bit1 set)
+        if (flags & 0x03) offset += 4;
+        // event id (flags bit2 = 0b0100)
+        let eventId = 0;
+        if (flags & 0x04) { eventId = dv.getUint32(offset, false); offset += 4; }
+        // session id
+        let sessionId = null;
+        if (offset + 4 <= buf.byteLength) {
+            const sidLen = dv.getUint32(offset, false);
+            if (sidLen > 0 && sidLen < 200 && offset + 4 + sidLen <= buf.byteLength) {
+                offset += 4;
+                sessionId = new TextDecoder().decode(new Uint8Array(buf, offset, sidLen));
+                offset += sidLen;
+            }
+        }
+        // payload size + payload
+        let payload = null;
+        if (offset + 4 <= buf.byteLength) {
+            const pLen = dv.getUint32(offset, false);
+            offset += 4;
+            if (pLen > 0 && offset + pLen <= buf.byteLength) {
+                payload = buf.slice(offset, offset + pLen);
+            }
+        }
+        return { msgType, eventId, sessionId, payload };
+    }
+
+    // ─── UI helpers ──────────────────────────────────────────────────────────
+
+    function _doubaoSetStatus(text) {
+        const el = document.getElementById('doubao-status-text');
+        if (el) el.textContent = text;
+    }
+    function _doubaoSetSubtitle(text) {
+        const el = document.getElementById('doubao-subtitle');
+        if (el) el.textContent = text;
+    }
+
+    // ─── 音频播放队列（OGG/Opus via <audio>，简单方案）─────────────────────
+
+    let _doubaoAudioEls = [];   // 已分配的 Audio 元素池
+    let _doubaoChunks   = [];   // ArrayBuffer 片段暂存
+
+    function _doubaoFlushAudio() {
+        if (_doubaoChunks.length === 0) return;
+        // 合并所有 chunk
+        const total = _doubaoChunks.reduce((s, c) => s + c.byteLength, 0);
+        const merged = new Uint8Array(total);
+        let off = 0;
+        _doubaoChunks.forEach(c => { merged.set(new Uint8Array(c), off); off += c.byteLength; });
+        _doubaoChunks = [];
+        const blob = new Blob([merged], { type: 'audio/ogg; codecs=opus' });
+        const url  = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.onended = () => URL.revokeObjectURL(url);
+        audio.play().catch(() => {});
+    }
+
+    // ─── 麦克风采集 & 上传 ───────────────────────────────────────────────────
+
+    async function _doubaoStartMic() {
+        try {
+            _doubaoMicStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            _doubaoAudioCtx  = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+            _doubaoSourceNode = _doubaoAudioCtx.createMediaStreamSource(_doubaoMicStream);
+            // ScriptProcessor: 20ms @ 16kHz = 320 samples
+            _doubaoProcessor  = _doubaoAudioCtx.createScriptProcessor(320, 1, 1);
+            _doubaoProcessor.onaudioprocess = (e) => {
+                if (!_doubaoWs || _doubaoWs.readyState !== WebSocket.OPEN) return;
+                const f32 = e.inputBuffer.getChannelData(0);
+                // PCM int16 little-endian
+                const i16 = new Int16Array(f32.length);
+                f32.forEach((v, i) => { i16[i] = Math.max(-32768, Math.min(32767, v * 32767)); });
+                // binary frame: msgType=0b0010(audio), flags=0b0100(event), event=200
+                const pkt = _doubaoEncodeAudio(i16.buffer);
+                _doubaoWs.send(pkt);
+            };
+            _doubaoSourceNode.connect(_doubaoProcessor);
+            _doubaoProcessor.connect(_doubaoAudioCtx.destination);
+        } catch(e) {
+            _doubaoSetStatus('麦克风权限被拒绝');
+            console.warn('[Doubao] mic error', e);
+        }
+    }
+
+    function _doubaoEncodeAudio(pcmBuf) {
+        // header: version=1,headerSize=1, msgType=0b0010=2,flags=0b0100=4 → byte1=0x24, ser=0b0001=raw=0x10, reserved=0
+        const header = new Uint8Array([0x11, 0x24, 0x00, 0x00]);
+        // optional: event=200 (TaskRequest)
+        const evtBuf = new ArrayBuffer(4); new DataView(evtBuf).setUint32(0, 200, false);
+        // sessionId
+        const sBytes = _doubaoSid ? new TextEncoder().encode(_doubaoSid) : new Uint8Array(0);
+        const sLen   = new ArrayBuffer(4); new DataView(sLen).setUint32(0, sBytes.byteLength, false);
+        // payload
+        const pBytes = new Uint8Array(pcmBuf);
+        const pLen   = new ArrayBuffer(4); new DataView(pLen).setUint32(0, pBytes.byteLength, false);
+
+        const total = 4 + 4 + 4 + sBytes.byteLength + 4 + pBytes.byteLength;
+        const out   = new Uint8Array(total);
+        let o = 0;
+        out.set(header, o); o += 4;
+        out.set(new Uint8Array(evtBuf), o); o += 4;
+        out.set(new Uint8Array(sLen), o); o += 4;
+        out.set(sBytes, o); o += sBytes.byteLength;
+        out.set(new Uint8Array(pLen), o); o += 4;
+        out.set(pBytes, o);
+        return out.buffer;
+    }
+
+    function _doubaoStopMic() {
+        try { _doubaoProcessor?.disconnect(); } catch(_){}
+        try { _doubaoSourceNode?.disconnect(); } catch(_){}
+        try { _doubaoAudioCtx?.close(); } catch(_){}
+        if (_doubaoMicStream) { _doubaoMicStream.getTracks().forEach(t => t.stop()); _doubaoMicStream = null; }
+        _doubaoProcessor  = null;
+        _doubaoSourceNode = null;
+        _doubaoAudioCtx   = null;
+    }
+
+    // ─── WebSocket 事件处理 ───────────────────────────────────────────────────
+
+    function _doubaoHandleMessage(evt) {
+        if (!(evt.data instanceof ArrayBuffer)) return;
+        const frame = _doubaoParseFrame(evt.data);
+        const { msgType, eventId, payload } = frame;
+
+        // text events (msgType=9 = 0b1001)
+        if (msgType === 9 && payload) {
+            let json = {};
+            try { json = JSON.parse(new TextDecoder().decode(payload)); } catch(_){}
+            const eid = eventId;
+
+            if (eid === 50) { // ConnectionStarted — send StartSession
+                _debugLog('[Doubao] ✅ ConnectionStarted，发 StartSession');
+                _doubaoSetStatus('连接成功，正在初始化…');
+                _doubaoSendStartSession();
+            } else if (eid === 150) { // SessionStarted
+                _debugLog('[Doubao] ✅ SessionStarted，开启麦克风');
+                _doubaoState = 'listening';
+                _doubaoSetStatus('正在聆听…');
+                const modal = document.getElementById('doubao-modal');
+                if (modal) modal.classList.add('listening');
+                _doubaoStartMic();
+                // SayHello: 发送问候语（config greeting 已在后端设置，这里发一次占位）
+                _doubaoSendEvent(300, JSON.stringify({ content: '' }));
+            } else if (eid === 350) { // TTSSentenceStart
+                const text = json.text || '';
+                if (text) _doubaoSetSubtitle(prev => prev + text); // append
+                _doubaoSetSubtitle(text); // reset per sentence
+                _doubaoState = 'speaking';
+                _doubaoSetStatus('助理正在说话…');
+                const modal = document.getElementById('doubao-modal');
+                if (modal) modal.classList.remove('listening');
+            } else if (eid === 359) { // TTSEnded
+                _doubaoState = 'listening';
+                _doubaoSetStatus('正在聆听…');
+                const modal = document.getElementById('doubao-modal');
+                if (modal) modal.classList.add('listening');
+            } else if (eid === 451) { // ASRResponse
+                const text = (json.results || []).map(r => r.text).join('');
+                if (text) { _doubaoSetStatus('我听到：' + text); _doubaoSetSubtitle(text); }
+            } else if (eid === 153 || eid === 599) { // SessionFailed / DialogCommonError
+                _doubaoSetStatus('连接出错，请重试');
+                console.warn('[Doubao] server error', eid, json);
+            }
+        }
+        // audio events (msgType=11 = 0b1011)
+        if (msgType === 11 && payload) {
+            _doubaoChunks.push(payload);
+            // 每积累约 500ms 就刷一次（简单策略）
+            clearTimeout(_doubaoFlushTimer);
+            _doubaoFlushTimer = setTimeout(_doubaoFlushAudio, 100);
+        }
+    }
+    let _doubaoFlushTimer = null;
+
+    function _doubaoSendEvent(eventId, jsonStr) {
+        if (!_doubaoWs || _doubaoWs.readyState !== WebSocket.OPEN) return;
+        _doubaoWs.send(_doubaoEncode(eventId, jsonStr, _doubaoSid, null));
+    }
+
+    function _doubaoSendStartConnection() {
+        if (!_doubaoWs || _doubaoWs.readyState !== WebSocket.OPEN) return;
+        // event=1, connectId required, no sessionId
+        const buf = _doubaoEncode(1, '{}', null, _doubaoConnId);
+        _doubaoWs.send(buf);
+    }
+
+    function _doubaoSendStartSession() {
+        const payload = {
+            tts: {
+                speaker: window._doubaoSpeaker || 'zh_female_vv_jupiter_bigtts',
+                audio_config: { channel: 1, format: 'ogg_opus', sample_rate: 24000 }
+            },
+            asr: { audio_info: { format: 'speech_opus', sample_rate: 16000, channel: 1 },
+                   extra: {} },
+            dialog: {
+                bot_name:       '助理',
+                system_role:    window._doubaoSystemPrompt || '你是Picto写真馆的智能助理，亲切活泼。',
+                speaking_style: '口语化、简短，每次不超过3句话',
+                extra: { model: '1.2.1.1', input_mod: 'keep_alive', strict_audit: false }
+            }
+        };
+        _doubaoSendEvent(100, JSON.stringify(payload));
+    }
+
+    // ─── 公开接口 ─────────────────────────────────────────────────────────────
+
+    async function openDoubaoAssistant() {
+        const modal = document.getElementById('doubao-modal');
+        if (!modal) return;
+        modal.style.display = 'flex';
+        _doubaoSetStatus('正在连接…');
+        _doubaoSetSubtitle('');
+        _doubaoChunks = [];
+
+        // 1. 调 Edge Function 拿凭据 + system prompt
+        let cfg = {};
+        try {
+            // 从 DB 读取 qwen_voice 作为 VL snapshot
+            let vlSnapshot = null;
+            if (supabaseClient && downloadSessionId) {
+                const { data } = await supabaseClient
+                    .from('generations').select('qwen_voice')
+                    .eq('session_id', downloadSessionId).single();
+                if (data?.qwen_voice) {
+                    try {
+                        const parsed = JSON.parse(data.qwen_voice);
+                        if (parsed?.segments) {
+                            vlSnapshot = {};
+                            parsed.segments.forEach((s, i) => {
+                                if (s.text) vlSnapshot['段落' + (i + 1)] = s.text;
+                            });
+                        }
+                    } catch(_){}
+                }
+            }
+            const resp = await fetch(SUPABASE_URL + '/functions/v1/doubao-auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json',
+                           'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+                body: JSON.stringify({ session_id: downloadSessionId || ('anon_' + Date.now()),
+                                       vl_snapshot: vlSnapshot })
+            });
+            cfg = await resp.json();
+            if (!cfg.success) throw new Error(cfg.error || 'auth failed');
+            _debugLog('[Doubao] Edge Function OK app_id=' + cfg.app_id);
+        } catch(e) {
+            _doubaoSetStatus('初始化失败: ' + e.message);
+            console.warn('[Doubao] auth error', e);
+            return;
+        }
+
+        window._doubaoSpeaker      = cfg.speaker;
+        window._doubaoSystemPrompt = cfg.system_prompt;
+        _doubaoSessionDbId = cfg.doubao_session_db_id;
+        _doubaoConnId      = _doubaoUUID();
+        _doubaoSid         = _doubaoUUID();
+
+        // 2. 建立 WebSocket — 走 Supabase doubao-proxy，避免浏览器直连火山被拒
+        //    proxy 内部用 service role key 连接火山，前台只需传 session_id + apikey
+        const proxyBase = SUPABASE_URL.replace('https://', 'wss://');
+        const wsUrl = new URL(proxyBase + '/functions/v1/doubao-proxy');
+        wsUrl.searchParams.set('session_id', downloadSessionId || ('anon_' + Date.now()));
+        wsUrl.searchParams.set('apikey',     SUPABASE_ANON_KEY);
+
+        _debugLog('[Doubao] 建立WS(proxy): ' + wsUrl.toString().substring(0, 80));
+        _doubaoWs = new WebSocket(wsUrl.toString());
+        _doubaoWs.binaryType = 'arraybuffer';
+
+        _doubaoWs.onopen = () => {
+            _debugLog('[Doubao] WS onopen，发 StartConnection');
+            _doubaoSetStatus('握手成功，发送连接事件…');
+            _doubaoSendStartConnection();
+        };
+        _doubaoWs.onmessage = (evt) => {
+            if (evt.data instanceof ArrayBuffer) {
+                _debugLog('[Doubao] 收到二进制帧 ' + evt.data.byteLength + 'B');
+            } else {
+                _debugLog('[Doubao] 收到文本: ' + String(evt.data).substring(0, 80));
+            }
+            _doubaoHandleMessage(evt);
+        };
+        _doubaoWs.onerror = (e) => {
+            _debugLog('[Doubao] ❌ WS error');
+            _doubaoSetStatus('WebSocket 错误，请检查网络');
+            console.warn('[Doubao] ws error', e);
+        };
+        _doubaoWs.onclose = (e) => {
+            _debugLog('[Doubao] WS closed code=' + e.code + ' reason=' + e.reason);
+            _doubaoStopMic();
+            _doubaoSetStatus('连接已断开 (code ' + e.code + ')');
+            _doubaoState = 'idle';
+        };
+    }
+
+    function closeDoubaoAssistant() {
+        const modal = document.getElementById('doubao-modal');
+        if (modal) { modal.style.display = 'none'; modal.classList.remove('listening'); }
+        // 发 FinishSession + FinishConnection
+        try {
+            if (_doubaoWs && _doubaoWs.readyState === WebSocket.OPEN) {
+                _doubaoSendEvent(102, '{}'); // FinishSession
+                setTimeout(() => {
+                    _doubaoSendEvent(2, '{}'); // FinishConnection
+                    setTimeout(() => { try { _doubaoWs?.close(); } catch(_){} }, 300);
+                }, 300);
+            }
+        } catch(_){}
+        _doubaoStopMic();
+        _doubaoWs    = null;
+        _doubaoState = 'idle';
+        clearTimeout(_doubaoFlushTimer);
+        _doubaoChunks = [];
+    }
     </script>
 </body>
 </html>
