@@ -7912,11 +7912,11 @@
     }
 
     function _doubaoEncodeAudio(pcmBuf) {
-        // Audio-only request, flags=0b0001(sequence 非终端包)
-        // byte0=0x11, byte1=0x21(msgType=2,flags=1), byte2=0x00(raw,no compress), byte3=0x00
-        const header = new Uint8Array([0x11, 0x21, 0x00, 0x00]);
-        // sequence (4 bytes, 递增正数，用1即可)
-        const seqBuf = new ArrayBuffer(4); new DataView(seqBuf).setUint32(0, 1, false);
+        // Full-client request, flags=0b0100(event), serial=Raw(0b0000), no compress
+        // byte1=0x14(msgType=1,flags=4), byte2=0x00(raw,no compress)
+        const header = new Uint8Array([0x11, 0x14, 0x00, 0x00]);
+        // event=200 (TaskRequest), 4 bytes BE
+        const evtBuf = new ArrayBuffer(4); new DataView(evtBuf).setUint32(0, 200, false);
         // sessionId
         const sBytes = _doubaoSid ? new TextEncoder().encode(_doubaoSid) : new Uint8Array(0);
         const sLen   = new ArrayBuffer(4); new DataView(sLen).setUint32(0, sBytes.byteLength, false);
@@ -7928,7 +7928,7 @@
         const out   = new Uint8Array(total);
         let o = 0;
         out.set(header, o); o += 4;
-        out.set(new Uint8Array(seqBuf), o); o += 4;
+        out.set(new Uint8Array(evtBuf), o); o += 4;
         out.set(new Uint8Array(sLen), o); o += 4;
         out.set(sBytes, o); o += sBytes.byteLength;
         out.set(new Uint8Array(pLen), o); o += 4;
