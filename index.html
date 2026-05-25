@@ -7971,8 +7971,8 @@
                 const modal = document.getElementById('doubao-modal');
                 if (modal) modal.classList.add('listening');
                 _doubaoStartMic();
-                // SayHello: 发送问候语（config greeting 已在后端设置，这里发一次占位）
-                _doubaoSendEvent(300, JSON.stringify({ content: '' }));
+                // SayHello: 不主动发送，让用户直接说话触发对话
+                // _doubaoSendEvent(300, JSON.stringify({ content: '' }));
             } else if (eid === 350) { // TTSSentenceStart
                 const text = json.text || '';
                 if (text) _doubaoSetSubtitle(prev => prev + text); // append
