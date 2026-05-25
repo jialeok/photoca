@@ -3055,19 +3055,9 @@
                 </button>
             </div>
 
+
         </div>
     </section>
-
-    <!-- ══ 豆包智能助理入口气泡（position:fixed，脱离所有父级 overflow 裁剪）══ -->
-    <button id="doubao-btn" onclick="openDoubaoAssistant()"
-        style="display:none;position:fixed;bottom:72px;left:16px;width:52px;height:52px;
-               border-radius:50%;background:linear-gradient(135deg,#5b4fff,#9b59f5);
-               border:none;box-shadow:0 4px 16px rgba(91,79,255,.45);
-               flex-direction:column;align-items:center;justify-content:center;
-               cursor:pointer;z-index:9999;gap:2px;padding:0;">
-        <span class="material-icons-round" style="font-size:22px!important;color:#fff">smart_toy</span>
-        <span style="font-size:9px;color:#fff;letter-spacing:0;line-height:1">助理</span>
-    </button>
     <!-- ══════════ PAYMENT (新增) ══════════ -->
     <section id="scr-payment" class="screen">
         <div class="topbar">
@@ -6656,8 +6646,27 @@
             _uploadMode = config.upload_mode === 'direct' ? 'direct' : 'qrcode';
             // 豆包智能助理开关（默认关闭）
             _doubaoEnabled = config.doubao_assistant_enabled === true;
-            const _doubaoBtn = document.getElementById('doubao-btn');
-            if (_doubaoBtn) _doubaoBtn.style.display = _doubaoEnabled ? 'flex' : 'none';
+            // 动态创建按钮并 append 到 body，彻底脱离所有父级 overflow/stacking 约束
+            let _doubaoBtn = document.getElementById('doubao-btn');
+            if (_doubaoEnabled) {
+                if (!_doubaoBtn) {
+                    _doubaoBtn = document.createElement('button');
+                    _doubaoBtn.id = 'doubao-btn';
+                    _doubaoBtn.innerHTML = '<span class="material-icons-round" style="font-size:22px!important;color:#fff">smart_toy</span><span style="font-size:9px;color:#fff;letter-spacing:0;line-height:1">助理</span>';
+                    _doubaoBtn.setAttribute('style',
+                        'position:fixed;bottom:72px;left:16px;width:52px;height:52px;' +
+                        'border-radius:50%;background:linear-gradient(135deg,#5b4fff,#9b59f5);' +
+                        'border:none;box-shadow:0 4px 16px rgba(91,79,255,.45);' +
+                        'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+                        'cursor:pointer;z-index:99999;gap:2px;padding:0;');
+                    _doubaoBtn.onclick = openDoubaoAssistant;
+                    document.body.appendChild(_doubaoBtn);
+                } else {
+                    _doubaoBtn.style.display = 'flex';
+                }
+            } else {
+                if (_doubaoBtn) _doubaoBtn.style.display = 'none';
+            }
             // Debug 面板开关（默认关闭，config 加载完才确定，期间 _debugLog 完全静默）
             const _dbgOn  = config.debug_panel_enabled === true;
             window._debugEnabled = _dbgOn;
