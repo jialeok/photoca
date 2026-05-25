@@ -7952,6 +7952,7 @@
         if (!(evt.data instanceof ArrayBuffer)) return;
         const frame = _doubaoParseFrame(evt.data);
         const { msgType, eventId, payload } = frame;
+        _debugLog('[Doubao] 帧 msgType=' + msgType + ' eventId=' + eventId + ' payloadLen=' + (payload ? payload.byteLength : 0));
 
         // text events (msgType=9 = 0b1001)
         if (msgType === 9 && payload) {
