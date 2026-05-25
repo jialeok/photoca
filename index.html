@@ -7883,24 +7883,42 @@
         if (el) el.textContent = text;
     }
 
-    // ─── 音频播放队列（OGG/Opus via <audio>，简单方案）─────────────────────
+    // ─── 音频播放队列（OGG/Opus 顺序播放，按句子串行）──────────────────────
+    // TTSResponse 帧持续积累 chunk；收到 TTSEnded(359) 或 TTSSentenceEnd(351)
+    // 时统一 flush，合并为一个 Blob 入队，队列串行播放，绝不互相打断。
 
-    let _doubaoAudioEls = [];   // 已分配的 Audio 元素池
-    let _doubaoChunks   = [];   // ArrayBuffer 片段暂存
+    let _doubaoChunks      = [];    // 当前句子正在积累的 ArrayBuffer 片段
+    let _doubaoAudioQueue  = [];    // 待播放的 objectURL 队列
+    let _doubaoPlaying     = false; // 当前是否有 Audio 正在播放
 
     function _doubaoFlushAudio() {
         if (_doubaoChunks.length === 0) return;
-        // 合并所有 chunk
-        const total = _doubaoChunks.reduce((s, c) => s + c.byteLength, 0);
+        const total  = _doubaoChunks.reduce((s, c) => s + c.byteLength, 0);
         const merged = new Uint8Array(total);
         let off = 0;
         _doubaoChunks.forEach(c => { merged.set(new Uint8Array(c), off); off += c.byteLength; });
         _doubaoChunks = [];
         const blob = new Blob([merged], { type: 'audio/ogg; codecs=opus' });
-        const url  = URL.createObjectURL(blob);
+        _doubaoAudioQueue.push(URL.createObjectURL(blob));
+        _doubaoPlayNext();
+    }
+
+    function _doubaoPlayNext() {
+        if (_doubaoPlaying || _doubaoAudioQueue.length === 0) return;
+        _doubaoPlaying = true;
+        const url   = _doubaoAudioQueue.shift();
         const audio = new Audio(url);
-        audio.onended = () => URL.revokeObjectURL(url);
-        audio.play().catch(() => {});
+        const done  = () => { URL.revokeObjectURL(url); _doubaoPlaying = false; _doubaoPlayNext(); };
+        audio.onended = done;
+        audio.onerror = done;
+        audio.play().catch(done);
+    }
+
+    function _doubaoStopAudio() {
+        // 用户开始说话时调用，立即清空队列
+        _doubaoAudioQueue = [];
+        _doubaoChunks     = [];
+        _doubaoPlaying    = false;
     }
 
     // ─── 麦克风采集 & 上传 ───────────────────────────────────────────────────
@@ -8038,11 +8056,16 @@
                 _doubaoSetStatus('助理正在说话…');
                 const modal = document.getElementById('doubao-modal');
                 if (modal) modal.classList.remove('listening');
-            } else if (eid === 359) { // TTSEnded
+            } else if (eid === 351) { // TTSSentenceEnd — 一句话音频帧已全部到达，立即flush入队
+                _doubaoFlushAudio();
+            } else if (eid === 359) { // TTSEnded — 本轮全部音频完毕
+                _doubaoFlushAudio(); // 防止最后一句没触发351时遗漏
                 _doubaoState = 'listening';
                 _doubaoSetStatus('正在聆听…');
                 const modal = document.getElementById('doubao-modal');
                 if (modal) modal.classList.add('listening');
+            } else if (eid === 450) { // ASRInfo — 服务端检测到用户开始说话，立即打断播放
+                _doubaoStopAudio();
             } else if (eid === 451) { // ASRResponse
                 const text = (json.results || []).map(r => r.text).join('');
                 if (text) { _doubaoSetStatus('我听到：' + text); _doubaoSetSubtitle(text); }
@@ -8053,13 +8076,10 @@
         }
         // audio events (msgType=11 = 0b1011)
         if (msgType === 11 && payload) {
+            // 只积累，不提前flush；由 TTSSentenceEnd(351) 或 TTSEnded(359) 触发 flush
             _doubaoChunks.push(payload);
-            // 每积累约 500ms 就刷一次（简单策略）
-            clearTimeout(_doubaoFlushTimer);
-            _doubaoFlushTimer = setTimeout(_doubaoFlushAudio, 100);
         }
     }
-    let _doubaoFlushTimer = null;
 
     function _doubaoSendEvent(eventId, jsonStr) {
         if (!_doubaoWs || _doubaoWs.readyState !== WebSocket.OPEN) return;
@@ -8218,8 +8238,7 @@
         _doubaoStopMic();
         _doubaoWs    = null;
         _doubaoState = 'idle';
-        clearTimeout(_doubaoFlushTimer);
-        _doubaoChunks = [];
+        _doubaoStopAudio(); // 清空音频队列和积累的chunks
     }
     </script>
 </body>
