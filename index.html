@@ -7913,8 +7913,14 @@
             _doubaoSourceNode.connect(_doubaoProcessor);
             _doubaoProcessor.connect(_doubaoAudioCtx.destination);
         } catch(e) {
-            _doubaoSetStatus('麦克风权限被拒绝');
-            console.warn('[Doubao] mic error', e);
+            // 打印详细错误信息
+            const errName = e.name || 'Unknown';
+            const errMsg = e.message || String(e);
+            _doubaoSetStatus('麦克风错误: ' + errName);
+            _debugLog('[Doubao] ❌ 麦克风错误 name=' + errName + ' msg=' + errMsg);
+            _debugLog('[Doubao] mediaDevices=' + (navigator.mediaDevices ? '存在' : '不存在'));
+            _debugLog('[Doubao] isSecureContext=' + window.isSecureContext);
+            _debugLog('[Doubao] protocol=' + location.protocol);
         }
     }
 
