@@ -7700,6 +7700,13 @@
                 <div class="doubao-bar"></div>
                 <div class="doubao-bar"></div>
             </div>
+            <!-- 点击说话按钮（麦克风权限需用户手势）-->
+            <div id="doubao-tap-btn" onclick="" style="display:none;justify-content:center;align-items:center;
+                 margin-bottom:12px;background:#6c63ff;color:#fff;border-radius:24px;padding:12px 28px;
+                 font-size:15px;font-weight:600;cursor:pointer;gap:8px">
+                <span class="material-icons-round" style="font-size:20px">mic</span>
+                点击开始说话
+            </div>
             <!-- 底部提示 -->
             <div style="text-align:center;font-size:12px;color:#9999aa">
                 正在聆听，直接说话即可
@@ -7965,14 +7972,24 @@
                 _doubaoSetStatus('连接成功，正在初始化…');
                 _doubaoSendStartSession();
             } else if (eid === 150) { // SessionStarted
-                _debugLog('[Doubao] ✅ SessionStarted，开启麦克风');
+                _debugLog('[Doubao] ✅ SessionStarted，显示点击说话按钮');
                 _doubaoState = 'listening';
-                _doubaoSetStatus('正在聆听…');
+                _doubaoSetStatus('点击下方开始说话');
                 const modal = document.getElementById('doubao-modal');
                 if (modal) modal.classList.add('listening');
-                _doubaoStartMic();
-                // SayHello: 不主动发送，让用户直接说话触发对话
-                // _doubaoSendEvent(300, JSON.stringify({ content: '' }));
+                // 显示"点击说话"按钮，等用户手势后再申请麦克风
+                const tapBtn = document.getElementById('doubao-tap-btn');
+                if (tapBtn) {
+                    tapBtn.style.display = 'flex';
+                    tapBtn.onclick = () => {
+                        tapBtn.style.display = 'none';
+                        _doubaoSetStatus('正在聆听…');
+                        _doubaoStartMic();
+                    };
+                } else {
+                    // 没有按钮则直接开麦（降级）
+                    _doubaoStartMic();
+                }
             } else if (eid === 350) { // TTSSentenceStart
                 const text = json.text || '';
                 if (text) _doubaoSetSubtitle(prev => prev + text); // append
