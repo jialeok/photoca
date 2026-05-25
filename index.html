@@ -7967,6 +7967,21 @@
         const { msgType, eventId, payload } = frame;
         _debugLog('[Doubao] 帧 msgType=' + msgType + ' eventId=' + eventId + ' payloadLen=' + (payload ? payload.byteLength : 0));
 
+        // error frame (msgType=15 = 0b1111)
+        if (msgType === 15) {
+            try {
+                const dv2 = new DataView(evt.data);
+                const hSize = (dv2.getUint8(0) & 0x0f) * 4;
+                const errCode = dv2.getUint32(hSize, false);
+                let errPayload = '';
+                if (evt.data.byteLength > hSize + 8) {
+                    const pLen2 = dv2.getUint32(hSize + 4, false);
+                    if (pLen2 > 0) errPayload = new TextDecoder().decode(new Uint8Array(evt.data, hSize + 8, pLen2));
+                }
+                _debugLog('[Doubao] ❌ 错误帧 code=' + errCode + ' msg=' + errPayload);
+            } catch(e2) { _debugLog('[Doubao] 错误帧解析失败: ' + e2); }
+        }
+
         // text events (msgType=9 = 0b1001)
         if (msgType === 9 && payload) {
             let json = {};
