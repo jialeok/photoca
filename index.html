@@ -7841,8 +7841,10 @@
         const msgType = (dv.getUint8(1) >> 4) & 0x0f;
         const flags   = dv.getUint8(1) & 0x0f;
         let offset = headerSize;
-        // error code (flags = 0b1111)
-        if (flags === 0x0f) offset += 4;
+        // error code: 错误帧(msgType=15)时，header之后直接是4字节errorCode
+        if (msgType === 15) {
+            offset += 4; // skip errorCode，后面由调用处单独解析
+        }
         // sequence (flags bit0 or bit1 set)
         if (flags & 0x03) offset += 4;
         // event id (flags bit2 = 0b0100)
@@ -7935,22 +7937,26 @@
     }
 
     function _doubaoEncodeAudio(pcmBuf) {
-        // Audio-only request (msgType=0b0010=2), flags=0b0001(非终端包，有sequence)
-        // byte1=0x21(msgType=2,flags=1), byte2=0x00(raw,no compress), byte3=0x00
-        // 结构: header(4) + sequence(4，正整数递增) + sessionId_size(4) + sessionId + payload_size(4) + payload
-        const header = new Uint8Array([0x11, 0x21, 0x00, 0x00]);
+        // Audio-only request (msgType=0b0010=2)
+        // flags=0b0101 (bit0=有sequence非终端包, bit2=有event_id)
+        // byte1 = (msgType<<4)|flags = (2<<4)|5 = 0x25
+        // byte2 = 0x00 (raw/no-compress)
+        // 结构: header(4) + sequence(4) + event_id(4,=200) + sessionId_size(4) + sessionId + payload_size(4) + payload
+        const header = new Uint8Array([0x11, 0x25, 0x00, 0x00]);
         _doubaoSeq++;
         const seqBuf = new ArrayBuffer(4); new DataView(seqBuf).setInt32(0, _doubaoSeq, false);
+        const evtBuf = new ArrayBuffer(4); new DataView(evtBuf).setUint32(0, 200, false); // TaskRequest=200
         const sBytes = _doubaoSid ? new TextEncoder().encode(_doubaoSid) : new Uint8Array(0);
         const sLen   = new ArrayBuffer(4); new DataView(sLen).setUint32(0, sBytes.byteLength, false);
         const pBytes = new Uint8Array(pcmBuf);
         const pLen   = new ArrayBuffer(4); new DataView(pLen).setUint32(0, pBytes.byteLength, false);
 
-        const total = 4 + 4 + 4 + sBytes.byteLength + 4 + pBytes.byteLength;
+        const total = 4 + 4 + 4 + 4 + sBytes.byteLength + 4 + pBytes.byteLength;
         const out   = new Uint8Array(total);
         let o = 0;
         out.set(header, o); o += 4;
         out.set(new Uint8Array(seqBuf), o); o += 4;
+        out.set(new Uint8Array(evtBuf), o); o += 4;  // ← event_id=200 (TaskRequest)
         out.set(new Uint8Array(sLen), o); o += 4;
         out.set(sBytes, o); o += sBytes.byteLength;
         out.set(new Uint8Array(pLen), o); o += 4;
@@ -7979,13 +7985,17 @@
         // error frame (msgType=15 = 0b1111)
         if (msgType === 15) {
             try {
+                // 错误帧结构: header(4) + errorCode(4) + payloadSize(4) + payload
+                // flags=0b1111 时，optional里只有errorCode，无sequence/event/session
                 const dv2 = new DataView(evt.data);
-                const hSize = (dv2.getUint8(0) & 0x0f) * 4;
+                const hSize = (dv2.getUint8(0) & 0x0f) * 4; // 固定4字节header
                 const errCode = dv2.getUint32(hSize, false);
                 let errPayload = '';
                 if (evt.data.byteLength > hSize + 8) {
                     const pLen2 = dv2.getUint32(hSize + 4, false);
-                    if (pLen2 > 0) errPayload = new TextDecoder().decode(new Uint8Array(evt.data, hSize + 8, pLen2));
+                    if (pLen2 > 0 && hSize + 8 + pLen2 <= evt.data.byteLength) {
+                        errPayload = new TextDecoder().decode(new Uint8Array(evt.data, hSize + 8, pLen2));
+                    }
                 }
                 _debugLog('[Doubao] ❌ 错误帧 code=' + errCode + ' msg=' + errPayload);
             } catch(e2) { _debugLog('[Doubao] 错误帧解析失败: ' + e2); }
