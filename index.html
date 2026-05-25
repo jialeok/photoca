@@ -7790,6 +7790,7 @@
     function _doubaoEncode(eventId, payload, sessionId) {
         // header[4]: version=1, header_size=1, msg_type=Full-client(0b0001), flags=event(0b0100), serial=JSON(0b0001), compress=none(0b0000)
         // 官方示例 StartConnection: [17 20 16 0 0 0 0 1 0 0 0 2 123 125]
+        // 官方示例 StartSession:    [17 20 16 0 0 0 0 100 0 0 0 36 <UUID36字节> 0 0 0 <payloadLen> <payload>]
         const header = new Uint8Array([0x11, 0x14, 0x10, 0x00]);
         const parts = [];
 
@@ -7822,6 +7823,14 @@
         let offset = 0;
         out.set(header, offset); offset += header.byteLength;
         parts.forEach(p => { out.set(p, offset); offset += p.byteLength; });
+
+        // 调试：打印帧前60字节，方便对照官方示例验证格式
+        _debugLog('[encode] eid=' + eventId
+            + ' sid=' + (sessionId ? sessionId.substring(0, 8) + '…' : 'null')
+            + ' payloadLen=' + pBytes.byteLength
+            + ' totalLen=' + totalLen
+            + ' 前60字节:[' + Array.from(out.slice(0, 60)).join(' ') + ']');
+
         return out.buffer;
     }
 
@@ -8059,10 +8068,13 @@
         const payload = {
             tts: {
                 speaker: window._doubaoSpeaker || 'zh_female_vv_jupiter_bigtts',
-                audio_config: { channel: 1, format: 'ogg_opus', sample_rate: 24000 }
+                audio_config: { channel: 1, format: 'ogg_opus', sample_rate: 24000 },
+                extra: {}   // ← 补上 tts.extra，文档要求不能缺失否则报 42000020
             },
-            asr: { audio_info: { format: 'pcm', sample_rate: 16000, channel: 1 },
-                   extra: {} },
+            asr: {
+                audio_info: { format: 'pcm', sample_rate: 16000, channel: 1 }
+                // ← asr.extra 不传，文档说置空报 42000020，不传最安全
+            },
             dialog: {
                 bot_name:       '助理',
                 system_role:    window._doubaoSystemPrompt || '你是Picto写真馆的智能助理，亲切活泼。',
@@ -8070,7 +8082,9 @@
                 extra: { model: '1.2.1.1', input_mod: 'keep_alive', strict_audit: false }
             }
         };
-        _doubaoSendEvent(100, JSON.stringify(payload));
+        const jsonStr = JSON.stringify(payload);
+        _debugLog('[Doubao] StartSession payload(' + jsonStr.length + '字节): ' + jsonStr.substring(0, 150));
+        _doubaoSendEvent(100, jsonStr);
     }
 
     // ─── 公开接口 ─────────────────────────────────────────────────────────────
