@@ -8064,26 +8064,43 @@
         _doubaoWs.send(buf);
     }
 
+    function _doubaoSanitizePrompt(str) {
+        if (!str) return '';
+        // 火山服务端用 YAML 解析 system_role/speaking_style
+        // 换行符、制表符、反斜杠、引号会导致 "found unknown escape character" 报错(45000000)
+        return str
+            .replace(/[\r\n\t]/g, ' ')
+            .replace(/\\/g, '、')
+            .replace(/["]/g, '')
+            .replace(/\s{2,}/g, ' ')
+            .trim()
+            .substring(0, 500);
+    }
+
     function _doubaoSendStartSession() {
+        const rawPrompt = window._doubaoSystemPrompt || '你是Picto写真馆的智能助理，亲切活泼。';
+        const safePrompt = _doubaoSanitizePrompt(rawPrompt);
+        _debugLog('[Doubao] system_prompt原文(' + rawPrompt.length + '): ' + rawPrompt.substring(0, 80));
+        _debugLog('[Doubao] system_prompt清洗后(' + safePrompt.length + '): ' + safePrompt.substring(0, 80));
+
         const payload = {
             tts: {
                 speaker: window._doubaoSpeaker || 'zh_female_vv_jupiter_bigtts',
                 audio_config: { channel: 1, format: 'ogg_opus', sample_rate: 24000 },
-                extra: {}   // ← 补上 tts.extra，文档要求不能缺失否则报 42000020
+                extra: {}
             },
             asr: {
                 audio_info: { format: 'pcm', sample_rate: 16000, channel: 1 }
-                // ← asr.extra 不传，文档说置空报 42000020，不传最安全
             },
             dialog: {
                 bot_name:       '助理',
-                system_role:    window._doubaoSystemPrompt || '你是Picto写真馆的智能助理，亲切活泼。',
+                system_role:    safePrompt,
                 speaking_style: '口语化、简短，每次不超过3句话',
                 extra: { model: '1.2.1.1', input_mod: 'keep_alive', strict_audit: false }
             }
         };
         const jsonStr = JSON.stringify(payload);
-        _debugLog('[Doubao] StartSession payload(' + jsonStr.length + '字节): ' + jsonStr.substring(0, 150));
+        _debugLog('[Doubao] StartSession payload(' + jsonStr.length + '字节): ' + jsonStr.substring(0, 200));
         _doubaoSendEvent(100, jsonStr);
     }
 
