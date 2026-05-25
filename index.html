@@ -7898,8 +7898,8 @@
             _doubaoMicStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
             _doubaoAudioCtx  = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
             _doubaoSourceNode = _doubaoAudioCtx.createMediaStreamSource(_doubaoMicStream);
-            // ScriptProcessor: 20ms @ 16kHz = 320 samples
-            _doubaoProcessor  = _doubaoAudioCtx.createScriptProcessor(320, 1, 1);
+            // ScriptProcessor: 32ms @ 16kHz = 512 samples（必须是2的幂次方）
+            _doubaoProcessor  = _doubaoAudioCtx.createScriptProcessor(512, 1, 1);
             _doubaoProcessor.onaudioprocess = (e) => {
                 if (!_doubaoWs || _doubaoWs.readyState !== WebSocket.OPEN) return;
                 const f32 = e.inputBuffer.getChannelData(0);
