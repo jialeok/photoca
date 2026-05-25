@@ -4463,6 +4463,7 @@
     let _doubaoPlayCtx      = null;   // 播放用 AudioContext
     let _doubaoNextTime     = 0;      // 下一块音频开始时间
     let _doubaoState        = 'idle'; // idle | connecting | connected | speaking | listening
+    let _doubaoSeq          = 0;    // 音频帧序列号，每次发送递增
 
     // ══ EMO 视频生成状态 ══
     let _emoEnabled       = false;  // 从 app_config 读取，默认关闭
@@ -7930,8 +7931,9 @@
         // 对照官方TTSResponse示例: [17 180 0 0 ...] 其中180=0xb4=msgType=11,flags=4
         // 客户端发音频用 msgType=2, flags=1(sequence)
         const header = new Uint8Array([0x11, 0x21, 0x00, 0x00]);
-        // sequence=1 (非终端包，正数)
-        const seqBuf = new ArrayBuffer(4); new DataView(seqBuf).setUint32(0, 1, false);
+        // sequence递增（必须与火山服务端autoAssignedSequence一致）
+        _doubaoSeq++;
+        const seqBuf = new ArrayBuffer(4); new DataView(seqBuf).setUint32(0, _doubaoSeq, false);
         // sessionId
         const sBytes = _doubaoSid ? new TextEncoder().encode(_doubaoSid) : new Uint8Array(0);
         const sLen   = new ArrayBuffer(4); new DataView(sLen).setUint32(0, sBytes.byteLength, false);
@@ -8127,6 +8129,7 @@
         _doubaoSessionDbId = cfg.doubao_session_db_id;
         _doubaoConnId      = _doubaoUUID();
         _doubaoSid         = _doubaoUUID();
+        _doubaoSeq         = 0;
 
         // 2. 建立 WebSocket — 走 Render doubao-ws-proxy
         const wsUrl = new URL('wss://doubao-ws-proxy.onrender.com/proxy');
