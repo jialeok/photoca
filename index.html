@@ -4451,7 +4451,6 @@
     // ══ 豆包智能助理状态 ══
     let _doubaoEnabled      = true;   // 从 display-config 读取，默认开启（config 可配置关闭）
     let _doubaoWs           = null;   // WebSocket 实例
-    let _doubaoSessionDbId  = null;   // doubao_sessions 表的 DB 记录 ID
     let _doubaoConnId       = null;   // WebSocket connect id
     let _doubaoSid          = null;   // Session id
     let _doubaoMicStream    = null;   // 麦克风 MediaStream
@@ -8160,51 +8159,10 @@
         _doubaoSetSubtitle('');
         _doubaoChunks = [];
 
-        // 1. 调 Edge Function 拿凭据 + system prompt
-        let cfg = {};
-        try {
-            // 从 DB 读取 qwen_voice 作为 VL snapshot
-            let vlSnapshot = null;
-            if (supabaseClient && downloadSessionId) {
-                const { data } = await supabaseClient
-                    .from('generations').select('qwen_voice')
-                    .eq('session_id', downloadSessionId).single();
-                if (data?.qwen_voice) {
-                    try {
-                        const parsed = JSON.parse(data.qwen_voice);
-                        if (parsed?.segments) {
-                            vlSnapshot = {};
-                            parsed.segments.forEach((s, i) => {
-                                if (s.text) vlSnapshot['段落' + (i + 1)] = s.text;
-                            });
-                        }
-                    } catch(_){}
-                }
-            }
-            const resp = await fetch(SUPABASE_URL + '/functions/v1/doubao-auth', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json',
-                           'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
-                body: JSON.stringify({ session_id: downloadSessionId || ('anon_' + Date.now()),
-                                       vl_snapshot: vlSnapshot })
-            });
-            cfg = await resp.json();
-            if (!cfg.success) throw new Error(cfg.error || 'auth failed');
-            _debugLog('[Doubao] Edge Function OK app_id=' + cfg.app_id);
-        } catch(e) {
-            _doubaoSetStatus('初始化失败: ' + e.message);
-            console.warn('[Doubao] auth error', e);
-            return;
-        }
-
-        window._doubaoSpeaker      = cfg.speaker;
-        window._doubaoSystemPrompt = cfg.system_prompt;
-        _doubaoSessionDbId = cfg.doubao_session_db_id;
-        _doubaoConnId      = _doubaoUUID();
-        _doubaoSid         = _doubaoUUID();
-        _doubaoSeq         = 2; // StartConnection占1，StartSession占2
-
-        // 2. 建立 WebSocket — 走 Render doubao-ws-proxy
+        // 直接建立 WebSocket — 走 Render doubao-ws-proxy（鉴权凭据由服务端处理）
+        _doubaoConnId = _doubaoUUID();
+        _doubaoSid    = _doubaoUUID();
+        _doubaoSeq    = 2; // StartConnection占1，StartSession占2
         const wsUrl = new URL('wss://doubao-ws-proxy.onrender.com/proxy');
         wsUrl.searchParams.set('session_id', downloadSessionId || ('anon_' + Date.now()));
 
