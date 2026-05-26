@@ -2553,34 +2553,6 @@
         </div>
     </div>
 
-    <!-- 卡片4：API 连接状态 -->
-    <div class="card" style="margin-bottom:20px">
-        <div class="card-header">
-            <div class="card-title"><span class="material-icons-round">electrical_services</span>API 连接状态</div>
-        </div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
-            <div style="display:flex;flex-direction:column;gap:10px">
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border-radius:10px">
-                    <div style="font-size:13px;font-weight:600">DOUBAO_APP_ID</div>
-                    <div id="doubao-key-app-id" style="font-size:12px;color:var(--ink-soft)">检测中…</div>
-                </div>
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border-radius:10px">
-                    <div style="font-size:13px;font-weight:600">DOUBAO_ACCESS_KEY</div>
-                    <div id="doubao-key-access" style="font-size:12px;color:var(--ink-soft)">检测中…</div>
-                </div>
-            </div>
-            <div style="font-size:11px;color:var(--ink-soft);padding:10px 12px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:10px;display:flex;gap:8px;align-items:flex-start">
-                <span class="material-icons-round" style="font-size:14px!important;color:var(--warning);flex-shrink:0;margin-top:1px">warning</span>
-                <span>密钥须在 Supabase Dashboard → Settings → Edge Functions → Secrets 中配置，名称分别为 <strong>DOUBAO_APP_ID</strong> 和 <strong>DOUBAO_ACCESS_KEY</strong>，配置后此页面无法读取具体值（仅显示是否已设置）。</span>
-            </div>
-            <button class="btn-ghost" id="doubao-test-btn" onclick="doubaoTestConnection()" style="display:flex;align-items:center;justify-content:center;gap:6px">
-                <span class="material-icons-round" style="font-size:16px!important">bolt</span>
-                测试 Edge Function 连通性
-            </button>
-            <div id="doubao-test-result" style="font-size:12px;min-height:16px;color:var(--ink-soft)"></div>
-        </div>
-    </div>
-
     <div id="doubao-save-status" style="font-size:12px;color:var(--ink-soft);min-height:16px;margin-bottom:20px"></div>
 </main>
 
@@ -7627,8 +7599,7 @@ async function loadDoubaoPage() {
     // 加载 VL 字段列表
     await loadDoubaoVlFields();
 
-    // 检测密钥状态（调用 Edge Function ping）
-    doubaoCheckSecrets();
+
 }
 
 // ── 加载配置文件 ────────────────────────────────────────
@@ -7777,73 +7748,7 @@ function doubaoPromptCharCount() {
     if (sp && el) el.textContent = sp.value.length + ' 字';
 }
 
-// ── 检测 Secrets 是否已配置（通过 Edge Function 返回信息判断） ──
-async function doubaoCheckSecrets() {
-    const appIdEl  = document.getElementById('doubao-key-app-id');
-    const accessEl = document.getElementById('doubao-key-access');
-    if (!appIdEl || !accessEl) return;
 
-    // 调用 Edge Function，若密钥未配置会返回特定错误
-    try {
-        const res = await fetch(SUPABASE_URL + '/functions/v1/doubao-auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
-            body: JSON.stringify({ session_id: '__ping__', vl_snapshot: null }),
-        });
-        const data = await res.json();
-
-        if (data.success) {
-            appIdEl.innerHTML  = '<span style="color:var(--success);font-weight:700">✅ 已配置</span>';
-            accessEl.innerHTML = '<span style="color:var(--success);font-weight:700">✅ 已配置</span>';
-        } else if (data.error && data.error.includes('DOUBAO_APP_ID')) {
-            appIdEl.innerHTML  = '<span style="color:var(--danger);font-weight:700">❌ 未配置</span>';
-            accessEl.innerHTML = '<span style="color:var(--danger);font-weight:700">❌ 未配置</span>';
-        } else {
-            // Edge Function 存在但返回业务错误，说明密钥已配置
-            appIdEl.innerHTML  = '<span style="color:var(--success);font-weight:700">✅ 已配置</span>';
-            accessEl.innerHTML = '<span style="color:var(--success);font-weight:700">✅ 已配置</span>';
-        }
-    } catch(_) {
-        appIdEl.innerHTML  = '<span style="color:var(--ink-soft)">— Edge Function 未部署</span>';
-        accessEl.innerHTML = '<span style="color:var(--ink-soft)">— Edge Function 未部署</span>';
-    }
-}
-
-// ── 测试 Edge Function 连通性 ───────────────────────────
-async function doubaoTestConnection() {
-    const btn    = document.getElementById('doubao-test-btn');
-    const result = document.getElementById('doubao-test-result');
-    if (!btn || !result) return;
-
-    btn.disabled = true;
-    btn.innerHTML = '<span class="material-icons-round" style="font-size:16px!important;animation:spin 1s linear infinite">refresh</span>测试中…';
-    result.textContent = '';
-
-    try {
-        const start = Date.now();
-        const res = await fetch(SUPABASE_URL + '/functions/v1/doubao-auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
-            body: JSON.stringify({ session_id: '__ping__', vl_snapshot: null }),
-        });
-        const ms   = Date.now() - start;
-        const data = await res.json();
-
-        if (data.success) {
-            result.innerHTML = `<span style="color:var(--success)">✅ Edge Function 响应正常（${ms}ms），豆包密钥已就绪</span>`;
-            // 同步更新密钥状态显示
-            document.getElementById('doubao-key-app-id').innerHTML  = '<span style="color:var(--success);font-weight:700">✅ 已配置</span>';
-            document.getElementById('doubao-key-access').innerHTML  = '<span style="color:var(--success);font-weight:700">✅ 已配置</span>';
-        } else {
-            result.innerHTML = `<span style="color:var(--danger)">❌ ${data.error || '未知错误'}（${ms}ms）</span>`;
-        }
-    } catch(e) {
-        result.innerHTML = `<span style="color:var(--danger)">❌ 请求失败：${e.message}（Edge Function 可能未部署）</span>`;
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<span class="material-icons-round" style="font-size:16px!important">bolt</span>测试 Edge Function 连通性';
-    }
-}
 </script>
 
 <script>
