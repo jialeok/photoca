@@ -2699,8 +2699,8 @@
         <div class="filter-nav" id="filter-nav-wrap">
             <!-- 第一行起：分组（自动换行，全部显示） -->
             <div class="group-tab-row" id="group-tab-row"></div>
-            <!-- 选中分组后展示子标签（初始隐藏） -->
-            <div class="sub-tag-row" id="sub-tag-row" style="display:none"></div>
+            <!-- 选中分组后展示子标签（已隐藏，不在前台显示） -->
+            <div class="sub-tag-row" id="sub-tag-row" style="display:none!important"></div>
         </div>
 
         <div class="screen-body">
@@ -7029,52 +7029,13 @@
         activeGroupId = btn.dataset.gid;
         activeTagName = '__all__';
 
-        const subRow = document.getElementById('sub-tag-row');
-
         if (activeGroupId === '__all__') {
-            // 全部：隐藏子标签行，显示全部风格
-            if (subRow) subRow.style.display = 'none';
+            // 全部：显示全部风格
             renderStyleGrid(allStyles);
             return;
         }
 
-        // 找该分组下有哪些 tag（且这些 tag 对应的风格存在）
-        const usedTagNames = new Set(allStyles.map(s => s.category).filter(Boolean));
-        let groupTags;
-        if (activeGroupId === '__none__') {
-            groupTags = allTags.filter(t => !t.group_id && usedTagNames.has(t.name));
-        } else {
-            groupTags = allTags.filter(t => t.group_id === activeGroupId && usedTagNames.has(t.name));
-        }
-
-        // 构建子标签行
-        if (subRow) {
-            if (groupTags.length > 0) {
-                subRow.style.display = 'flex';
-                subRow.innerHTML = '';
-
-                // 「全部」子标签
-                const allChip = document.createElement('button');
-                allChip.className = 'sub-tag-chip active';
-                allChip.dataset.tag = '__all__';
-                allChip.textContent = '全部';
-                allChip.onclick = function() { selectSubTag(this); };
-                subRow.appendChild(allChip);
-
-                groupTags.forEach(tag => {
-                    const chip = document.createElement('button');
-                    chip.className = 'sub-tag-chip';
-                    chip.dataset.tag = tag.name;
-                    chip.textContent = tag.name;
-                    chip.onclick = function() { selectSubTag(this); };
-                    subRow.appendChild(chip);
-                });
-            } else {
-                subRow.style.display = 'none';
-            }
-        }
-
-        // 显示该分组下所有风格
+        // 直接显示该分组下所有风格（不显示子标签行）
         applyFilter();
     }
 
@@ -7132,6 +7093,19 @@
         if (id === 'scr-qrcode') { startQrTimer(); startQrUploadSession(); }
         else if (id === 'scr-direct-upload') { initDirectUploadScreen(); }
         else { stopQrTimer(); stopQrUploadSession(); }
+        // 每次进入风格页，重置到「全部」状态，避免上次选中分类残留
+        if (id === 'scr-style') {
+            activeGroupId = '__all__';
+            activeTagName = '__all__';
+            const allBtn = document.querySelector('#group-tab-row .group-tab[data-gid="__all__"]');
+            if (allBtn) {
+                document.querySelectorAll('.group-tab').forEach(b => b.classList.remove('active'));
+                allBtn.classList.add('active');
+            }
+            const subRow = document.getElementById('sub-tag-row');
+            if (subRow) subRow.style.display = 'none';
+            if (allStyles.length > 0) renderStyleGrid(allStyles);
+        }
         // 进入结果页时触发语音播报；同时控制助理按钮可见性
         if (id === 'scr-result') {
             startVoicePlayback();
